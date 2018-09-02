@@ -1,0 +1,149 @@
+# formula使用说明
+
+formula模块可用于对一段文本进行关键字解析，以及进行公式（表达式）匹配和公式值计算。主要应用场景包括代码解析结构化处理（例如将html代码按标签解析为字典形式进行处理）、对一段文本进行自定义公式识别和计算处理。
+
+
+
+## 算法框架说明
+
+### 第1步：检索单个关键字
+
+- 将keywords（公式定义，包括开始标签及结束标签信息）分解为match_list（单关键字信息清单）
+- 将解析文本按流处理方式（引用StringStream模块）按顺序逐字符分析和处理，算法如下：
+  - 判断流当前字符是否匹配上match_list中每个关键字的第一个字符（如果有前置字符则为前置字符），如果匹配上，则将待继续匹配的结果压入compare_stack堆栈（登记已部分匹配上的信息），待流的下一个字符处理中继续向后匹配
+  - 遍历compare_stack堆栈中的所有部分匹配信息清单，根据以下结果分别处理：
+    - 流当前字符与要匹配结果的下一个预期字符不同，认定匹配失败，从compare_stack堆栈删除
+    - 流当前字符与要匹配结果的下一个预期字符相同，且不是预期的结束字符，认定可继续匹配，更新compare_stack堆栈的匹配信息，等待下一次流字符处理
+    - 流当前字符与要匹配结果的下一个预期字符相同，且是预期的结束字符，认定已匹配完成，将匹配结果存入match_result，然后从compare_stack堆栈删除
+
+- 文本流处理完，得到match_result（单关键字的分析结果），该结果登记登记了每个关键字的开始位置（start_pos）、结束位置（end_pos）、前置字符（front_char）、后置字符（end_char）等信息；**注意：这个结果可能存在同一部分文本被多个关键字共同匹配上的情况**
+
+### 第2步：单个关键字结果的处理
+
+- 如果检索参数不允许多重匹配（multiple_match，即同一段文本有多个关键字命中），则按照关键字获取顺序优先级参数（EnumFormulaSearchSortOrder）进行结果的处理，将关键字结果有位置重叠的情况删除多余的匹配关键字信息
+- 对匹配结果按位置先后的顺序进行排序，生成匹配结果按顺序排序的list清单
+
+### 第3步：根据单关键字结果解析公式（表达式）
+
+- 根据公式定义清单，从match_result按位置顺序找公式开始标签及结束标签，以此获取到一个完整的公式，更新至公式解析对象（StructFormula）中
+- 查到到公式中间部分的单关键字匹配结果采用递归算法，由其父公式发起检索匹配，更新至公式解析对象（StructFormula）中
+- 最终获得完整的公式解析对象（StructFormula）
+
+### 第4步：根据公式解析对象计算公式值
+
+采用递归算法，从第1个公式开始，逐级向下找到子公式，调用对应公式关键字的计算算法函数（deal_fun）计算公式的值，并更新到公式解析对象（StructFormula）中
+
+
+
+## formula使用参考
+
+### 静态工具
+
+#### formula.search 
+
+可直接调用类的该静态方法，匹配获取单关键字信息清单（match_list）的匹配结果（match_result）
+
+match_list的定义 @see FormulaTool/match_list
+
+dict格式的match_result  参考 @see FormulaTool/match_result
+
+参考代码如下：
+
+```
+
+```
+
+
+
+#### formula.match_result_to_sorted_list
+
+将dict格式的匹配结果（match_result）转换为已排序后的list格式
+
+```
+
+```
+
+
+
+#### formula.analyse_formula
+
+直接按keyworks参数解析公式文本，形成结构化字典的公式对象 @see StructFormula，该对象通过子公式的方式递归展示所有的公式信息。
+
+示例如下：
+
+```
+# 解析带公式的字符串
+_source_str = '[full begin] formula {$PY=[PY1 begin] xxxx{$single=$}xx{$PY=[PY2 begin]eeeee[PY2 end]$}x [PY1 end]$} from {$end=[End begin]abc {$abc=[abc begin]"[string begin]kkkaf{$PY=not formula$}dfdf,\\",""haha[string end]"[abc end]$} PY=eeffff [full end]'
+
+# 定义字符串公式的公共关键字参数，例如python中的""引起来的认为是字符串
+_string_para = StructFormulaKeywordPara()
+_string_para.is_string = True  # 声明是字符串参数
+_string_para.has_sub_formula = False  # 声明公式中不会有子公式
+# 在查找字符串结束关键字时忽略的转义情况，例如"this is a string ,ignore \" , this is real end"
+_string_para.string_ignore_chars = ['\\"', '""']
+
+# 定义单关键字公式的公共参数（没有结束关键字）
+_single_para = StructFormulaKeywordPara()
+_single_para.is_single_tag = True  # 声明是单标签公式关键字
+
+# 定义以字符串结尾为结束标签的公共参数
+_end_para = StructFormulaKeywordPara()
+_end_para.end_tags = ['\\$']
+
+# 定义公式解析的关键字参数
+_keywords = {
+	# 第一个定义了字符串的公式匹配参数
+	'String': [
+		['"', list(), list()],  # 公式开始标签
+		['"', list(), list()],  # 公式结束标签
+		_string_para  # 公式检索参数
+	],
+	'PY': [
+		['{$PY=', list(), list()],  # 公式开始标签
+		['$}', list(), list()],  # 公式结束标签
+		StructFormulaKeywordPara()  # 公式检索参数
+	],
+	'abc': [
+		['{$abc=', list(), list()],
+		['$}', list(), list()],
+		StructFormulaKeywordPara()
+	],
+	'Single': [
+		['{$single=$}', list(), list()],
+		None,
+		_single_para
+	],
+	'End': [
+		['{$end=', list(), list()],
+		None,
+		_end_para
+	]
+}
+
+# 解析公式
+_formula = FormulaTool.analyse_formula(formula_str=_source_str, keywords=_keywords, ignore_case=False)
+
+```
+
+
+
+### 解析并执行公式计算
+
+如果需要执行公式计算，则需实例化formula类才能处理，具体步骤如下：
+
+1、实例化formula类
+
+
+
+2、管理keyworks公式参数
+
+
+
+3、执行公式计算
+
+
+
+
+
+
+
