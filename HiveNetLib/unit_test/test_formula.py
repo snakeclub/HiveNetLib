@@ -7,7 +7,6 @@
 @file test_formula.py
 """
 
-
 import os
 import sys
 import unittest
@@ -22,6 +21,13 @@ __DESCRIPT__ = u'测试formula模块'  # 模块描述
 __VERSION__ = '0.1.0'  # 版本
 __AUTHOR__ = u'黎慧剑'  # 作者
 __PUBLISH__ = '2018.09.02'  # 发布日期
+
+
+def formula_deal_fun_test(f_obj, my_string='my_string', my_list=['my_list'], **kwargs):
+    """
+    自定义公式处理函数
+    """
+    f_obj.formula_value = '[自定义内容开始]' + f_obj.content_string + '[自定义内容结束]'
 
 
 class TestFormulaTool(unittest.TestCase):
@@ -169,6 +175,73 @@ class TestFormulaTool(unittest.TestCase):
         if temp_formula.keyword != 'String' or temp_formula.content_string != '[string begin]kkkaf{$PY=not formula$}dfdf,\\",""haha[string end]':
             # 整个字符串
             self.assertTrue(False, '公式7配不通过')
+
+    def test_formula(self):
+        """
+        测试公式解析和计算
+        """
+        # 要解析的公式
+        _source_str = '[开始] {$PY=10 + 21$} {$PY=\'[PY1开始]{$ab=[ab开始]testab[时间开始]{$single=$}[时间结束][ab结束]$}} [PY1结束]\'$} "[string 开始]{$PY=string py$} [string 结束]" [结束]'
+
+        # 定义字符串公式的公共关键字参数，例如python中的""引起来的认为是字符串
+        _string_para = StructFormulaKeywordPara()
+        _string_para.is_string = True  # 声明是字符串参数
+        _string_para.has_sub_formula = False  # 声明公式中不会有子公式
+        # 在查找字符串结束关键字时忽略的转义情况，例如"this is a string ,ignore \" , this is real end"
+        _string_para.string_ignore_chars = ['\\"', '""']
+
+        # 定义单关键字公式的公共参数（没有结束关键字）
+        _single_para = StructFormulaKeywordPara()
+        _single_para.is_single_tag = True  # 声明是单标签公式关键字
+
+        # 定义公式解析的关键字参数
+        _keywords = {
+            # 第一个定义了字符串的公式匹配参数
+            'String': [
+                ['"', list(), list()],  # 公式开始标签
+                ['"', list(), list()],  # 公式结束标签
+                _string_para  # 公式检索参数
+            ],
+            'PY': [
+                ['{$PY=', list(), list()],  # 公式开始标签
+                ['$}', list(), list()],  # 公式结束标签
+                StructFormulaKeywordPara()  # 公式检索参数
+            ],
+            'ab': [
+                ['{$ab=', list(), list()],
+                ['$}', list(), list()],
+                StructFormulaKeywordPara()
+            ],
+            'Single': [
+                ['{$single=$}', list(), list()],
+                None,
+                _single_para
+            ]
+        }
+
+        # 定义公式对象处理函数
+        _deal_fun_list = {
+            'PY': FormulaTool.default_deal_fun_python,  # 执行python语句
+            'String': FormulaTool.default_deal_fun_string_content,  # 只保留标签内容
+            'ab': formula_deal_fun_test,  # 自定义公式处理函数
+            'Single': FormulaTool.default_deal_fun_string_content  # 只保留标签内容
+        }
+
+        # 初始化公式类
+        _formula_obj = FormulaTool(
+            keywords=_keywords,
+            ignore_case=False,
+            deal_fun_list=_deal_fun_list,
+            default_deal_fun=None
+        )
+
+        # 计算公式
+        _formula = _formula_obj.run_formula_as_string(_source_str)
+
+        # print(_formula.formula_value)
+
+        self.assertTrue(_formula.formula_value ==
+                        '[开始] 31 [PY1开始][自定义内容开始][ab开始]testab[时间开始][时间结束][ab结束][自定义内容结束]} [PY1结束] [string 开始]{$PY=string py$} [string 结束] [结束]', '公式计算失败')
 
 
 if __name__ == '__main__':

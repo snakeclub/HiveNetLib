@@ -35,11 +35,11 @@ formula模块可用于对一段文本进行关键字解析，以及进行公式�
 
 
 
-## formula使用参考
+## FormulaTool使用参考
 
 ### 静态工具
 
-#### formula.search 
+#### FormulaTool.search 
 
 可直接调用类的该静态方法，匹配获取单关键字信息清单（match_list）的匹配结果（match_result）
 
@@ -50,22 +50,35 @@ dict格式的match_result  参考 @see FormulaTool/match_result
 参考代码如下：
 
 ```
+# 尝试解析SQL语句的关键字
+_source_str = 'select * From test where t.name \tlike \'%fromxxx\' order by name'
+_split_common = ('\\^', '\r', '\n', ' ', '\t', '\\$')  # 关键字前置及后置字符
+_match_list = {
+	'select': (_split_common, _split_common),
+	'from': (_split_common, _split_common),
+	'where': (_split_common, _split_common),
+	'like': (_split_common, _split_common),
+	'order': (_split_common, _split_common),
+	'by': (_split_common, _split_common)
+}
 
+# 解析关键字
+_match_result = FormulaTool.search(source_str=_source_str, match_list=_match_list, ignore_case=True,multiple_match=False, sort_oder=EnumFormulaSearchSortOrder.ListDesc)
 ```
 
 
 
-#### formula.match_result_to_sorted_list
+#### FormulaTool.match_result_to_sorted_list
 
 将dict格式的匹配结果（match_result）转换为已排序后的list格式
 
 ```
-
+_match_result_list = FormulaTool.match_result_to_sorted_list(_match_result)
 ```
 
 
 
-#### formula.analyse_formula
+#### FormulaTool.analyse_formula
 
 直接按keyworks参数解析公式文本，形成结构化字典的公式对象 @see StructFormula，该对象通过子公式的方式递归展示所有的公式信息。
 
@@ -129,21 +142,102 @@ _formula = FormulaTool.analyse_formula(formula_str=_source_str, keywords=_keywor
 
 ### 解析并执行公式计算
 
-如果需要执行公式计算，则需实例化formula类才能处理，具体步骤如下：
+如果需要执行公式计算，则需实例化FormulaTool类才能处理，具体步骤如下：
 
-1、实例化formula类
+1、准备keyworks公式参数、公式标签对应的处理函数
 
-
-
-2、管理keyworks公式参数
-
-
+2、实例化FormulaTool类
 
 3、执行公式计算
 
+示例如下：
+
+```
+# 要解析的公式
+_source_str = '[开始] {$PY=10 + 21$} {$PY=\'[PY1开始]{$ab=[ab开始]testab[时间开始]{$single=$}[时间结束][ab结束]$}} [PY1结束]\'$} "[string 开始]{$PY=string py$} [string 结束]" [结束]'
+
+# 定义字符串公式的公共关键字参数，例如python中的""引起来的认为是字符串
+_string_para = StructFormulaKeywordPara()
+_string_para.is_string = True  # 声明是字符串参数
+_string_para.has_sub_formula = False  # 声明公式中不会有子公式
+# 在查找字符串结束关键字时忽略的转义情况，例如"this is a string ,ignore \" , this is real end"
+_string_para.string_ignore_chars = ['\\"', '""']
+
+# 定义单关键字公式的公共参数（没有结束关键字）
+_single_para = StructFormulaKeywordPara()
+_single_para.is_single_tag = True  # 声明是单标签公式关键字
+
+# 定义公式解析的关键字参数
+_keywords = {
+            # 第一个定义了字符串的公式匹配参数
+            'String': [
+                ['"', list(), list()],  # 公式开始标签
+                ['"', list(), list()],  # 公式结束标签
+                _string_para  # 公式检索参数
+            ],
+            'PY': [
+                ['{$PY=', list(), list()],  # 公式开始标签
+                ['$}', list(), list()],  # 公式结束标签
+                StructFormulaKeywordPara()  # 公式检索参数
+            ],
+            'ab': [
+                ['{$ab=', list(), list()],
+                ['$}', list(), list()],
+                StructFormulaKeywordPara()
+            ],
+            'Single': [
+                ['{$single=$}', list(), list()],
+                None,
+                _single_para
+            ]
+        }
+
+# 定义公式对象处理函数
+_deal_fun_list = {
+            'PY': FormulaTool.default_deal_fun_python,  # 执行python语句
+            'String': FormulaTool.default_deal_fun_string_content,  # 只保留标签内容
+            'ab': formula_deal_fun_test,  # 自定义公式处理函数
+            'Single': FormulaTool.default_deal_fun_datetime_str  # 获取日期
+        }
+
+# 初始化公式类
+_formula_obj = FormulaTool(
+            keywords=_keywords,
+            ignore_case=False,
+            deal_fun_list=_deal_fun_list,
+            default_deal_fun=None
+        )
+
+# 计算公式，所有结果转换为字符串
+_formula = _formula_obj.run_formula_as_string(_source_str)
+
+# 打印公式执行结果
+print(_formula.formula_value)
+```
 
 
 
+### 自定义公式处理函数
+
+可按照以下格式自定义公式的处理函数：
+
+fun(formular_obj, **kwargs):
+
+                formular_obj : StructFormula 要处理公式对象（函数直接修改对象），该函数需更新对象的formula_value
+
+                kwargs ：计算公式所传入的key=value格式的参数，参数key由处理函数定义（建议统一定义便于简化处理）
+
+
+
+公式处理类FormulaTool已经定义了几个默认的处理函数：
+
+default_deal_fun_string_full ：将标签自身的字符串作为设置值
+
+default_deal_fun_string_content ：将标签内容的字符串作为设置值
+
+default_deal_fun_python ：标签内容作为python代码执行，将执行结果的对象作为设置值
+
+default_deal_fun_datetime_str ：获取当前时间日期字符格式
 
 
 
