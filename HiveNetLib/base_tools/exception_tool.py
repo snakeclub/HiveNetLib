@@ -131,9 +131,9 @@ class ExceptionTool(object):
 
         @param {CResult} result_obj=None - 需要设置的错误类对象
         @param {dict} error_map={} - 用来设置错误类对象的映射表，具体说明如下：
-            1、key为异常类，value为(code, msg)的错误码、错误描述二元组
-            2、应有一个'DEFAULT'的key，代表没有匹配上的异常映射，默认value为(-1,u'未知异常')
-            3、应有一个'SUCESS'的key，代表成功的映射，默认value为(0,u'成功')
+            1、key为异常类，value为(code, msg)的错误码、错误描述二元组，如果msg=None代表使用标准错误码
+            2、应有一个'DEFAULT'的key，代表没有匹配上的异常映射，默认value为('29999', None)
+            3、应有一个'SUCESS'的key，代表成功的映射，默认value为('00000', None)
         @param {tuple} expect=() - 需要忽略的异常列表，例如(ZeroDivisionError, ValueError)
         @param {bool} expect_no_log=False - 忽略异常列表是否不打印日志
         @param {bool} expect_use_error_map=True - 忽略异常列表所匹配到的异常，所返回错误码是否使用错误码映射表:
@@ -157,17 +157,12 @@ class ExceptionTool(object):
         try:
             # 初始化对象
             if result_obj is None:
-                result_obj = CResult(code='00000', msg='success', i18n_obj=i18n_obj)
+                result_obj = CResult(code='00000', msg=None, i18n_obj=i18n_obj)
             # 确保映射表中有默认值
             if 'SUCESS' not in _error_map.keys():
                 _error_map['SUCESS'] = ('00000', 'success')
             if 'DEFAULT' not in _error_map.keys():
                 _error_map['DEFAULT'] = ('29999', 'other system failure')
-            # 预设执行结果
-            result_obj.code = _error_map['SUCESS'][0]
-            result_obj.set_i18n_msg(_error_map['SUCESS'][1])
-            result_obj.error = None
-            result_obj.trace_str = ''
             # 执行with对应的脚本
             yield
         except expect:
@@ -179,33 +174,45 @@ class ExceptionTool(object):
                 ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
                                           trace_str=traceback.format_exc(), log_level=_log_level)
             # 按成功处理
-            result_obj.error = sys.exc_info()
-            result_obj.trace_str = traceback.format_exc()
-            if expect_use_error_map and result_obj.error[0] in _error_map.keys():
-                result_obj.code = _error_map[result_obj.error[0]][0]
-                result_obj.set_i18n_msg(_error_map[result_obj.error[0]][1])
+            _error = sys.exc_info()
+            _trace_str = traceback.format_exc()
+            if expect_use_error_map and _error[0] in _error_map.keys():
+                result_obj = CResult(
+                    code=_error_map[_error[0]][0],
+                    msg=_error_map[_error[0]][1],
+                    error=_error,
+                    trace_str=_trace_str,
+                    i18n_obj=i18n_obj
+                )
             else:
-                result_obj.code = _error_map['SUCESS'][0]
-                result_obj.set_i18n_msg(_error_map['SUCESS'][1])
-                result_obj.error = None
-                result_obj.trace_str = ''
-            pass
+                # 按成功处理
+                pass
         except Exception as e:
             # 其他异常，输出日志，获取失败信息
-            result_obj.error = sys.exc_info()
-            result_obj.trace_str = traceback.format_exc()
-            if result_obj.error[0] in _error_map.keys():
-                result_obj.code = _error_map[result_obj.error[0]][0]
-                result_obj.set_i18n_msg(_error_map[result_obj.error[0]][1])
+            _error = sys.exc_info()
+            _trace_str = traceback.format_exc()
+            if _error[0] in _error_map.keys():
+                result_obj = CResult(
+                    code=_error_map[_error[0]][0],
+                    msg=_error_map[_error[0]][1],
+                    error=_error,
+                    trace_str=_trace_str,
+                    i18n_obj=i18n_obj
+                )
             else:
-                result_obj.code = _error_map['DEFAULT'][0]
-                result_obj.set_i18n_msg(_error_map['DEFAULT'][1])
+                # 其他失败
+                result_obj = CResult(
+                    code=_error_map['DEFAULT'][0],
+                    msg=_error_map['DEFAULT'][1],
+                    error=_error,
+                    trace_str=_trace_str,
+                    i18n_obj=i18n_obj
+                )
             _log_level = EnumLogLevel.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
                                       trace_str=result_obj.trace_str, log_level=_log_level)
-            pass
 
     # 内部函数定义
     @staticmethod

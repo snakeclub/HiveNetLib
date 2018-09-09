@@ -1,3 +1,22 @@
 {
-    "00000": "success"
+  "success": "success",
+  "user cancel": "user cancel",
+  "user close app": "user close app",
+  "other business failure": "other business failure",
+  "connect to [$1:$2] failure, error info: [$3]": "connect to [$1:$2] failure, error info: [$3]",
+  "connection timed out": "connection timed out",
+  "receive timed out": "receive timed out",
+  "send timed out": "send timed out",
+  "receive failure": "receive failure",
+  "send failure": "send failure",
+  "get client connection timed out": "get client connection timed out",
+  "other network failure": "other network failure",
+  "other database failure": "other database failure",
+  "service start failure - service have been started": "service start failure - service have been started",
+  "service stop failure - service have been shutdown": "service stop failure - service have been shutdown",
+  "other application failure": "other application failure",
+  "other system failure": "other system failure",
+  "other network unknow result": "other network unknow result",
+  "other database unknow result": "other database unknow result",
+  "other unknow result": "other unknow result"
 }

@@ -39,6 +39,15 @@ def set_global_i18n(i18n_obj):
     RunTool.set_global_var('SIMPLE_I18N_GLOBAL_OBJECT', i18n_obj)
 
 
+def get_global_i18n():
+    """
+    获取全局SimpleI18N实例对象
+
+    @returns {SimpleI18N} - 如果未设置返回None
+    """
+    return RunTool.get_global_var('SIMPLE_I18N_GLOBAL_OBJECT')
+
+
 def _(s, *args):
     """
     封装对字符串的国际化简化处理函数
@@ -63,6 +72,28 @@ def _(s, *args):
         return i18n_obj.translate(s, args)
 
 
+def init_global_i18n():
+    """
+    初始化HiveNetLib的国际化控件，包括：
+    1、生成SimpleI18N类，并设置到全局变量
+    2、装载HiveNetLib的基础国际化配置信息
+
+    """
+    _i18n_obj = get_global_i18n()
+    if _i18n_obj is None:
+        _i18n_obj = SimpleI18N()
+
+    # 装载所需的配置信息, 错误码
+    _base_path = os.path.abspath(os.path.dirname(__file__)+'/'+'..')
+    _error_code_path = os.path.realpath(_base_path + '/hivenet_error_code/')
+    _i18n_obj.load_trans_from_dir(
+        trans_file_path=_error_code_path,
+        trans_file_prefix='errorcode',
+        encoding='utf-8',
+        append=True
+    )
+
+
 class SimpleI18N(object):
     """
     国际化文本处理类
@@ -72,9 +103,6 @@ class SimpleI18N(object):
     # 变量
     #############################
     lang = 'en'  # 默认语言
-    trans_file_path = None  # 多国语言信息文件路径
-    trans_file_prefix = ''  # 多国语言信息文件前缀，例如前缀为test，信息文件名为test_en.json、test_zh.json等
-    trans_file_encoding = 'utf-8'  # 解析文件的解码
 
     """
     语言信息字典，格式如下：
@@ -115,19 +143,38 @@ class SimpleI18N(object):
 
         """
         self.lang = lang
-        self.trans_file_path = trans_file_path
-        self.trans_file_prefix = trans_file_prefix
-        self.trans_file_encoding = encoding
         if auto_loads and trans_file_path is not None:
             # 加载语言信息文件
-            file_list = FileTool.get_filelist(path=trans_file_path,
-                                              regex_str=r'^test_\S+\.json$', is_fullname=True)
-            for file in file_list:
-                # 循环加载语言信息文件
-                file_name = os.path.split(os.path.realpath(file))[1]
-                file_lang = re.sub(r'\.json$', '', re.sub(r'^test_', '', file_name))
-                self.load_trans_from_file(file_full_path=file, lang=file_lang,
-                                          encoding=encoding, append=False)
+            self.load_trans_from_dir(
+                trans_file_path=trans_file_path,
+                trans_file_prefix=trans_file_prefix,
+                encoding=encoding,
+                append=False
+            )
+
+    def load_trans_from_dir(self, trans_file_path, trans_file_prefix, encoding='utf-8', append=True):
+        """
+        从指定路径加载语言信息文件到对象中
+
+        @param {string} trans_file_path - 语言信息文件所在路径，如果为None则代表不处理信息文件
+        @param {string} trans_file_prefix - 语言信息文件前缀，
+            例如前缀为test，信息文件名为test_en.json、test_zh.json等
+        @param {string} encoding='utf-8' - 解析文件的编码
+        @param {bool} append=True - 是否追加模式，如果是则以增量方式更新，否则覆盖原来的配置
+
+        """
+        file_list = FileTool.get_filelist(
+            path=trans_file_path,
+            regex_str=r'^' + trans_file_prefix + r'_\S+\.json$',
+            is_fullname=True
+        )
+        for file in file_list:
+            # 循环加载语言信息文件
+            file_name = os.path.split(os.path.realpath(file))[1]
+            file_lang = re.sub(r'\.json$', '', re.sub(
+                r'^' + trans_file_prefix + r'_', '', file_name))
+            self.load_trans_from_file(file_full_path=file, lang=file_lang,
+                                      encoding=encoding, append=append)
 
     def load_trans_from_file(self, file_full_path, lang, encoding='utf-8', append=True):
         """

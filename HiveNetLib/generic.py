@@ -13,7 +13,15 @@
 @file generic.py
 """
 
+
+import sys
+import os
+import json
 import copy
+sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+from HiveNetLib.simple_i18n import get_global_i18n
+from HiveNetLib.base_tools.run_tool import RunTool
+
 
 __MOUDLE__ = 'generic'  # 模块名
 __DESCRIPT__ = '通用基础模块'  # 模块描述
@@ -53,13 +61,14 @@ class CResult(object):
     i18n_msg_id = ''  # 国际化记录下来的错误码ID串
     i18n_msg_paras = ()  # 国际化记录下来的可替换参数变量
 
-    def __init__(self, code='00000', msg='success', error=None, trace_str='',
+    def __init__(self, code='00000', msg=None, error=None, trace_str='',
                  i18n_obj=None, i18n_msg_paras=()):
         """
         构造函数
 
         @param {string} code='00000' - 错误码，'00000'代表成功，参照FiveNet的错误码规范
-        @param {string} msg='success' - 错误信息描述，如果i18n_obj不为None时，该参数传入的是国际化的消息ID
+        @param {string} msg=None - 错误信息描述，如果i18n_obj不为None时，该参数传入的是国际化的消息ID
+            注意：如果初始化时不传入msg（即msg=None时），自动通过code查找具体的错误信息，且在i18n_obj为None时使用全局国际化对象处理国际化信息
         @param {tuple}} error=None - 发生异常时的sys.exc_info()三元组对象(type, value, traceback):
             type-从获取到的异常中得到类型名称，它是BaseException 的子类
             value-捕获到的异常实例
@@ -71,6 +80,26 @@ class CResult(object):
         """
         self.code = code
         self.msg = msg
+        self._i18n_obj = i18n_obj
+        if msg is None:
+            if i18n_obj is None:
+                # 使用全局国际化控件
+                self._i18n_obj = get_global_i18n()
+            # 尝试先装载错误码映射
+            _map_error_code = RunTool.get_global_var('HIVENET_ERROR_CODE_MAP')
+            if _map_error_code is None:
+                _map_file = os.path.realpath(os.path.abspath(os.path.dirname(__file__)+'/'+'..') +
+                                             '/hivenet_error_code/map_error_code.json')
+                _map_error_code = {}
+                with open(_map_file, 'rt', encoding='utf-8') as f:
+                    _map_error_code = json.load(f)
+                RunTool.set_global_var('HIVENET_ERROR_CODE_MAP', _map_error_code)
+            # 获取代码表
+            if code in _map_error_code.keys():
+                self.msg = _map_error_code[code]
+            else:
+                self.msg = ''
+
         self.error = error
         self.trace_str = trace_str
         if i18n_obj is not None:

@@ -1,3 +1,22 @@
 {
-    "00000": "成功"
+    "success": "成功",
+    "user cancel": "用户中断操",
+    "user close app": "用户关闭应用",
+    "other business failure": "其他业务失败",
+    "connect to [$1:$2] failure, error info: [$3]": "连接地址[$1:$2]建立失败, 错误信息: [$3]",
+    "connection timed out": "连接超时",
+    "receive timed out": "获取数据超时",
+    "send timed out": "发送数据超时",
+    "receive failure": "获取数据失败",
+    "send failure": "发送数据失败",
+    "get client connection timed out": "获取客户端连接超时",
+    "other network failure": "网络连接其他失败",
+    "other database failure": "数据库处理其他失败",
+    "service start failure - service have been started": "服务启动失败-服务已启动",
+    "service stop failure - service have been shutdown": "服务停止失败-服务已关闭",
+    "other application failure": "应用服务处理其他失败",
+    "other system failure": "其他系统失败",
+    "other network unknow result": "网络连接其他未知结果",
+    "other database unknow result": "数据库处理其他未知",
+    "other unknow result": "其他未知结果"
 }
