@@ -69,7 +69,8 @@ class CallChainTool(object):
 
     @staticmethod
     def methon_call_chain(logger=None, trace_id=None, key_para=(), print_in_para=(), is_print_back=False,
-                          is_use_global_logger=False, log_level=EnumLogLevel.INFO):
+                          is_use_global_logger=False, log_level=EnumLogLevel.INFO,
+                          is_standard_def=False):
         """
         模块方法调用链修饰符
 
@@ -84,6 +85,8 @@ class CallChainTool(object):
         @param {bool} is_use_global_logger=False - 当logger=None时，是否使用全局logger对象
             注：通过CallChainTool.set_global_logger进行设置
         @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {bool} is_standard_def=False - 所修饰是否标准定义格式
+            注：标准定义格式指入参固定为 func(*args, **kwargs)，这样修饰函数处理过程中无需判断入参格式，提升处理效率
 
         @returns {object} - 返回所修饰函数的返回值
 
@@ -106,14 +109,17 @@ class CallChainTool(object):
                 if _logger is None and is_use_global_logger:
                     # 使用全局logger
                     _logger = CallChainTool.get_global_logger()
-
+                print("func:" + str(func.__name__) + ":" + str(func.__dict__))
+                print("args: " + str(args))
+                print("kwargs: " + str(kwargs))
                 if _logger is None:
                     # 没有配置日志类，不做任何封装处理，直接调用和返回
-                    return func(args, kwargs)
+                    return CallChainTool.__call_func(func, args, kwargs, is_standard_def)
                 else:
                     _start_time = datetime.datetime.now()
+                    _logger.
                     try:
-                        _back = func(args, kwargs)
+                        _back = CallChainTool.__call_func(func, args, kwargs, is_standard_def)
                     except Exception as e:
                         # 记录异常日志
                         _end_time = datetime.datetime.now()
@@ -131,10 +137,36 @@ class CallChainTool(object):
         """
         pass
 
+    @staticmethod
+    def __call_func(func, args, kwargs, is_standard_def):
+        """
+        内部函数，根据传入参数处理实际的函数调用
 
-@CallChainTool.methon_call_chain()
-def test_fun(a=10, b='33'):
-    print('test_fun:' + str(a) + ":" + str(b))
+        @param {function} func - 要执行的函数
+        @param {tuple} args - 不带参数名的参数列表
+        @param {dict} kwargs - 带参数名的参数列表
+        @param {bool} is_standard_def - 是否标准定义的修饰符函数
+
+        @returns {object} - 返回函数的执行结果
+
+        """
+        if is_standard_def:
+            # 标准修饰符函数，直接调用无需特殊处理
+            return
+        else:
+            # 非标准修饰符函数，通过动态参数传入执行
+            _exec_str = 'func('
+            # 拼接
+            _i = 0
+            while _i < len(args):
+                _exec_str = _exec_str + ('args[%s],' % (str(_i)))
+                _i = _i + 1
+            for _key in kwargs.keys():
+                _exec_str = _exec_str + ('kwargs[\'%s\'],' % (_key))
+            # 去掉最后一个逗号
+            _exec_str = _exec_str.rstrip(',') + ')'
+            # 执行并返回
+            return exec(_exec_str)
 
 
 if __name__ == '__main__':
@@ -144,5 +176,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-
-    test_fun(a=33, b='3343')

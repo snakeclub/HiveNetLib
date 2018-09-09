@@ -344,6 +344,8 @@ class Logger(object):
     __json_config = None  # json格式的配置信息
     __is_create_logfile_by_day = True  # 是否按天生成新的日志文件
     __call_level = 0  # 调用write_log函数输出文件名和函数名的层级,0代表获取直接调用函数；1代表获取直接调用函数的上一级
+    __file_name_format = '[FILE:%s]'  # 打印文件名信息项的格式（用实际文件名替换%s）
+    __fun_name_format = '[FUN:%s]'  # 打印函数名信息项的格式（用实际文件名替换%s）
 
     @property
     def base_logger(self):
@@ -357,7 +359,7 @@ class Logger(object):
     def __init__(self, conf_file_name='logger.json', logger_name='root', logfile_path='',
                  config_type=EnumLoggerConfigType.JSON_FILE, auto_create_conf=True,
                  is_print_file_name=True, is_print_fun_name=True, is_create_logfile_by_day=True,
-                 call_level=0):
+                 call_level=0, file_name_format='[FILE:%s]', fun_name_format='[FUN:%s]'):
         """
         初始化日志类，生成日志对象实例
 
@@ -374,6 +376,8 @@ class Logger(object):
         @param {bool} is_create_logfile_by_day=True - 是否按天生成新的日志文件，默认为True
         @param {int} call_level=0 - 用write_log函数输出文件名和函数名的层级:
             0代表获取直接调用函数；1代表获取直接调用函数的上一级
+        @param {string} file_name_format='[FILE:%(FILE)s]' - 打印文件名信息项的格式（用实际文件名替换%(FILE)s）
+        @param {string} fun_name_format='[FUN:%(FUN)s]' - 打印函数名信息项的格式（用实际文件名替换%(FUN)s）
 
         @example
             log = Logger(conf_file_name='/root/logger.conf', logger_name='ConsoleAndFile',
@@ -398,6 +402,8 @@ class Logger(object):
         self.__is_print_fun_name = is_print_fun_name
         self.__is_create_logfile_by_day = is_create_logfile_by_day
         self.__call_level = call_level
+        self.__file_name_format = file_name_format
+        self.__fun_name_format = fun_name_format
 
         if auto_create_conf and config_type in (EnumLoggerConfigType.JSON_FILE, EnumLoggerConfigType.INI_FILE):
             # 判断文件是否存在，如果不存在则按默认值创建文件
@@ -407,7 +413,7 @@ class Logger(object):
         if self.__config_type == EnumLoggerConfigType.JSON_STR:
             self.__json_config = json.loads(self.__conf_file_name)
         elif self.__config_type == EnumLoggerConfigType.JSON_FILE:
-            with open(self.__conf_file_name, 'rt') as f:
+            with open(self.__conf_file_name, 'rt', encoding='utf-8') as f:
                 self.__json_config = json.load(f)
 
         # 如果要求按日记录日志，则修改配置中的文件名，加上日期
@@ -574,7 +580,7 @@ class Logger(object):
                 if self.__config_type == EnumLoggerConfigType.JSON_STR:
                     _ori_json_config = json.loads(self.__conf_file_name)
                 elif self.__config_type == EnumLoggerConfigType.JSON_FILE:
-                    with open(self.__conf_file_name, 'rt') as f:
+                    with open(self.__conf_file_name, 'rt', encoding='utf-8') as f:
                         _ori_json_config = json.load(f)
             _handlers = []
             if self.__logger_name == 'root':
@@ -640,12 +646,12 @@ class Logger(object):
             finally:
                 self.__thread_lock.release()
 
-    def write_log(self, log_level=EnumLogLevel.INFO, log_str='', call_level=None):
+    def write_log(self, log_str='', log_level=EnumLogLevel.INFO, call_level=None):
         """
         通过日志实例输出日志内容
 
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - log_level 输出日志的级别
         @param {string} log_str='' - 要输出的日志内容
+        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - log_level 输出日志的级别
         @param {[type]} call_level=None - 日志中输出的函数名（文件名）所属层级，如果传入None代表使用构造函数默认的参数:
             0 - 输出调用本函数的函数名（文件名）
             1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
@@ -667,9 +673,9 @@ class Logger(object):
         _fun_name = ''
         if self.__is_print_file_name:
             _path_dir, _path_filename = os.path.split(os.path.realpath(_frame.f_code.co_filename))
-            _path_filename = '[%s]' % _path_filename
+            _path_filename = self.__file_name_format % _path_filename
         if self.__is_print_fun_name:
-            _fun_name = '[%s]' % _frame.f_code.co_name
+            _fun_name = self.__fun_name_format % _frame.f_code.co_name
         # 组成日志信息
         _logstr = '%s%s%s' % (_path_filename, _fun_name, log_str)
         if log_level == EnumLogLevel.DEBUG:
