@@ -17,13 +17,14 @@ import os
 import sys
 import copy
 import time
+import datetime
 import threading
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
 from HiveNetLib.generic_enum import EnumLogLevel
 from HiveNetLib.generic import CResult
-from HiveNetLib.simple_i18n import _, SimpleI18N
+from HiveNetLib.simple_i18n import _, SimpleI18N, get_global_i18n, init_global_i18n
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.debug_tool import DebugTool
@@ -98,6 +99,7 @@ class NetServiceFW(ABC):
 
     _server_opts = None  # 外围传入的网络服务启动参数，应为一个object对象，通过_serverOpts.xxx 获取对应的属性xxx值
     _logLevel = EnumLogLevel.INFO  # 外围传入的日志级别，根据该级别打印日志，例如传DEBUG可减少日志的输出
+    _server_name = 'NetService'  # 服务名，记录日志使用
 
     #############################
     # 私有变量 - 只用于框架内部处理的变量
@@ -105,6 +107,7 @@ class NetServiceFW(ABC):
 
     # 外围传入的日志对象，服务过程中通过该函数写日志
     _logger = None
+    _logger_fun = dict()  # 记载debug、warning等方法的数组，简化日志输出代码
 
     # 外围传入的网络服务状态变更通知函数，函数实现的第1个参数为当前状态，第2个参数为错误信息result对象，含code和msg
     __server_status_info_fun = None
@@ -114,38 +117,19 @@ class NetServiceFW(ABC):
     # 需注意实现上应在每次循环时查询服务器关闭状态，如果遇到则结束处理
     __server_connect_deal_fun = None
 
-    __self_tag = ""  # 自定义标识，用于发起端传入自身的识别标识
+    __self_tag = ''  # 自定义标识，用于发起端传入自身的识别标识
     __server_run_status = EnumNetServerRunStatus.Stop  # 服务端服务运行情况
     __server_run_status_lock = threading.RLock()  # 服务端状态变更的同步锁
     __server_connect_thread_id = 1  # 服务端的链接线程ID序列
     __server_connect_thread_list = {}  # 服务端正在运行的连接线程列表
     __server_connect_thread_list_lock = threading.RLock()  # 连接线程列表变更的同步锁
 
+    __server_begin_time = None  # 执行启动函数的开始时间
+    __server_stop_time = None  # 执行关闭函数的开始时间
+
     #############################
     # 私有函数 - 子类可直接使用的函数
     #############################
-
-    def _write_log(self, log_level=EnumLogLevel.INFO, log_str=''):
-        """
-        通用的日志登记函数，调用初始化实例的日志打印函数输出日志
-
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印的日志级别
-        @param {string} log_str='' - 要打印的日志内容
-
-        """
-        if self._logger is None:
-            return
-        else:
-            if log_level.DEBUG:
-                self._logger.debug(log_str)
-            elif log_level.WARNING:
-                self._logger.warning(log_str)
-            elif log_level.ERROR:
-                self._logger.error(log_str)
-            elif log_level.CRITICAL:
-                self._logger.critical(log_str)
-            else:
-                self._logger.info(log_str)
 
     def _server_status_change(self, server_status, result):
         """
@@ -162,6 +146,39 @@ class NetServiceFW(ABC):
         else:
             result.self_tag = self.__self_tag
             self.__server_status_info_fun(server_status, result)
+
+    def _get_server_opts(self, para_name, default_value=''):
+        """
+        获取服务启动参数
+
+        @param {string} para_name - 参数名
+        @param {string} default_value='' - 默认值
+
+        @returns {object} - 参数值
+
+        """
+        try:
+            _obj = eval('self._server_opts.' + para_name)
+            return _obj
+        except Exception:
+            return default_value
+
+    def _load_i18n_dict(self):
+        """
+        装载多国语言字典
+        """
+        _i18n_obj = get_global_i18n()
+        if _i18n_obj is None:
+            # 创建对象并加入到全局中
+            init_global_i18n()
+            _i18n_obj = get_global_i18n()
+        # 装载多国语言
+        _i18n_obj.load_trans_from_dir(
+            trans_file_path=os.path.abspath(os.path.dirname(__file__)),
+            trans_file_prefix='netservicefw',
+            encoding='utf-8',
+            append=True
+        )
 
     #############################
     # 私有函数 -  框架内部处理函数
@@ -218,22 +235,39 @@ class NetServiceFW(ABC):
         """
         DebugTool.debug_print(u'服务监听线程进入')
         _result = CResult(code='00000')  # 成功
-        with ExceptionTool.ignored_cresult(result_obj=_result,
-                                           logger=self._logger, self_log_msg=u'启动网络服务出现异常：'):
+        with ExceptionTool.ignored_cresult(
+            result_obj=_result,
+            logger=self._logger,
+            self_log_msg='[LIS-STARTING][NAME:%s]%s: ' % (self._server_name,
+                                                          _('start net service error'))
+        ):
             # 统一的异常处理
-            self._write_log(self._log_level, u'正在启动网络服务……')
-            self._write_log(self._log_level,
-                            u'启动参数：\n%s' % StringTool.format_obj_property_str(server_opts, is_deal_subobj=True))
+            self._logger_fun[self._log_level](
+                '[LIS-STARTING][NAME:%s]%s' % (self._server_name, _('net service starting')))
+            self._logger_fun[self._log_level]('[LIS-STARTING][NAME:%s]%s:\n%s' % (
+                self._server_name,
+                _('net start parameter'), StringTool.format_obj_property_str(server_opts, is_deal_subobj=True))
+            )
+
             # 启动服务，但不接受连接
             _result = self._start_server_without_accept(server_opts)
             _server_info = _result.net_info
             if _result.code[0] != '0':
                 # 启动失败
-                self._write_log(EnumLogLevel.ERROR, u'启动网络服务失败:%s - %s' %
-                                (_result.code, _result.msg))
+                self._logger_fun[EnumLogLevel.ERROR]('[LIS-STARTING][NAME:%s][USE:%ss]%s: %s - %s' % (
+                    self._server_name, str(
+                        (datetime.datetime.now() - self.__server_begin_time).total_seconds()),
+                    _('start net service error'), _result.code, _result.msg))
                 return
             # 启动成功，更新状态
-            self._write_log(self._log_level, u'启动网络服务成功，开始监听客户端连接')
+            self._logger_fun[self._log_level](
+                '[LIS-STARTED][NAME:%s][USE:%ss][IP:%s][PORT:%s]%s' % (
+                    self._server_name,
+                    str((datetime.datetime.now() - self.__server_begin_time).total_seconds()),
+                    str(self._get_server_opts('ip', '')),
+                    str(self._get_server_opts('port', '')),
+                    _('start net service sucess')
+                ))
             self._server_status_change(EnumNetServerRunStatus.Running, _result)
 
             # 开始进入监听进程
@@ -275,9 +309,13 @@ class NetServiceFW(ABC):
                         _new_thread.start()
                     elif _accept_result.code != '20007':
                         # 不是超时的其他获取错误，打印信息
-                        self._write_log(EnumLogLevel.ERROR,
-                                        u'网络服务获取网络请求出现错误：%s\n%s'
-                                        % (_accept_result.msg, _accept_result.trace_str))
+                        self._logger_fun[EnumLogLevel.ERROR](
+                            "[LIS][NAME:%s][EX:%s]%s: %s\n%s" % (
+                                self._server_name, str(type(_accept_result.error)),
+                                _('accept net connection error'), _accept_result.msg,
+                                _accept_result.trace_str
+                            )
+                        )
                     else:
                         DebugTool.debug_print(u'服务监听线程获取客户端连接超时')
 
@@ -287,6 +325,14 @@ class NetServiceFW(ABC):
         # 线程结束就代表服务已关闭
         self.__server_connect_thread_clear()
         self._server_status_change(EnumNetServerRunStatus.Stop, _result)
+        self._logger_fun[self._log_level](
+            '[LIS-STOPED][NAME:%s][USE:%ss][IP:%s][PORT:%s]%s' % (
+                self._server_name,
+                str((datetime.datetime.now() - self.__server_stop_time).total_seconds()),
+                str(self._get_server_opts('ip', '')),
+                str(self._get_server_opts('port', '')),
+                _('net service stoped')
+            ))
         DebugTool.debug_print(u'服务监听线程结束')
 
     def __server_connect_thread_fun(self, thread_id, server_opts, net_info):
@@ -301,7 +347,8 @@ class NetServiceFW(ABC):
         """
         with ExceptionTool.ignored_all(
             logger=self._logger,
-            self_log_msg=u'网络服务出现异常',
+            self_log_msg='[LIS][NAME:%s]%s: ' % (self._server_name, _(
+                'net service connect deal threading error')),
             force_log_level=EnumLogLevel.ERROR
         ):
             self.__server_connect_deal_fun(thread_id, server_opts, net_info, self.__self_tag)
@@ -369,22 +416,22 @@ class NetServiceFW(ABC):
 
         """
         if self.__server_run_status == EnumNetServerRunStatus.Stop:
-            return u"停止"
+            return _("stop")
         elif self.__server_run_status == EnumNetServerRunStatus.WaitStop:
-            return u"等待停止"
+            return _("waiting stop")
         elif self.__server_run_status == EnumNetServerRunStatus.WaitStart:
-            return u"等待启动"
+            return _("waiting start")
         elif self.__server_run_status == EnumNetServerRunStatus.ForceStop:
-            return u"强制停止"
+            return _("force stop")
         else:
-            return u"正在运行"
+            return _("running")
 
     #############################
     # 公共函数
     #############################
 
     def __init__(self, logger=None, server_status_info_fun=None, server_connect_deal_fun=None, self_tag='',
-                 log_level=EnumLogLevel.INFO):
+                 log_level=EnumLogLevel.INFO, server_name='NetService', is_auto_load_i18n=True):
         """
         构造函数
 
@@ -405,30 +452,44 @@ class NetServiceFW(ABC):
             需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
         @param {string} self_tag='' - 自定义标识
         @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+        @param {string} server_name='NetService' - 服务名，记录日志使用
+        @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
 
         """
         self._logger = logger
+        if self._logger is not None:
+            # 直接通过字典调用写日志方法
+            self._logger_fun[EnumLogLevel.DEBUG] = self._logger.debug
+            self._logger_fun[EnumLogLevel.WARNING] = self._logger.warning
+            self._logger_fun[EnumLogLevel.ERROR] = self._logger.error
+            self._logger_fun[EnumLogLevel.CRITICAL] = self._logger.critical
+            self._logger_fun[EnumLogLevel.INFO] = self._logger.info
         self.__server_status_info_fun = server_status_info_fun
         self.__server_connect_deal_fun = server_connect_deal_fun
         self.__self_tag = self_tag
         self._log_level = log_level
+        self._server_name = server_name
+        if is_auto_load_i18n:
+            self._load_i18n_dict()
 
-    def start_server(self, server_opts):
+    def start_server(self, server_opts, is_wait=False):
         """
         启动网络服务
         根据传入的服务器参数，启动网络服务监听线程，注意服务必须处于停止状态才能启动
 
         @param {object} server_opts - 启动服务器参数，由框架的实际实现类进行定义:
             子类通过_serverOpts.xxx获取具体的属性值
+        @param {bool} is_wait=False - 是否等待服务启动完成后再退出
 
-        @returns {CResult} - 启动结果，result.code：0-成功，1-服务不属于停止状态，不能启动，-1-异常
+        @returns {CResult} - 启动结果，result.code：'00000'-成功，'20601'-服务不属于停止状态，不能启动，其他-异常
 
         """
         _result = CResult(code='00000')  # 成功
         with ExceptionTool.ignored_cresult(
             _result,
             logger=self._logger,
-            self_log_msg=u'启动网络服务异常失败:',
+            self_log_msg='[LIS-STARTING][NAME:%s]%s: ' % (self._server_name,
+                                                          _('start net service error')),
             force_log_level=EnumLogLevel.ERROR
         ):
             self._server_opts = server_opts
@@ -438,9 +499,14 @@ class NetServiceFW(ABC):
                 if self.__server_run_status != EnumNetServerRunStatus.Stop:
                     # 不属于停止状态，不能启动
                     _result = CResult(code='20601')  # 服务启动失败-服务已启动
+                    self._logger_fun[self._log_level](
+                        '[LIS-STARTING][NAME:%s]%s' % (self._server_name, _result.msg))
                     return _result
 
                 # 执行启动服务的动作，通过线程方式启动，避免调用方等待
+                self.__server_begin_time = datetime.datetime.now()
+                self._logger_fun[self._log_level](
+                    '[LIS-STARTING][NAME:%s]%s' % (self._server_name, _('net service starting')))
                 self._server_status_change(EnumNetServerRunStatus.WaitStart, _result)
                 _listen_thread = threading.Thread(
                     target=self.__start_server_thread_fun,
@@ -452,7 +518,10 @@ class NetServiceFW(ABC):
             finally:
                 # 释放锁
                 self.__server_run_status_lock.release()
-        # 返回结果
+        # 返回结果,循环等待
+        while is_wait and self.__server_run_status == EnumNetServerRunStatus.WaitStart:
+            time.sleep(0.01)
+
         return _result
 
     def stop_server(self, is_wait=True):
@@ -469,7 +538,8 @@ class NetServiceFW(ABC):
         with ExceptionTool.ignored_cresult(
             _result,
             logger=self._logger,
-            self_log_msg=u'停止网络服务异常失败:',
+            self_log_msg='[LIS-STOPING][NAME:%s]%s: ' % (
+                self._server_name, _('stop net service error')),
             force_log_level=EnumLogLevel.ERROR
         ):
             self.__server_run_status_lock.acquire()
@@ -478,17 +548,23 @@ class NetServiceFW(ABC):
                 if not is_wait:
                     _status = EnumNetServerRunStatus.ForceStop
 
+                self.__server_stop_time = datetime.datetime.now()
                 if self.__server_run_status == EnumNetServerRunStatus.Running:
                     # 运行状态，处理设置等待关闭状态
-                    self._write_log(self._log_level, u"正在关闭服务")
+
+                    self._logger_fun[self._log_level](
+                        '[LIS-STOPING][NAME:%s]%s' % (self._server_name, _('net service stoping')))
                     self._server_status_change(_status, _result)
                 elif self.__server_run_status == EnumNetServerRunStatus.WaitStop \
                         and _status == EnumNetServerRunStatus.ForceStop:
-                    self._write_log(self._log_level, u"正在强制关闭服务")
+                    self._logger_fun[self._log_level](
+                        '[LIS-STOPING][NAME:%s]%s' % (self._server_name, _('net service force stoping')))
                     self._server_status_change(_status, _result)
                 else:
                     # 不属于运行状态，不能处理
                     _result = CResult(code='20602')  # 服务停止失败-服务已关闭
+                    self._logger_fun[self._log_level](
+                        '[LIS-STOPING][NAME:%s]%s' % (self._server_name, _result.msg))
                     return _result
             finally:
                 self.__server_run_status_lock.release()
@@ -539,14 +615,14 @@ class NetServiceFW(ABC):
 
     # 外部系统必须实现的接口对象（公共函数）
 
-    @staticmethod
+    @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def recv_data(net_info, recv_para):
+    def recv_data(cls, net_info, recv_para):
         """
         从指定的网络连接中读取数据
 
         @param {object} net_info - 要读取数据的网络信息对象（例如socket对象）
-        @param {object} recv_para - 读取数据的参数（例如长度、超时时间等，由实现类自定义）
+        @param {dict} recv_para - 读取数据的参数（例如长度、超时时间等，由实现类自定义）
 
         @returns {CResult} - 数据获取结果:
             result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
@@ -557,14 +633,14 @@ class NetServiceFW(ABC):
         # 子类必须定义该功能
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def send_data(net_info, send_para, data):
+    def send_data(cls, net_info, send_para, data):
         """
         向指定的网络连接发送数据
 
         @param {object} net_info - 要写入数据的网络信息对象（例如socket对象）
-        @param {object} send_para - 写入数据的参数（例如长度、超时时间等，由实现类自定义）
+        @param {dict} send_para - 写入数据的参数（例如长度、超时时间等，由实现类自定义）
         @param {object} data - 要写入的数据对象（具体类型和定义，由实现类自定义）
 
         @returns {CResult} - 发送结果:
@@ -575,9 +651,9 @@ class NetServiceFW(ABC):
         # 子类必须定义该功能
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def close_connect(net_info):
+    def close_connect(cls, net_info):
         """
         关闭指定的网络连接，注意该该函数必须捕获并处理异常
 
@@ -590,9 +666,9 @@ class NetServiceFW(ABC):
         # 子类必须定义该功能
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def connect_server(connect_para):
+    def connect_server(cls, connect_para):
         """
         客户端通过该函数连接服务器端
 
@@ -607,7 +683,7 @@ class NetServiceFW(ABC):
         pass
 
     @abstractmethod
-    def get_server_info(self, para_name):
+    def get_server_info(self, para_name, default_value=None):
         """
         获取服务器信息
 
@@ -618,9 +694,9 @@ class NetServiceFW(ABC):
         """
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def get_client_info(net_info, para_name):
+    def get_client_info(cls, net_info, para_name, default_value=None):
         """
         获取指定客户端连接的信息，根据传入的参数获取参数值（具体可以获取什么参数由实现类自定义）
 

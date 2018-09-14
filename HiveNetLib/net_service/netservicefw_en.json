@@ -1,0 +1,23 @@
+{
+    "start net service error": "start net service error",
+    "net service starting": "net service starting",
+    "net start parameter": "net start parameter",
+    "accept net connection error": "accept net connection error",
+    "net service stoped": "net service stoped",
+    "stop": "stop",
+    "waiting stop": "waiting stop",
+    "waiting start": "waiting start",
+    "force stop": "force stop",
+    "running": "running",
+    "net service connect deal threading error": "net service connect deal threading error",
+    "stop net service error": "stop net service error",
+    "net service stoping": "net service stoping",
+    "net service force stoping": "net service force stoping",
+    "listen without accept": "listen without accept",
+    "accept client connect": "accept client connect",
+    "accept one client connection": "accept one client connection",
+    "recv data": "recv data",
+    "recv data from remote error": "recv data from remote error",
+    "send data to remote error": "send data to remote error",
+    "close remote connection because servie shutdown": "close remote connection because servie shutdown"
+}

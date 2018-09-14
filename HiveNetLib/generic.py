@@ -21,6 +21,7 @@ import copy
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
 from HiveNetLib.simple_i18n import get_global_i18n
 from HiveNetLib.base_tools.run_tool import RunTool
+from HiveNetLib.base_tools.string_tool import StringTool
 
 
 __MOUDLE__ = 'generic'  # 模块名
@@ -86,14 +87,7 @@ class CResult(object):
                 # 使用全局国际化控件
                 self._i18n_obj = get_global_i18n()
             # 尝试先装载错误码映射
-            _map_error_code = RunTool.get_global_var('HIVENET_ERROR_CODE_MAP')
-            if _map_error_code is None:
-                _map_file = os.path.realpath(os.path.abspath(os.path.dirname(__file__)+'/'+'..') +
-                                             '/hivenet_error_code/map_error_code.json')
-                _map_error_code = {}
-                with open(_map_file, 'rt', encoding='utf-8') as f:
-                    _map_error_code = json.load(f)
-                RunTool.set_global_var('HIVENET_ERROR_CODE_MAP', _map_error_code)
+            _map_error_code = self.__get_map_error_code()
             # 获取代码表
             if code in _map_error_code.keys():
                 self.msg = _map_error_code[code]
@@ -109,6 +103,29 @@ class CResult(object):
             self.i18n_msg_paras = i18n_msg_paras
             # 处理国际化
             self.msg = self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
+
+    def change_code(self, code='00000', msg=None):
+        """
+        改变错误码及错误信息
+
+        @param {string} code='00000' - 错误码
+        @param {string} msg=None - 错误信息描述，如果i18n_obj不为None时，该参数传入的是国际化的消息ID
+            注意：如果初始化时不传入msg（即msg=None时），自动通过code查找具体的错误信息，且在i18n_obj为None时使用全局国际化对象处理国际化信息
+
+        """
+        self.code = code
+        self.msg = msg
+        if msg is None:
+            # 尝试先装载错误码映射
+            _map_error_code = self.__get_map_error_code()
+
+            # 获取代码表
+            if code in _map_error_code.keys():
+                self.msg = _map_error_code[code]
+            else:
+                self.msg = ''
+        # 国际化处理
+        self.set_i18n_msg(msg=self.msg)
 
     def copy_to(self, dest_obj):
         """
@@ -139,6 +156,39 @@ class CResult(object):
             self.i18n_msg_id = msg
             self.i18n_msg_paras = i18n_msg_paras
             self.msg = self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
+
+    def __get_map_error_code(self):
+        """
+        获取全局的错误码映射表
+
+        """
+        _map_error_code = RunTool.get_global_var('HIVENET_ERROR_CODE_MAP')
+        if _map_error_code is None:
+            _map_file = os.path.realpath(os.path.abspath(os.path.dirname(__file__)+'/') +
+                                         '/hivenet_error_code/map_error_code.json')
+            _map_error_code = {}
+            with open(_map_file, 'rt', encoding='utf-8') as f:
+                _map_error_code = json.load(f)
+            RunTool.set_global_var('HIVENET_ERROR_CODE_MAP', _map_error_code)
+        return _map_error_code
+
+    def __str__(self):
+        """
+        提供系统层级的str输出格式化字符
+        """
+        _str = '%s:\n' % (str(type(self)))
+        # 其他属性
+        _attr_dir = dir(self)
+        for _item in _attr_dir:
+            if _item[0: 2] != '__' and not callable(getattr(self, _item)) and _item not in ['_i18n_obj', 'i18n_msg_paras', 'i18n_msg_id', 'error']:
+                _str += '  (attr).%s=%s\n' % (_item, str(getattr(self, _item)))
+        # __dict__上的属性
+        if hasattr(self, '__dict__'):
+            for _item in self.__dict__.items():
+                if _item[0] not in _attr_dir and _item[0] not in ['_i18n_obj', 'i18n_msg_paras', 'i18n_msg_id', 'error']:
+                    _str += '  (dict).%s=%s\n' % (_item[0], str(_item[1]))
+
+        return _str
 
 
 if __name__ == '__main__':

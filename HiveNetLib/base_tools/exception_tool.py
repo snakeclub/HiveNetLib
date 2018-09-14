@@ -61,12 +61,12 @@ class ExceptionTool(object):
         """
         try:
             yield
-        except expect:
+        except expect as ex:
             # 匹配到指定异常，输出日志
             _log_level = EnumLogLevel.WARNING
             if force_log_level is not None:
                 _log_level = force_log_level
-            ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+            ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), self_log_msg),
                                       trace_str=traceback.format_exc(), log_level=_log_level)
             pass
         except Exception as e:
@@ -74,7 +74,7 @@ class ExceptionTool(object):
             _log_level = EnumLogLevel.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
-            ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+            ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
                                       trace_str=traceback.format_exc(), log_level=_log_level)
             raise sys.exc_info()[1]
 
@@ -101,12 +101,12 @@ class ExceptionTool(object):
         """
         try:
             yield
-        except unexpect:
+        except unexpect as ue:
             # 匹配到指定异常，输出日志并抛出异常
             _log_level = EnumLogLevel.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
-            ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+            ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ue)), self_log_msg),
                                       trace_str=traceback.format_exc(), log_level=_log_level)
             raise sys.exc_info()[1]
         except Exception as e:
@@ -114,7 +114,7 @@ class ExceptionTool(object):
             _log_level = EnumLogLevel.WARNING
             if force_log_level is not None:
                 _log_level = force_log_level
-            ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+            ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
                                       trace_str=traceback.format_exc(), log_level=_log_level)
             pass
 
@@ -160,18 +160,18 @@ class ExceptionTool(object):
                 result_obj = CResult(code='00000', msg=None, i18n_obj=i18n_obj)
             # 确保映射表中有默认值
             if 'SUCESS' not in _error_map.keys():
-                _error_map['SUCESS'] = ('00000', 'success')
+                _error_map['SUCESS'] = ('00000', None)
             if 'DEFAULT' not in _error_map.keys():
-                _error_map['DEFAULT'] = ('29999', 'other system failure')
+                _error_map['DEFAULT'] = ('29999', None)
             # 执行with对应的脚本
             yield
-        except expect:
+        except expect as ex:
             # 匹配到指定异常，输出日志
             if not expect_no_log:
                 _log_level = EnumLogLevel.WARNING
                 if force_log_level is not None:
                     _log_level = force_log_level
-                ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+                ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), self_log_msg),
                                           trace_str=traceback.format_exc(), log_level=_log_level)
             # 按成功处理
             _error = sys.exc_info()
@@ -211,7 +211,7 @@ class ExceptionTool(object):
             _log_level = EnumLogLevel.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
-            ExceptionTool.__print_log(logger=logger, self_log_msg=self_log_msg,
+            ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
                                       trace_str=result_obj.trace_str, log_level=_log_level)
 
     # 内部函数定义

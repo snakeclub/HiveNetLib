@@ -18,5 +18,8 @@
   "other system failure": "other system failure",
   "other network unknow result": "other network unknow result",
   "other database unknow result": "other database unknow result",
-  "other unknow result": "other unknow result"
+  "other unknow result": "other unknow result",
+  "unsupport argument": "unsupport argument",
+  "can't find operate object": "can't find operate object",
+  "argument consistency error": "argument consistency error"
 }

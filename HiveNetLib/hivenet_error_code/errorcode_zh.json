@@ -18,5 +18,8 @@
     "other system failure": "其他系统失败",
     "other network unknow result": "网络连接其他未知结果",
     "other database unknow result": "数据库处理其他未知",
-    "other unknow result": "其他未知结果"
+    "other unknow result": "其他未知结果",
+    "unsupport argument": "不支持的参数",
+    "can't find operate object": "找不到操作对象",
+    "argument consistency error": "参数一致性检查错误"
 }
