@@ -22,7 +22,7 @@ import threading
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult
 from HiveNetLib.simple_i18n import _, SimpleI18N, get_global_i18n, init_global_i18n
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
@@ -252,7 +252,7 @@ class NetServiceFW(ABC):
             # 启动服务，但不接受连接
             _result = self._start_server_without_accept(server_opts)
             _server_info = _result.net_info
-            if _result.code[0] != '0':
+            if not _result.is_success():
                 # 启动失败
                 self._logger_fun[EnumLogLevel.ERROR]('[LIS-STARTING][NAME:%s][USE:%ss]%s: %s - %s' % (
                     self._server_name, str(
@@ -295,7 +295,7 @@ class NetServiceFW(ABC):
                     # 正常监听下一个请求
                     DebugTool.debug_print(u'服务监听线程正常监听下一请求')
                     _accept_result = self._accept_one(server_opts, _server_info)
-                    if _accept_result.code[0] == '0':
+                    if _accept_result.is_success():
                         # 获取到一个连接，创建线程
                         self.__server_connect_thread_id = self.__server_connect_thread_id + 1
                         _thread_id = self.__server_connect_thread_id
@@ -551,7 +551,6 @@ class NetServiceFW(ABC):
                 self.__server_stop_time = datetime.datetime.now()
                 if self.__server_run_status == EnumNetServerRunStatus.Running:
                     # 运行状态，处理设置等待关闭状态
-
                     self._logger_fun[self._log_level](
                         '[LIS-STOPING][NAME:%s]%s' % (self._server_name, _('net service stoping')))
                     self._server_status_change(_status, _result)
@@ -617,12 +616,12 @@ class NetServiceFW(ABC):
 
     @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def recv_data(cls, net_info, recv_para):
+    def recv_data(cls, net_info, recv_para={}):
         """
         从指定的网络连接中读取数据
 
         @param {object} net_info - 要读取数据的网络信息对象（例如socket对象）
-        @param {dict} recv_para - 读取数据的参数（例如长度、超时时间等，由实现类自定义）
+        @param {dict} recv_para={} - 读取数据的参数（例如长度、超时时间等，由实现类自定义）
 
         @returns {CResult} - 数据获取结果:
             result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
@@ -635,13 +634,13 @@ class NetServiceFW(ABC):
 
     @classmethod
     @abstractmethod  # 定义抽象方法，无需实现功能
-    def send_data(cls, net_info, send_para, data):
+    def send_data(cls, net_info, data, send_para={}):
         """
         向指定的网络连接发送数据
 
         @param {object} net_info - 要写入数据的网络信息对象（例如socket对象）
-        @param {dict} send_para - 写入数据的参数（例如长度、超时时间等，由实现类自定义）
         @param {object} data - 要写入的数据对象（具体类型和定义，由实现类自定义）
+        @param {dict} send_para={} - 写入数据的参数（例如长度、超时时间等，由实现类自定义）
 
         @returns {CResult} - 发送结果:
             result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败

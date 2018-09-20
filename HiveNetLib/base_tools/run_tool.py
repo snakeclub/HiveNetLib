@@ -18,7 +18,7 @@ import os
 import traceback
 from contextlib import contextmanager
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.file_tool import FileTool
 
 

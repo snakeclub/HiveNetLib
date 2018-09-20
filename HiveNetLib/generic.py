@@ -104,6 +104,12 @@ class CResult(object):
             # 处理国际化
             self.msg = self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
 
+    def is_success(self):
+        """
+        判断当前错误对象是否成功
+        """
+        return (self.code[0] == '0')
+
     def change_code(self, code='00000', msg=None):
         """
         改变错误码及错误信息

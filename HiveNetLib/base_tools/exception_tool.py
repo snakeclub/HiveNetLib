@@ -19,7 +19,7 @@ import copy
 import traceback
 from contextlib import contextmanager
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.run_tool import RunTool
 
@@ -129,7 +129,7 @@ class ExceptionTool(object):
             3、输出的日志为self_log_msg+'\n'+trace_str
             4、根据error_map的映射关系设置错误码和错误信息
 
-        @param {CResult} result_obj=None - 需要设置的错误类对象
+        @param {CResult} result_obj=None - 需要设置的错误类对象(对象值会被修改)
         @param {dict} error_map={} - 用来设置错误类对象的映射表，具体说明如下：
             1、key为异常类，value为(code, msg)的错误码、错误描述二元组，如果msg=None代表使用标准错误码
             2、应有一个'DEFAULT'的key，代表没有匹配上的异常映射，默认value为('29999', None)
@@ -158,6 +158,7 @@ class ExceptionTool(object):
             # 初始化对象
             if result_obj is None:
                 result_obj = CResult(code='00000', msg=None, i18n_obj=i18n_obj)
+
             # 确保映射表中有默认值
             if 'SUCESS' not in _error_map.keys():
                 _error_map['SUCESS'] = ('00000', None)
@@ -177,13 +178,9 @@ class ExceptionTool(object):
             _error = sys.exc_info()
             _trace_str = traceback.format_exc()
             if expect_use_error_map and _error[0] in _error_map.keys():
-                result_obj = CResult(
-                    code=_error_map[_error[0]][0],
-                    msg=_error_map[_error[0]][1],
-                    error=_error,
-                    trace_str=_trace_str,
-                    i18n_obj=i18n_obj
-                )
+                result_obj.change_code(code=_error_map[_error[0]][0], msg=_error_map[_error[0]][1])
+                result_obj.error = _error
+                result_obj.trace_str = _trace_str
             else:
                 # 按成功处理
                 pass
@@ -192,22 +189,15 @@ class ExceptionTool(object):
             _error = sys.exc_info()
             _trace_str = traceback.format_exc()
             if _error[0] in _error_map.keys():
-                result_obj = CResult(
-                    code=_error_map[_error[0]][0],
-                    msg=_error_map[_error[0]][1],
-                    error=_error,
-                    trace_str=_trace_str,
-                    i18n_obj=i18n_obj
-                )
+                result_obj.change_code(code=_error_map[_error[0]][0], msg=_error_map[_error[0]][1])
+                result_obj.error = _error
+                result_obj.trace_str = _trace_str
             else:
                 # 其他失败
-                result_obj = CResult(
-                    code=_error_map['DEFAULT'][0],
-                    msg=_error_map['DEFAULT'][1],
-                    error=_error,
-                    trace_str=_trace_str,
-                    i18n_obj=i18n_obj
-                )
+                result_obj.change_code(code=_error_map['DEFAULT'][0], msg=_error_map['DEFAULT'][1])
+                result_obj.error = _error
+                result_obj.trace_str = _trace_str
+
             _log_level = EnumLogLevel.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level

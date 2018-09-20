@@ -189,7 +189,7 @@ class StringTool(object):
             type(deal_obj)
         )
         if is_deal_subobj and (max_level <= 0 or (max_level > c_level)):
-            print("c_level:" + str(c_level))
+            # print("c_level:" + str(c_level))
             _indent_str = StringTool.fill_fix_string(
                 deal_str='', fix_len=(c_level+1) * 2, fill_char=' ', left=True)
             # 要打印子对象,区分类型进行处理

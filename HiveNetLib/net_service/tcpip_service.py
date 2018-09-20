@@ -17,12 +17,13 @@ import os
 import sys
 import platform
 import datetime
+import time
 import socket
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
 from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.net_service.net_service_fw import NetServiceFW
 from HiveNetLib.generic import NullObj, CResult
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 
 __MOUDLE__ = 'tcpip_service'  # 模块名
@@ -36,6 +37,22 @@ class TcpIpService(NetServiceFW):
     """
     TcpIp协议服务
     基于NetServiceFW框架
+
+    server_opts定义：
+        _server_opts = NullObj()
+        _server_opts.ip = ip  # 主机名或IP地址
+        _server_opts.port = 8080  # 监听端口
+        _server_opts.max_connect = 20  # 允许最大连接数
+        _server_opts.recv_timeout = 10000  # 数据接收的超时时间，单位为毫秒
+        _server_opts.send_timeout = 10000  # 数据发送的超时时间，单位为毫秒
+
+    net_info定义：
+        net_info = NullObj()
+        net_info.csocket - socket对象
+        net_info.laddr 本地地址，地址对象，("IP地址",打开端口)
+        net_info.raddr 远端地址，地址对象，("IP地址",打开端口)
+        net_info.send_timeout 发送超时时间，单位为毫秒
+        net_info.recv_timeout 收取超时时间，单位为毫秒
 
     """
 
@@ -73,7 +90,10 @@ class TcpIpService(NetServiceFW):
             result.code ：'00000'-成功，其他值为失败
             result.net_info ：启动后的服务端网络连接信息对象，该对象将传给后续的监听线程（_AcceptOne），定义为：
                 result.net_info.csocket - socket对象
-                result.net_info.addr 地址对象，("IP地址",打开端口)
+                result.net_info.laddr 本地地址，地址对象，("IP地址",打开端口)
+                result.net_info.raddr 远端地址，地址对象，("IP地址",打开端口)
+                result.net_info.send_timeout 发送超时时间，单位为毫秒
+                result.net_info.recv_timeout 收取超时时间，单位为毫秒
 
         """
         # 子类必须定义该功能
@@ -86,11 +106,14 @@ class TcpIpService(NetServiceFW):
                 self._server_name, _('net service starting'), _('listen without accept')),
             force_log_level=EnumLogLevel.ERROR
         ):
-            _sys_str = platform.system()
+            # _sys_str = platform.system()
             _server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            _server_socket.setblocking(False)   # 将socket设置为非阻塞. 在创建socket对象后就进行该操作.
             _server_socket.bind((server_opts.ip, server_opts.port))
             _server_socket.listen(server_opts.max_connect)
-            if (_sys_str == "Windows"):
+            # 改为用非阻塞模式支持，因此超时自行实现
+            """
+            if (_sys_str == 'Windows'):
                 _server_socket.setsockopt(
                     socket.SOL_SOCKET, socket.SO_RCVTIMEO, server_opts.recv_timeout)
                 _server_socket.setsockopt(
@@ -98,9 +121,15 @@ class TcpIpService(NetServiceFW):
             else:
                 # linux 设置超时时间不同，需重新测试
                 _server_socket.settimeout(server_opts.recv_timeout/1000)
+            """
             _result.net_info = NullObj()
-            _result.net_info.addr = (server_opts.ip, server_opts.port)
+            _result.net_info.laddr = _server_socket.getsockname()
+            # _result.net_info.raddr = _server_socket.getpeername()
+            _result.net_info.raddr = ('', 0)
             _result.net_info.csocket = _server_socket
+            _result.net_info.send_timeout = server_opts.send_timeout
+            _result.net_info.recv_timeout = server_opts.recv_timeout
+
         return _result
 
     def _accept_one(self, server_opts, net_info):
@@ -122,86 +151,144 @@ class TcpIpService(NetServiceFW):
         with ExceptionTool.ignored_cresult(
             _result,
             logger=self._logger,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20007', None)},
+            expect=(BlockingIOError),
+            expect_no_log=True,  # 超时不记录日志
+            error_map={BlockingIOError: ('20007', None)},
             self_log_msg='[LIS][NAME:%s]%s error: ' % (
                 self._server_name, _('accept client connect')),
             force_log_level=None
         ):
-            _sys_str = platform.system()
+            # _sys_str = platform.system()
             _csocket, _addr = net_info.csocket.accept()  # 接收客户端连接，返回客户端和地址
+            _csocket.setblocking(False)   # 将socket设置为非阻塞. 在创建socket对象后就进行该操作.
             _result.net_info = NullObj()
             _result.net_info.csocket = _csocket
-            _result.net_info.addr = _addr
-            if (_sys_str == "Windows"):
+            _result.net_info.raddr = _addr
+            _result.net_info.laddr = _csocket.getsockname()
+            _result.net_info.send_timeout = server_opts.send_timeout
+            _result.net_info.recv_timeout = server_opts.recv_timeout
+
+            # 采用非阻塞模式处理数据，超时自行实现
+            """
+            if (_sys_str == 'Windows'):
                 _csocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, server_opts.recv_timeout)
                 _csocket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, server_opts.send_timeout)
             else:
                 # linux 设置超时时间不同，需重新测试
                 _csocket.settimeout(server_opts.recv_timeout / 1000)
+            """
             self._logger_fun[self._log_level](
                 '[LIS][NAME:%s]%s: %s - %s' % (
                     self._server_name, _('accept one client connection'), str(_addr), str(_csocket)
                 )
             )
+        if not _result.is_success():
+            # 出现异常，睡眠一段时间
+            time.sleep(0.01)
         return _result
 
     @classmethod
-    def recv_data(cls, net_info, recv_para):
+    def recv_data(cls, net_info, recv_para={}):
         """
         从指定的网络连接中读取数据
 
         @param {object} net_info - 要读取数据的网络信息对象（例如socket对象）
         @param {dict} recv_para - 读取数据的参数, 包括：
-            recv_len {int} - 要获取的数据长度
+            recv_len {int} - 要获取的数据长度, 必要参数
+            overtime {int} - 获取超时时间，单位为毫秒，非必要参数
 
         @returns {CResult} - 数据获取结果:
             result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
             result.data ：获取到的数据对象（具体类型和定义，由实现类自定义）
             result.recv_time : datetime 实际开始接受数据时间
+            result.overtime : int 超时时间（毫秒），当返回结果为超时，可获取超时时间信息
 
         """
         # 子类必须定义该功能
+        if type(recv_para) != dict:
+            recv_para = {}
         _result = CResult('00000')
-        _result.data = None
+        _result.data = b''
         _result.recv_time = datetime.datetime.now()
+        _overtime = 10000
+        if 'overtime' in recv_para.keys():
+            # 外部有传入，优先使用该超时时间
+            _overtime = recv_para['overtime']
+        elif hasattr(net_info, 'recv_timeout'):
+            # 如果net_info有超时的设置
+            _overtime = net_info.recv_timeout
+        _result.overtime = _overtime
+
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20003', None)}
+            _result
         ):
-            _result.data = net_info.csocket.recv(recv_para['recv_len'])
-            if len(_result.data) < recv_para['recv_len']:
-                # 获取数据数量不足，认为超时
-                _result.change_code(code='20003')
+            _rest_bytes = recv_para['recv_len']
+            while _rest_bytes > 0:
+                # 检查是否超时
+                if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
+                    # 已超时
+                    _result.change_code(code='20003')
+                    break
+
+                _buffer = b''
+                with ExceptionTool.ignored(expect=(BlockingIOError)):
+                    # 获取数据
+                    _buffer = net_info.csocket.recv(_rest_bytes)
+                    if len(_buffer) > 0:
+                        _result.data = _result.data + _buffer
+                        _rest_bytes = _rest_bytes - len(_buffer)
+                    else:
+                        # 休眠一下
+                        time.sleep(0.001)
         return _result
 
     @classmethod
-    def send_data(cls, net_info, send_para, data):
+    def send_data(cls, net_info, data, send_para={}):
         """
         向指定的网络连接发送数据
 
         @param {object} net_info - 要写入数据的网络信息对象（例如socket对象）
-        @param {dict} send_para - 写入数据的参数，包括
-            data {bytes} - 要发送的二进制数据
         @param {object} data - 要写入的数据对象（具体类型和定义，由实现类自定义）
-
+        @param {dict} send_para - 写入数据的参数:
+            overtime {int} - 发送超时时间，单位为毫秒, 非必须参数
         @returns {CResult} - 发送结果:
             result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败
             result.send_time : datetime 实际发送完成时间
+            result.overtime : int 超时时间（毫秒），当返回结果为超时，可获取超时时间信息
 
         """
         # 子类必须定义该功能
+        if type(send_para) != dict:
+            send_para = {}
         _result = CResult('00000')
         _result.send_time = None
+        _overtime = 10000
+        if 'overtime' in send_para.keys():
+            _overtime = send_para['overtime']
+        elif hasattr(net_info, 'send_timeout'):
+            # 如果net_info有超时的设置
+            _overtime = net_info.send_timeout
+        _result.overtime = _overtime
+
+        _begin_time = datetime.datetime.now()
+
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20004', None)}
+            _result
         ):
-            net_info.csocket.send(data)
+            _rest_bytes = len(data)
+            _total_bytes = _rest_bytes
+            while _rest_bytes > 0:
+                # 检查是否超时
+                if (datetime.datetime.now() - _begin_time).total_seconds()*1000 > _overtime:
+                    # 已超时
+                    _result.change_code(code='20004')
+                    break
+                with ExceptionTool.ignored(expect=(BlockingIOError)):
+                    # 发送数据
+                    _len = net_info.csocket.send(data[_total_bytes - _rest_bytes:])
+                    if _len > 0:
+                        _rest_bytes = _rest_bytes - _len
+
             _result.send_time = datetime.datetime.now()
         return _result
 
@@ -244,10 +331,14 @@ class TcpIpService(NetServiceFW):
             _result,
             logger=None
         ):
-            _sys_str = platform.system()
+            # _sys_str = platform.system()
             _tcp_cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # 分配 TCP 客户端套接字
             _tcp_cli_sock.connect((connect_para.ip, connect_para.port))  # 主动连接
-            if (_sys_str == "Windows"):
+            _tcp_cli_sock.setblocking(False)   # 将socket设置为非阻塞. 在创建socket对象后就进行该操作.
+
+            # 转换为非阻塞模式，自行控制超时
+            """
+            if (_sys_str == 'Windows'):
                 _tcp_cli_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO,
                                          connect_para.recv_timeout)
                 _tcp_cli_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO,
@@ -255,9 +346,13 @@ class TcpIpService(NetServiceFW):
             else:
                 # linux 设置超时时间不同，需重新测试
                 _tcp_cli_sock.settimeout(connect_para.recv_timeout / 1000)
+            """
             _result.net_info = NullObj()
             _result.net_info.csocket = _tcp_cli_sock
-            _result.net_info.addr = (connect_para.ip, connect_para.port)
+            _result.net_info.laddr = _tcp_cli_sock.getsockname()
+            _result.net_info.raddr = _tcp_cli_sock.getpeername()
+            _result.net_info.send_timeout = connect_para.send_timeout
+            _result.net_info.recv_timeout = connect_para.recv_timeout
         return _result
 
     def get_server_info(self, para_name, default_value=None):
@@ -284,11 +379,13 @@ class TcpIpService(NetServiceFW):
 
         """
         if para_name == "ip":
-            return net_info.addr[0]
+            return net_info.raddr[0]
         elif para_name == "port":
-            return net_info.addr[1]
+            return net_info.raddr[1]
         elif para_name == "socket":
             return net_info.csocket
+        elif hasattr(net_info, para_name):
+            return eval('net_info.' + para_name)
         else:
             return default_value
 

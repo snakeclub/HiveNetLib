@@ -68,52 +68,48 @@ class MsgJSON(MsgXML):
             encoding='utf-8' - 装载字符编码
             has_sign_info=False - 是否带有签字验证信息（在xml文档结尾），如果有，转换时会去除
             sign_begin_tag='' - 当有签字验证信息时，标记验证信息开头字符串，用于删除验证信息
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 报文体对象(具体对象类型在实现类定义)
+
+        @returns {object} - 报文体对象
+
+        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.msg = None
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={UnboundLocalError: ('20301', None)}):
-            _msg = None
-            if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
-                # 字符串方式及二进制
-                _json_str = ''
-                _encoding = MsgFW._get_para_from_kwargs(
-                    'encoding', default_value='utf-8', kwargs=kwargs)
-                _has_sign_info = MsgFW._get_para_from_kwargs(
-                    'has_sign_info', default_value=False, kwargs=kwargs)
-                _sign_begin_tag = MsgFW._get_para_from_kwargs(
-                    'sign_begin_tag', default_value='', kwargs=kwargs)
+        _msg = None
+        if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
+            # 字符串方式及二进制
+            _json_str = ''
+            _encoding = MsgFW._get_para_from_kwargs(
+                'encoding', default_value='utf-8', kwargs=kwargs)
+            _has_sign_info = MsgFW._get_para_from_kwargs(
+                'has_sign_info', default_value=False, kwargs=kwargs)
+            _sign_begin_tag = MsgFW._get_para_from_kwargs(
+                'sign_begin_tag', default_value='', kwargs=kwargs)
 
-                if obj_type == EnumMsgObjType.File:
-                    with open(obj, 'rt', encoding=_encoding) as f:
-                        _json_str = f.read()
-                elif obj_type == EnumMsgObjType.Bytes:
-                    _json_str = obj.decode(_encoding)
-                else:
-                    _json_str = obj
-
-                if _has_sign_info:
-                    # 要删除掉最后面的签名信息
-                    _sign_begin = _json_str.rfind(_sign_begin_tag)
-                    if _sign_begin != -1:
-                        _json_str = _json_str[0:_sign_begin]
-
-                # 生成对象
-                _json_obj = json.loads(_json_str)
-                _xml_str = xmltodict.unparse(_json_obj)
-                _msg = etree.fromstring(bytes(_xml_str, _encoding))
-
+            if obj_type == EnumMsgObjType.File:
+                with open(obj, 'rt', encoding=_encoding) as f:
+                    _json_str = f.read()
+            elif obj_type == EnumMsgObjType.Bytes:
+                _json_str = obj.decode(_encoding)
             else:
-                # 不支持的格式
-                raise UnboundLocalError
+                _json_str = obj
 
-            _ret.msg = _msg
+            if _has_sign_info:
+                # 要删除掉最后面的签名信息
+                _sign_begin = _json_str.rfind(_sign_begin_tag)
+                if _sign_begin != -1:
+                    _json_str = _json_str[0:_sign_begin]
+
+            # 生成对象
+            _json_obj = json.loads(_json_str)
+            _xml_str = xmltodict.unparse(_json_obj)
+            _msg = etree.fromstring(bytes(_xml_str, _encoding))
+
+        else:
+            # 不支持的格式
+            raise UnboundLocalError
 
         # 返回结果
-        return _ret
+        return _msg
 
     @classmethod
     def msg_to_str(cls, msg, msg_id=None, **kwargs):
@@ -126,27 +122,24 @@ class MsgJSON(MsgXML):
             has_sign_info=False - 是否带有签字验证信息（在json文档结尾），如果有，转换时加到字符串中
             sign_str='' - 当有签字验证信息时，验证信息字符串
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_str {string}  - 输出字符串
+        @returns {string} - 输出字符串
 
         """
-        _ret = CResult('00000')
-        _ret.msg_str = ''
+        _msg_str = ''
         _msg = copy.deepcopy(msg)
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            _has_sign_info = cls._get_para_from_kwargs(
-                'has_sign_info', default_value=False, kwargs=kwargs)
-            _sign_str = cls._get_para_from_kwargs(
-                'sign_str', default_value='', kwargs=kwargs)
+        _has_sign_info = cls._get_para_from_kwargs(
+            'has_sign_info', default_value=False, kwargs=kwargs)
+        _sign_str = cls._get_para_from_kwargs(
+            'sign_str', default_value='', kwargs=kwargs)
 
-            _dictobj = xmltodict.parse(str(etree.tostring(_msg, encoding="utf-8"), "utf-8"))
-            _ret.msg_str = json.dumps(_dictobj, indent=4)
+        _dictobj = xmltodict.parse(str(etree.tostring(_msg, encoding="utf-8"), "utf-8"))
+        _msg_str = json.dumps(_dictobj, indent=4)
 
-            # 添加签名证书
-            if _has_sign_info:
-                _ret.msg_str = _ret.msg_str + _sign_str
-        return _ret
+        # 添加签名证书
+        if _has_sign_info:
+            _msg_str = _msg_str + _sign_str
+
+        return _msg_str
 
 
 if __name__ == '__main__':

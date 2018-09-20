@@ -82,9 +82,10 @@ def init_global_i18n():
     _i18n_obj = get_global_i18n()
     if _i18n_obj is None:
         _i18n_obj = SimpleI18N()
+        set_global_i18n(_i18n_obj)
 
     # 装载所需的配置信息, 错误码
-    _base_path = os.path.abspath(os.path.dirname(__file__)+'/'+'..')
+    _base_path = os.path.abspath(os.path.dirname(__file__)+'/')
     _error_code_path = os.path.realpath(_base_path + '/hivenet_error_code/')
     _i18n_obj.load_trans_from_dir(
         trans_file_path=_error_code_path,

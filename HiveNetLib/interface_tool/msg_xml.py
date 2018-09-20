@@ -68,80 +68,76 @@ class MsgXML(MsgFW):
                 实际上去除的是 xmlns="name1"
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 报文体对象(具体对象类型在实现类定义)
+
+        @returns {object} - 报文体对象
+
+        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.msg = None
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={UnboundLocalError: ('20301', None)}):
-            _msg = None
-            if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
-                # 字符串方式及二进制
-                _xmlstr = ''
-                _encoding = cls._get_para_from_kwargs(
-                    'encoding', default_value='utf-8', kwargs=kwargs)
-                _has_sign_info = cls._get_para_from_kwargs(
-                    'has_sign_info', default_value=False, kwargs=kwargs)
-                _sign_begin_tag = cls._get_para_from_kwargs(
-                    'sign_begin_tag', default_value='', kwargs=kwargs)
-                _remove_namespace_prefix = cls._get_para_from_kwargs(
-                    'remove_namespace_prefix', default_value=(), kwargs=kwargs)
-                _add_namespace_prefix = cls._get_para_from_kwargs(
-                    'add_namespace_prefix', default_value=(), kwargs=kwargs)
-                _remove_namespace_attr = cls._get_para_from_kwargs(
-                    'remove_namespace_attr', default_value=(), kwargs=kwargs)
-                _add_namespace_attr = cls._get_para_from_kwargs(
-                    'add_namespace_attr', default_value=(), kwargs=kwargs)
+        _msg = None
+        if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
+            # 字符串方式及二进制
+            _xmlstr = ''
+            _encoding = cls._get_para_from_kwargs(
+                'encoding', default_value='utf-8', kwargs=kwargs)
+            _has_sign_info = cls._get_para_from_kwargs(
+                'has_sign_info', default_value=False, kwargs=kwargs)
+            _sign_begin_tag = cls._get_para_from_kwargs(
+                'sign_begin_tag', default_value='', kwargs=kwargs)
+            _remove_namespace_prefix = cls._get_para_from_kwargs(
+                'remove_namespace_prefix', default_value=(), kwargs=kwargs)
+            _add_namespace_prefix = cls._get_para_from_kwargs(
+                'add_namespace_prefix', default_value=(), kwargs=kwargs)
+            _remove_namespace_attr = cls._get_para_from_kwargs(
+                'remove_namespace_attr', default_value=(), kwargs=kwargs)
+            _add_namespace_attr = cls._get_para_from_kwargs(
+                'add_namespace_attr', default_value=(), kwargs=kwargs)
 
-                if obj_type == EnumMsgObjType.File:
-                    with open(obj, 'rt', encoding=_encoding) as f:
-                        _xmlstr = f.read()
-                elif obj_type == EnumMsgObjType.Bytes:
-                    _xmlstr = obj.decode(_encoding)
-                else:
-                    _xmlstr = obj
-
-                _has_xml_def = False
-                if _xmlstr[0:5] == "<?xml":
-                    _has_xml_def = True
-
-                if _has_sign_info:
-                    # 要删除掉最后面的签名信息
-                    _sign_begin = _xmlstr.rfind(_sign_begin_tag)
-                    if _sign_begin != -1:
-                        _xmlstr = _xmlstr[0:_sign_begin]
-
-                # 处理删除命名空间前缀
-                for _prefix in _remove_namespace_prefix:
-                    _xmlstr = _xmlstr.replace("<"+_prefix+":", "<")
-
-                # 处理删除命名空间
-                for _attr in _remove_namespace_attr:
-                    _xmlstr = _xmlstr.replace(' xmlns="' + _attr + '"', '')
-
-                # 生成对象
-                if _has_xml_def:
-                    # 有xml定义，要转回二进制处理
-                    _msg = etree.fromstring(bytes(_xmlstr, _encoding))
-                else:
-                    _msg = etree.fromstring(_xmlstr)
+            if obj_type == EnumMsgObjType.File:
+                with open(obj, 'rt', encoding=_encoding) as f:
+                    _xmlstr = f.read()
+            elif obj_type == EnumMsgObjType.Bytes:
+                _xmlstr = obj.decode(_encoding)
             else:
-                # 不支持的格式
-                raise UnboundLocalError
+                _xmlstr = obj
 
-            # 处理新增命名空间前缀
-            for _prefix in _add_namespace_prefix:
-                _msg = cls.add_namespace_prefix(_msg, _prefix[0], _prefix[1])
-            # 处理新增命名空间属性
-            for _attr in _add_namespace_attr:
-                _msg = cls.add_namespace_attr(_msg, _attr[0], _attr[1])
+            _has_xml_def = False
+            if _xmlstr[0:5] == "<?xml":
+                _has_xml_def = True
 
-            _ret.msg = _msg
+            if _has_sign_info:
+                # 要删除掉最后面的签名信息
+                _sign_begin = _xmlstr.rfind(_sign_begin_tag)
+                if _sign_begin != -1:
+                    _xmlstr = _xmlstr[0:_sign_begin]
+
+            # 处理删除命名空间前缀
+            for _prefix in _remove_namespace_prefix:
+                _xmlstr = _xmlstr.replace("<"+_prefix+":", "<")
+
+            # 处理删除命名空间
+            for _attr in _remove_namespace_attr:
+                _xmlstr = _xmlstr.replace(' xmlns="' + _attr + '"', '')
+
+            # 生成对象
+            if _has_xml_def:
+                # 有xml定义，要转回二进制处理
+                _msg = etree.fromstring(bytes(_xmlstr, _encoding))
+            else:
+                _msg = etree.fromstring(_xmlstr)
+        else:
+            # 不支持的格式
+            raise UnboundLocalError
+
+        # 处理新增命名空间前缀
+        for _prefix in _add_namespace_prefix:
+            _msg = cls.add_namespace_prefix(_msg, _prefix[0], _prefix[1])
+        # 处理新增命名空间属性
+        for _attr in _add_namespace_attr:
+            _msg = cls.add_namespace_attr(_msg, _attr[0], _attr[1])
 
         # 返回结果
-        return _ret
+        return _msg
 
     @classmethod
     def load_submsg(cls, obj, submsg_id=None, obj_type=None, **kwargs):
@@ -163,24 +159,19 @@ class MsgXML(MsgFW):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象
+
+        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.msg = msg
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            _nodes = _ret.msg.xpath(search_path)
-            if len(_nodes) == 0:
-                _ret.change_code('20302')
-                _ret.trace_str = ('set value to xpath "' + search_path +
-                                  ' failure，can\'t find nodes, xml="' +
-                                  str(etree.tostring(msg, encoding='utf-8'), 'utf-8'))
-            else:
-                for _item in _nodes:
-                    _item.text = str(value)
-        return _ret
+        _msg = msg
+        _nodes = _msg.xpath(search_path)
+        if len(_nodes) == 0:
+            raise NameError
+        else:
+            for _item in _nodes:
+                _item.text = str(value)
+        return _msg
 
     @classmethod
     def set_submsg_value(cls, submsg, search_path, value, submsg_id=None, **kwargs):
@@ -201,23 +192,18 @@ class MsgXML(MsgFW):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.get_value {object}  - 获取到的值
+        @returns {string} - 获取到的值
+
+        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.get_value = None
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            _nodes = msg.xpath(search_path)
-            if len(_nodes) == 0:
-                _ret.change_code('20302')
-                _ret.trace_str = ('get value from xpath "' + search_path +
-                                  ' failure，can\'t find nodes, xml="' +
-                                  str(etree.tostring(msg, encoding='utf-8'), 'utf-8'))
-            else:
-                _ret.get_value = _nodes[0].text
-        return _ret
+        _get_value = None
+        _nodes = msg.xpath(search_path)
+        if len(_nodes) == 0:
+            raise NameError
+        else:
+            _get_value = _nodes[0].text
+        return _get_value
 
     @classmethod
     def get_submsg_value(cls, submsg, search_path, submsg_id=None, **kwargs):
@@ -240,23 +226,18 @@ class MsgXML(MsgFW):
         @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 完成添加后的主报文对象
+        @returns {object} - 完成添加后的主报文对象
+
+        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.msg = msg
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            _nodes = _ret.msg.xpath(search_path)
-            if len(_nodes) == 0:
-                _ret.change_code('20302')
-                _ret.trace_str = ('add submsg to xpath "' + search_path +
-                                  ' failure，can\'t find nodes, xml="' +
-                                  str(etree.tostring(msg, encoding='utf-8'), 'utf-8'))
-            else:
-                _nodes[0].append(submsg)
-        return _ret
+        _msg = msg
+        _nodes = _msg.xpath(search_path)
+        if len(_nodes) == 0:
+            raise NameError
+        else:
+            _nodes[0].append(submsg)
+        return _msg
 
     @classmethod
     def msg_to_str(cls, msg, msg_id=None, **kwargs):
@@ -276,49 +257,46 @@ class MsgXML(MsgFW):
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_str {string}  - 输出字符串
+        @returns {string} - 输出字符串
 
         """
-        _ret = CResult('00000')
-        _ret.msg_str = ''
+        _msg_str = ''
         _msg = copy.deepcopy(msg)
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            _has_sign_info = cls._get_para_from_kwargs(
-                'has_sign_info', default_value=False, kwargs=kwargs)
-            _sign_str = cls._get_para_from_kwargs(
-                'sign_str', default_value='', kwargs=kwargs)
-            _remove_namespace_prefix = cls._get_para_from_kwargs(
-                'remove_namespace_prefix', default_value=(), kwargs=kwargs)
-            _add_namespace_prefix = cls._get_para_from_kwargs(
-                'add_namespace_prefix', default_value=(), kwargs=kwargs)
-            _remove_namespace_attr = cls._get_para_from_kwargs(
-                'remove_namespace_attr', default_value=(), kwargs=kwargs)
-            _add_namespace_attr = cls._get_para_from_kwargs(
-                'add_namespace_attr', default_value=(), kwargs=kwargs)
+        _has_sign_info = cls._get_para_from_kwargs(
+            'has_sign_info', default_value=False, kwargs=kwargs)
+        _sign_str = cls._get_para_from_kwargs(
+            'sign_str', default_value='', kwargs=kwargs)
+        _remove_namespace_prefix = cls._get_para_from_kwargs(
+            'remove_namespace_prefix', default_value=(), kwargs=kwargs)
+        _add_namespace_prefix = cls._get_para_from_kwargs(
+            'add_namespace_prefix', default_value=(), kwargs=kwargs)
+        _remove_namespace_attr = cls._get_para_from_kwargs(
+            'remove_namespace_attr', default_value=(), kwargs=kwargs)
+        _add_namespace_attr = cls._get_para_from_kwargs(
+            'add_namespace_attr', default_value=(), kwargs=kwargs)
 
-            # 处理新增命名空间前缀
-            for _prefix in _add_namespace_prefix:
-                _msg = cls.add_namespace_prefix(_msg, _prefix[0], _prefix[1])
-            # 处理新增命名空间属性
-            for _attr in _add_namespace_attr:
-                _msg = cls.add_namespace_attr(_msg, _attr[0], _attr[1])
+        # 处理新增命名空间前缀
+        for _prefix in _add_namespace_prefix:
+            _msg = cls.add_namespace_prefix(_msg, _prefix[0], _prefix[1])
+        # 处理新增命名空间属性
+        for _attr in _add_namespace_attr:
+            _msg = cls.add_namespace_attr(_msg, _attr[0], _attr[1])
 
-            _ret.msg_str = str(etree.tostring(_msg, encoding='utf-8'), 'utf-8')
+        _msg_str = str(etree.tostring(_msg, encoding='utf-8'), 'utf-8')
 
-            # 处理删除命名空间前缀
-            for _prefix in _remove_namespace_prefix:
-                _ret.msg_str = _ret.msg_str.replace('<'+_prefix+':', '<')
+        # 处理删除命名空间前缀
+        for _prefix in _remove_namespace_prefix:
+            _msg_str = _msg_str.replace('<'+_prefix+':', '<')
 
-            # 处理删除命名空间
-            for _attr in _remove_namespace_attr:
-                _ret.msg_str = _ret.msg_str.replace(' xmlns="' + _attr + '"', '')
+        # 处理删除命名空间
+        for _attr in _remove_namespace_attr:
+            _msg_str = _msg_str.replace(' xmlns="' + _attr + '"', '')
 
-            # 添加签名证书
-            if _has_sign_info:
-                _ret.msg_str = _ret.msg_str + _sign_str
-        return _ret
+        # 添加签名证书
+        if _has_sign_info:
+            _msg_str = _msg_str + _sign_str
+
+        return _msg_str
 
     @classmethod
     def submsg_to_str(cls, submsg, submsg_id=None, **kwargs):
@@ -348,9 +326,7 @@ class MsgXML(MsgFW):
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         """
         return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
@@ -383,20 +359,14 @@ class MsgXML(MsgFW):
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_bytes {byte[]}  - 二进制数组
+        @returns {byte[]} - 二进制数组
 
         """
         _str_ret = cls.msg_to_str(msg, msg_id=msg_id, **kwargs)
-        if _str_ret.code[0] != '0':
-            # 转换成字符串失败
-            return _str_ret
         _encoding = cls._get_para_from_kwargs(
             'encoding', default_value='utf-8', kwargs=kwargs)
-        _ret = CResult('00000')
-        _ret.msg_bytes = bytes(_str_ret.msg_str, _encoding)
-        return _ret
+        _msg_bytes = bytes(_str_ret, _encoding)
+        return _msg_bytes
 
     @classmethod
     def bytes_to_msg(cls, msg_bytes, msg_id=None, **kwargs):
@@ -417,9 +387,7 @@ class MsgXML(MsgFW):
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         """
         return cls.load_msg(msg_bytes, msg_id=msg_id, obj_type=EnumMsgObjType.Bytes, **kwargs)

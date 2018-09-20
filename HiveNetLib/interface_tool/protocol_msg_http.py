@@ -63,7 +63,7 @@ class MsgHTTP(MsgFW):
         返回消息对象的类型（实现类应将自己类名返回）
         @property {string}
         """
-        return 'ProtocolMsgXML'
+        return 'MsgHTTP'
 
     @classmethod
     def load_msg(cls, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
@@ -85,9 +85,7 @@ class MsgHTTP(MsgFW):
             statcode='200' - 默认的响应码
             statmsg='OK' - 默认响应消息
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 报文体对象，格式如下：
+        @returns {object} - 报文体对象，格式如下：
                 msg.sr_type {EnumMsgSRType} - 报文发送类型
                 msg.ver {string} - 版本
                 msg.statcode {string} - 反馈报文才有的信息，状态码
@@ -97,99 +95,94 @@ class MsgHTTP(MsgFW):
                 msg.para {dict} - 报文参数，key为参数名，value为参数值，都是string格式
                 msg.para_upper_map {dict} - 报文参数名大写映射，key为大写的参数名，value为原报文参数（支持不区分大小写）
 
+        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
+        @throws {ValueError} - 对应标准错误码20302，当msg_sr_type取值冲突时抛出
+
         """
-        _ret = CResult('00000')
-        _ret.msg = None
-        with ExceptionTool.ignored_cresult(
-            result_obj=_ret,
-            error_map={UnboundLocalError: ('20301', None), ValueError: ('20302', None)}
-        ):
-            _msg = None
-            if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
-                # 字符串方式及二进制
-                _http_str = ''
-                _encoding = cls._get_para_from_kwargs(
-                    'encoding', default_value='ascii', kwargs=kwargs)
-                _is_with_first_line = cls._get_para_from_kwargs(
-                    'is_with_first_line', default_value=True, kwargs=kwargs)
-                _msg_sr_type = cls._get_para_from_kwargs(
-                    'msg_sr_type', default_value=EnumMsgSRType.Auto, kwargs=kwargs)
+        _msg = None
+        if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
+            # 字符串方式及二进制
+            _http_str = ''
+            _encoding = cls._get_para_from_kwargs(
+                'encoding', default_value='ascii', kwargs=kwargs)
+            _is_with_first_line = cls._get_para_from_kwargs(
+                'is_with_first_line', default_value=True, kwargs=kwargs)
+            _msg_sr_type = cls._get_para_from_kwargs(
+                'msg_sr_type', default_value=EnumMsgSRType.Auto, kwargs=kwargs)
 
-                if _msg_sr_type == EnumMsgSRType.Auto and not _is_with_first_line:
-                    raise ValueError
+            if _msg_sr_type == EnumMsgSRType.Auto and not _is_with_first_line:
+                raise ValueError
 
-                if obj_type == EnumMsgObjType.File:
-                    with open(obj, 'rt', encoding=_encoding) as f:
-                        _http_str = f.read()
-                elif obj_type == EnumMsgObjType.Bytes:
-                    _http_str = obj.decode(_encoding)
-                else:
-                    _http_str = obj
-
-                # 转换为行数组进行处理
-                _lines = _http_str.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-                _index = 0
-
-                # 组装报文头
-                _msg = NullObj()
-                if _is_with_first_line:
-                    # 包含第1行，解析处理
-                    _index = 1
-                    _headparas = _lines[0].split(' ')
-                    if _headparas[0].upper()[0:4] == "HTTP":
-                        # 响应报文
-                        _msg.sr_type = EnumMsgSRType.Response
-                        _msg.ver = _headparas[0]
-                        _msg.statcode = _headparas[1]
-                        _msg.statmsg = _lines[len(_msg.ver) + len(_msg.statcode) + 2:]
-                    else:
-                        # 请求报文
-                        _msg.sr_type = EnumMsgSRType.Request
-                        _msg.reqtype = _headparas[0]
-                        _msg.url = ''
-                        _msg.ver = ''
-                        if len(_headparas) > 1:
-                            _msg.url = _headparas[1]
-                        if len(_headparas) > 2:
-                            _msg.ver = _headparas[2]
-                else:
-                    # 不包含第1行
-                    _msg.sr_type = _msg_sr_type
-                    _msg.ver = cls._get_para_from_kwargs(
-                        'ver', default_value='HTTP/1.0', kwargs=kwargs)
-                    if _msg_sr_type == EnumMsgSRType.Response:
-                        _msg.statcode = cls._get_para_from_kwargs(
-                            'statcode', default_value='200', kwargs=kwargs)
-                        _msg.statmsg = cls._get_para_from_kwargs(
-                            'statmsg', default_value='OK', kwargs=kwargs)
-                    else:
-                        _msg.reqtype = cls._get_para_from_kwargs(
-                            'reqtype', default_value='GET', kwargs=kwargs)
-                        _msg.url = cls._get_para_from_kwargs(
-                            'url', default_value='', kwargs=kwargs)
-
-                # 请求参数
-                _msg.para = {}
-                _msg.para_upper_map = {}
-                while _index < len(_lines):
-                    _str = _lines[_index]
-                    if _str != '':
-                        _spit_index = _str.find(':')
-                        if _spit_index == -1:
-                            _msg.para[_str] = ''
-                            _msg.para_upper_map[_str.upper()] = _str
-                        else:
-                            _msg.para[_str[0:_spit_index]] = _str[_spit_index + 1:]
-                            _msg.para_upper_map[_str[0: _spit_index].upper()] = _str[0: _spit_index]
-                    _index = _index + 1
+            if obj_type == EnumMsgObjType.File:
+                with open(obj, 'rt', encoding=_encoding) as f:
+                    _http_str = f.read()
+            elif obj_type == EnumMsgObjType.Bytes:
+                _http_str = obj.decode(_encoding)
             else:
-                # 不支持的格式
-                raise UnboundLocalError
+                _http_str = obj
 
-            _ret.msg = _msg
+            # 转换为行数组进行处理
+            _lines = _http_str.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+            _index = 0
+
+            # 组装报文头
+            _msg = NullObj()
+            if _is_with_first_line:
+                # 包含第1行，解析处理
+                _index = 1
+                _headparas = _lines[0].split(' ')
+                if _headparas[0].upper()[0:4] == "HTTP":
+                    # 响应报文
+                    _msg.sr_type = EnumMsgSRType.Response
+                    _msg.ver = _headparas[0]
+                    _msg.statcode = _headparas[1]
+                    _msg.statmsg = _lines[0][len(_msg.ver) + len(_msg.statcode) + 2:]
+                else:
+                    # 请求报文
+                    _msg.sr_type = EnumMsgSRType.Request
+                    _msg.reqtype = _headparas[0]
+                    _msg.url = ''
+                    _msg.ver = ''
+                    if len(_headparas) > 1:
+                        _msg.url = _headparas[1]
+                    if len(_headparas) > 2:
+                        _msg.ver = _headparas[2]
+            else:
+                # 不包含第1行
+                _msg.sr_type = _msg_sr_type
+                _msg.ver = cls._get_para_from_kwargs(
+                    'ver', default_value='HTTP/1.0', kwargs=kwargs)
+                if _msg_sr_type == EnumMsgSRType.Response:
+                    _msg.statcode = cls._get_para_from_kwargs(
+                        'statcode', default_value='200', kwargs=kwargs)
+                    _msg.statmsg = cls._get_para_from_kwargs(
+                        'statmsg', default_value='OK', kwargs=kwargs)
+                else:
+                    _msg.reqtype = cls._get_para_from_kwargs(
+                        'reqtype', default_value='GET', kwargs=kwargs)
+                    _msg.url = cls._get_para_from_kwargs(
+                        'url', default_value='', kwargs=kwargs)
+
+            # 请求参数
+            _msg.para = {}
+            _msg.para_upper_map = {}
+            while _index < len(_lines):
+                _str = _lines[_index]
+                if _str != '':
+                    _spit_index = _str.find(':')
+                    if _spit_index == -1:
+                        _msg.para[_str] = ''
+                        _msg.para_upper_map[_str.upper()] = _str
+                    else:
+                        _msg.para[_str[0:_spit_index]] = _str[_spit_index + 1:]
+                        _msg.para_upper_map[_str[0: _spit_index].upper()] = _str[0: _spit_index]
+                _index = _index + 1
+        else:
+            # 不支持的格式
+            raise UnboundLocalError
 
         # 返回结果
-        return _ret
+        return _msg
 
     @classmethod
     def load_submsg(cls, obj, submsg_id=None, obj_type=None, **kwargs):
@@ -212,23 +205,21 @@ class MsgHTTP(MsgFW):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象
 
         """
-        _ret = CResult('00000')
-        _ret.msg = msg
+        _msg = msg
         _upper = search_path.upper()
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            if value is None and _upper in _ret.msg.para_upper_map.keys():
-                # 删除参数
-                del _ret.msg.para[_ret.msg.para_upper_map[_upper]]
-                del _ret.msg.para_upper_map[_upper]
-            else:
-                # 新增或修改参数
-                _ret.msg.para[_ret.msg.para_upper_map[_upper]] = str(value)
-        return _ret
+        if value is None and _upper in _msg.para_upper_map.keys():
+            # 删除参数
+            del _msg.para[_msg.para_upper_map[_upper]]
+            del _msg.para_upper_map[_upper]
+        else:
+            # 新增或修改参数
+            if _upper not in _msg.para_upper_map.keys():
+                _msg.para_upper_map[_upper] = search_path
+            _msg.para[_msg.para_upper_map[_upper]] = str(value)
+        return _msg
 
     @classmethod
     def set_submsg_value(cls, submsg, search_path, value, submsg_id=None, **kwargs):
@@ -249,22 +240,16 @@ class MsgHTTP(MsgFW):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.get_value {object}  - 获取到的值
+        @returns {string} - 获取到的值，当参数不存在时返回None
+
+        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
 
         """
-        _ret = CResult('00000')
-        _ret.get_value = None
+        _get_value = None
         _upper = search_path.upper()
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            if _upper in msg.para_upper_map.keys():
-                _ret.get_value = msg.para[msg.para_upper_map[_upper]]
-            else:
-                _ret.change_code('20302')
-                _ret.trace_str = ('get value with "' + search_path +
-                                  ' failure，can\'t find para')
-        return _ret
+        if _upper in msg.para_upper_map.keys():
+            _get_value = msg.para[msg.para_upper_map[_upper]]
+        return _get_value
 
     @classmethod
     def get_submsg_value(cls, submsg, search_path, submsg_id=None, **kwargs):
@@ -288,18 +273,14 @@ class MsgHTTP(MsgFW):
         @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 完成添加后的主报文对象
+        @returns {object} - 完成添加后的主报文对象
 
         """
-        _ret = CResult('00000')
-        _ret.msg = msg
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            for _key in submsg.para_upper_map.keys():
-                if _key not in msg.para_upper_map.keys():
-                    msg.para[submsg.para_upper_map[_key]] = submsg.para[submsg.para_upper_map[_key]]
-        return _ret.msg
+        _msg = msg
+        for _key in submsg.para_upper_map.keys():
+            if _key not in _msg.para_upper_map.keys():
+                _msg.para[submsg.para_upper_map[_key]] = submsg.para[submsg.para_upper_map[_key]]
+        return _msg
 
     @classmethod
     def msg_to_str(cls, msg, msg_id=None, **kwargs):
@@ -310,29 +291,25 @@ class MsgHTTP(MsgFW):
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_str {string}  - 输出字符串
+        @returns {string} - 输出字符串
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
         """
-        _ret = CResult('00000')
-        _ret.msg_str = ''
-        with ExceptionTool.ignored_cresult(result_obj=_ret, error_map={}):
-            if msg.sr_type == EnumMsgSRType.Request:
-                # 请求报文
-                _ret.msg_str = msg.reqtype + ' ' + msg.url + ' ' + msg.ver + '\r\n'
-            else:
-                # 返回报文
-                _ret.msg_str = msg.ver + ' ' + msg.statcode + ' ' + msg.statmsg + '\r\n'
-            # 消息参数
-            for _key in msg.para_upper_map.keys():
-                _ret.msg_str = _ret.msg_str + \
-                    msg.para_upper_map[_key] + ":" + msg.para[msg.para_upper_map[_key]] + '\r\n'
-            # 增加一个空行
-            _ret.msg_str = _ret.msg_str + '\r\n'
-        return _ret
+        _msg_str = ''
+        if msg.sr_type == EnumMsgSRType.Request:
+            # 请求报文
+            _msg_str = msg.reqtype + ' ' + msg.url + ' ' + msg.ver + '\r\n'
+        else:
+            # 返回报文
+            _msg_str = msg.ver + ' ' + msg.statcode + ' ' + msg.statmsg + '\r\n'
+        # 消息参数
+        for _key in msg.para_upper_map.keys():
+            _msg_str = _msg_str + \
+                msg.para_upper_map[_key] + ":" + msg.para[msg.para_upper_map[_key]] + '\r\n'
+        # 增加一个空行
+        _msg_str = _msg_str + '\r\n'
+        return _msg_str
 
     @classmethod
     def submsg_to_str(cls, submsg, submsg_id=None, **kwargs):
@@ -360,9 +337,7 @@ class MsgHTTP(MsgFW):
             statcode='200' - 默认的响应码
             statmsg='OK' - 默认响应消息
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         """
         return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
@@ -386,20 +361,14 @@ class MsgHTTP(MsgFW):
         @param {**kwargs} kwargs - 转换参数，包括
             encoding='ascii' - 字符编码
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_bytes {byte[]}  - 二进制数组
+        @returns {byte[]} - 二进制数组
 
         """
-        _str_ret = cls.msg_to_str(msg, msg_id=msg_id, **kwargs)
-        if _str_ret.code[0] != '0':
-            # 转换成字符串失败
-            return _str_ret
+        _msg_str = cls.msg_to_str(msg, msg_id=msg_id, **kwargs)
         _encoding = cls._get_para_from_kwargs(
             'encoding', default_value='ascii', kwargs=kwargs)
-        _ret = CResult('00000')
-        _ret.msg_bytes = bytes(_str_ret.msg_str, _encoding)
-        return _ret
+        _msg_bytes = bytes(_msg_str, _encoding)
+        return _msg_bytes
 
     @classmethod
     def bytes_to_msg(cls, msg_bytes, msg_id=None, **kwargs):
@@ -418,9 +387,7 @@ class MsgHTTP(MsgFW):
             statcode='200' - 默认的响应码
             statmsg='OK' - 默认响应消息
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         """
         return cls.load_msg(msg_bytes, msg_id=msg_id, obj_type=EnumMsgObjType.Bytes, **kwargs)

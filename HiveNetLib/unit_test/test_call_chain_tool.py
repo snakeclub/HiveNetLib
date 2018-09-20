@@ -13,7 +13,7 @@ import time
 import unittest
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.simple_log import Logger, EnumLoggerName, EnumLoggerConfigType
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.generic import CResult

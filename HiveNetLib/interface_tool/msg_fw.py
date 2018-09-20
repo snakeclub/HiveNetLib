@@ -84,9 +84,7 @@ class MsgFW(ABC):
         @param {**kwargs} kwargs - 装载参数，例如：
             encoding='utf-8' - 装载字符编码
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 报文体对象(具体对象类型在实现类定义)
+        @returns {object} - 报文对象（具体类型由实现类定义），如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -108,9 +106,8 @@ class MsgFW(ABC):
         @param {**kwargs} kwargs - 装载参数，例如：
             encoding='utf-8' - 装载字符编码
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 子报文体对象(具体对象类型在实现类定义)
+        @returns {object} - 报文对象（具体类型由实现类定义），如果处理失败需抛出指定异常
+
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -129,9 +126,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象，如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -150,9 +145,7 @@ class MsgFW(ABC):
         @param {string} submsg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象，如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -170,9 +163,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.get_value {object}  - 获取到的值
+        @returns {object} - 获取到的值，如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -190,9 +181,7 @@ class MsgFW(ABC):
         @param {string} submsg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.get_value {object}  - 获取到的值
+        @returns {object} - 获取到的值，如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -212,9 +201,7 @@ class MsgFW(ABC):
         @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回报文体对象：
-            CResult.msg {object}  - 完成添加后的主报文对象
+        @returns {object} - 完成添加后的主报文对象，如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -231,9 +218,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_str {string}  - 输出字符串
+        @returns {string} - 输出字符串
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -250,9 +235,7 @@ class MsgFW(ABC):
         @param {string} submsg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_str {string}  - 输出字符串
+        @returns {string} - 输出字符串
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -269,9 +252,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -288,9 +269,7 @@ class MsgFW(ABC):
         @param {string} submsg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -307,9 +286,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg_bytes {byte[]}  - 二进制数组
+        @returns {byte[]} - 二进制数组
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -326,9 +303,7 @@ class MsgFW(ABC):
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.msg {object}  - 报文对象
+        @returns {object} - 报文对象
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 

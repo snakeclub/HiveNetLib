@@ -1,0 +1,52 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "simpleFormatter": {
+            "format": "[%(asctime)s][%(levelname)s][PID:%(process)d][TID:%(thread)d]%(message)s"
+        }
+    },
+
+    "handlers": {
+        "ConsoleHandler": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "simpleFormatter",
+            "stream": "ext://sys.stdout"
+        },
+
+        "FileHandler": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "INFO",
+            "formatter": "simpleFormatter",
+            "filename": "c:/Users/hi.li/Desktop/opensource/HiveNetLib/test_data/temp/http_service_log/log/test_case.log",
+            "maxBytes": 10485760,
+            "backupCount": 1000,
+            "encoding": "utf8"
+        }
+    },
+
+    "loggers": {
+        "Console": {
+            "level": "DEBUG",
+            "handlers": ["ConsoleHandler"]
+        },
+
+        "File": {
+            "level": "INFO",
+            "handlers": ["FileHandler"],
+            "propagate": "no"
+        },
+
+        "ConsoleAndFile": {
+            "level": "DEBUG",
+            "handlers": ["ConsoleHandler", "FileHandler"],
+            "propagate": "no"
+        }
+    },
+
+    "root": {
+        "level": "DEBUG",
+        "handlers": []
+    }
+}

@@ -26,7 +26,6 @@ import threading
 import json
 from enum import Enum
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
-from HiveNetLib.generic_enum import EnumLogLevel
 from HiveNetLib.base_tools.file_tool import FileTool
 
 __MOUDLE__ = 'simple_log'  # 模块名
@@ -266,6 +265,18 @@ _LOGGER_DEFAULT_JSON_CONSOLE_STR = u'''{
     }
 }
 '''
+
+
+class EnumLogLevel(Enum):
+    """
+    日志级别
+    @enum {int}
+    """
+    DEBUG = logging.DEBUG  # 调试
+    INFO = logging.INFO  # 一般
+    WARNING = logging.WARNING  # 告警
+    ERROR = logging.ERROR  # 错误
+    CRITICAL = logging.CRITICAL  # 严重
 
 
 class EnumLoggerName(Enum):

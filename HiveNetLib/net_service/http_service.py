@@ -18,6 +18,7 @@ import sys
 import platform
 import datetime
 import time
+import copy
 import socket
 import traceback
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
@@ -25,7 +26,7 @@ from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.net_service.net_service_fw import EnumNetServerRunStatus
 from HiveNetLib.net_service.tcpip_service import TcpIpService
 from HiveNetLib.generic import NullObj, CResult
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, EnumMsgSRType
 from HiveNetLib.interface_tool.protocol_msg_http import MsgHTTP
@@ -99,10 +100,10 @@ class HttpService(TcpIpService):
         self._is_print_msg_log = is_print_msg_log
         self._default_data_encoding = default_data_encoding
         if server_http_deal_fun is None:
-            TcpIpService.__init__(logger=logger, server_status_info_fun=server_status_info_fun, server_connect_deal_fun=server_connect_deal_fun, self_tag=self_tag,
+            TcpIpService.__init__(self, logger=logger, server_status_info_fun=server_status_info_fun, server_connect_deal_fun=server_connect_deal_fun, self_tag=self_tag,
                                   log_level=log_level, server_name=server_name, is_auto_load_i18n=is_auto_load_i18n)
         else:
-            TcpIpService.__init__(logger=logger, server_status_info_fun=server_status_info_fun, server_connect_deal_fun=self.__server_connect_deal_fun_http, self_tag=self_tag,
+            TcpIpService.__init__(self, logger=logger, server_status_info_fun=server_status_info_fun, server_connect_deal_fun=self.__server_connect_deal_fun_http, self_tag=self_tag,
                                   log_level=log_level, server_name=server_name, is_auto_load_i18n=is_auto_load_i18n)
 
     #############################
@@ -118,32 +119,48 @@ class HttpService(TcpIpService):
 
         @returns {CResult} - 数据获取结果:
             result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
-            result.msg ：获取到的数据对象，类型为MsgHTTP
+            result.data ：获取到的数据对象，类型为MsgHTTP
             result.recv_time : datetime 实际开始接受数据时间
 
         """
+        if type(recv_para) != dict:
+            recv_para = {}
         _result = CResult('00000')
         _result.data = None
         _result.recv_time = datetime.datetime.now()
+        _overtime = 10000
+        if 'overtime' in recv_para.keys():
+            # 外部有传入，优先使用该超时时间
+            _overtime = recv_para['overtime']
+        elif hasattr(net_info, 'recv_timeout'):
+            # 如果net_info有超时的设置
+            _overtime = net_info.recv_timeout
+        _result.overtime = _overtime
+
+        _recv_para = copy.deepcopy(recv_para)
+        _recv_para['recv_len'] = 1
+
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20003', None)}
+            _result
         ):
             # 循环获取所有报文头内容
             _get_line_bytes = b''
             _last_is_ln = False  # 标记上一个字符是否回车换行
             while True:
-                _read_result = TcpIpService.ReadData(net_info, {'recv_len': 1})
-                if _read_result.code[0] != '0':
+                # 检查是否超时
+                if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
+                    # 已超时
+                    _result.change_code(code='20003')
+                    break
+
+                _read_result = TcpIpService.recv_data(net_info, _recv_para)
+                if not _read_result.is_success():
                     # 出现异常，直接返回失败
                     _read_result.data = None
                     _read_result.recv_time = _result.recv_time
                     return _read_result
                 # 获取成功，判断是否回车换行
                 _get_line_bytes = _get_line_bytes + _read_result.data
-
                 if str(_read_result.data, "ascii") == "\n" and _last_is_ln:
                     # 已经连续遇到两次回车换行，说明报文头已收齐退出循环
                     break
@@ -176,21 +193,20 @@ class HttpService(TcpIpService):
             result.recv_time : datetime 实际开始接受数据时间
 
         """
+        if type(recv_para) != dict:
+            recv_para = {}
+        _recv_para = copy.deepcopy(recv_para)
         _result = CResult('00000')
         _result.data = None
         _result.recv_time = datetime.datetime.now()
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20003', None)}
+            _result
         ):
-            _get_result = MsgHTTP.get_msg_value(msg=proto_msg, search_path='Content-Length')
-            if _get_result.code[0] != '0':
-                return _get_result
-            if _get_result.get_value is not None:
-                _len = int(_get_result.get_value)
-                _result = TcpIpService.ReadData(net_info, {'recv_len': _len})
+            _get_value = MsgHTTP.get_msg_value(msg=proto_msg, search_path='Content-Length')
+            if _get_value is not None:
+                _len = int(_get_value)
+                _recv_para['recv_len'] = _len
+                _result = TcpIpService.recv_data(net_info, _recv_para)
         return _result
 
     @classmethod
@@ -209,37 +225,36 @@ class HttpService(TcpIpService):
 
         """
         # 子类必须定义该功能
+        if type(recv_para) != dict:
+            recv_para = {}
         _result = CResult('00000')
         _result.data = None
         _result.recv_time = datetime.datetime.now()
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20003', None)}
+            _result
         ):
             _head_result = cls.recv_http_head(net_info, recv_para)
-            if _head_result.code[0] != '0':
+            if not _head_result.is_success():
                 return _head_result
             _proto_msg = _head_result.data
 
             _body_result = cls.recv_http_body(net_info, _proto_msg, recv_para)
-            if _body_result.code[0] != '0':
+            if not _body_result.is_success():
                 return _body_result
 
             _result.data = (_proto_msg, _body_result.data)
         return _result
 
     @classmethod
-    def send_data(cls, net_info, send_para, data):
+    def send_data(cls, net_info, data, send_para={}):
         """
         向指定的网络连接发送数据
 
         @param {object} net_info - 要写入数据的网络信息对象（例如socket对象）
-        @param {dict} send_para - 写入数据的参数
         @param {tuple} data - 要写入的数据对象，(proto_msg, msg)
             proto_msg : MsgHTTP报文头
             msg : 二进制数据
+        @param {dict} send_para - 写入数据的参数
 
         @returns {CResult} - 发送结果:
             result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败
@@ -247,27 +262,27 @@ class HttpService(TcpIpService):
 
         """
         # 子类必须定义该功能
+        if type(send_para) != dict:
+            send_para = {}
         _result = CResult('00000')
         _result.send_time = None
         with ExceptionTool.ignored_cresult(
-            _result,
-            logger=None,
-            expect=(socket.timeout),
-            error_map={socket.timeout: ('20004', None)}
+            _result
         ):
             # 先要更新报文头的长度
             _len = 0
             if data[1] is not None:
                 _len = len(data[1])
             MsgHTTP.set_msg_value(data[0], 'Content-Length', str(_len), msg_id=None)
-            _result = TcpIpService.send_data(net_info, {}, MsgHTTP.msg_to_bytes(data[0]))
-            if _result.code[0] != '0':
+            _result = TcpIpService.send_data(net_info, MsgHTTP.msg_to_bytes(data[0]), send_para)
+            if not _result.is_success():
                 return _result
             if _len > 0:
-                _result = TcpIpService.send_data(net_info, {}, data[1])
+                _result = TcpIpService.send_data(net_info, data[1], send_para)
         return _result
 
-    def get_print_str(self, proto_msg, msg):
+    @classmethod
+    def get_print_str(cls, proto_msg, msg):
         """
         获取报文打印字符串
 
@@ -279,10 +294,10 @@ class HttpService(TcpIpService):
         """
         _head_str = MsgHTTP.msg_to_str(proto_msg)
         # 从报文头获取字符编码
-        _encoding = self._default_data_encoding
-        _get_result = MsgHTTP.get_msg_value(proto_msg, 'Content-Type')
-        if _get_result.code[0] == '0':
-            _content_type = _get_result.get_value.lower()
+        _encoding = cls._default_data_encoding
+        _get_value = MsgHTTP.get_msg_value(proto_msg, 'Content-Type')
+        if _get_value is not None:
+            _content_type = _get_value.lower()
             _index = _content_type.rfind('charset=')
             if _index != -1:
                 _encoding = _content_type[_index + 8]
@@ -306,11 +321,11 @@ class HttpService(TcpIpService):
         """
         while True:
             # 判断是否要断开服务器
-            if self.__server_run_status != EnumNetServerRunStatus.Running:
+            if self.server_run_status != EnumNetServerRunStatus.Running:
                 # 服务器状态不是运行，直接断开连接
                 self._logger_fun[self._log_level](
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s]%s' % (
-                        self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
+                        self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         _('close remote connection because servie shutdown')
                     )
                 )
@@ -319,10 +334,10 @@ class HttpService(TcpIpService):
 
             # 获取报文信息
             _result = self.recv_data(net_info, {})
-            if _result.code[0] != '0':
+            if not _result.is_success():
                 self._logger_fun[EnumLogLevel.ERROR](
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s: %s - %s\n%s' % (
-                        self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
+                        self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         str(type(_result.error)), _('recv data from remote error'),
                         _result.code, _result.msg, _result.trace_str
                     )
@@ -337,7 +352,7 @@ class HttpService(TcpIpService):
             if self._is_print_msg_log:
                 self._logger_fun[self._log_level](
                     '[INF-RECV][NAME:%s][IP:%s][PORT:%s]\n%s' % (
-                        self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
+                        self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         self.get_print_str(_proto_msg, _msg)
                     )
                 )
@@ -350,7 +365,7 @@ class HttpService(TcpIpService):
             except Exception as e:
                 self._logger_fun[EnumLogLevel.ERROR](
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s\n%s' % (
-                        self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
+                        self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         str(type(e)), _('execute server_http_deal_fun error'),
                         traceback.format_exc()
                     )
@@ -361,11 +376,11 @@ class HttpService(TcpIpService):
 
             # 组织回包
             if _rproto_msg is not None:
-                _result = self.send_data(net_info, {}, (_rproto_msg, _rmsg))
-                if _result.code[0] != '0':
+                _result = self.send_data(net_info, (_rproto_msg, _rmsg), {})
+                if not _result.is_success():
                     self._logger_fun[EnumLogLevel.ERROR](
                         '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s: %s - %s\n%s' % (
-                            self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
+                            self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                             str(type(_result.error)), _('send data to remote error'),
                             _result.code, _result.msg, _result.trace_str
                         )
@@ -376,8 +391,8 @@ class HttpService(TcpIpService):
                 if self._is_print_msg_log:
                     self._logger_fun[self._log_level](
                         '[INF-RET][NAME:%s][IP:%s][PORT:%s]\n%s' % (
-                            self_tag, str(net_info.addr[0]), str(net_info.addr[1]),
-                            self.get_print_str(_proto_msg, _msg)
+                            self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
+                            self.get_print_str(_rproto_msg, _rmsg)
                         )
                     )
 

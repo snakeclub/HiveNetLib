@@ -19,7 +19,7 @@ import uuid
 import datetime
 import traceback
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.generic_enum import EnumLogLevel
+from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.string_tool import StringTool
 
@@ -236,7 +236,7 @@ class CallChainTool(object):
         return wrapper1
 
     @staticmethod
-    def api_get_trace_info(f):
+    def api_get_trace_info(msg, proto_msg=None):
         """
         从接口报文对象中获取调用链的信息
         TRACE_ID（追踪ID）、CALL_ID（执行ID）、PARENT_CALL_ID（父调用函数的执行ID）、
