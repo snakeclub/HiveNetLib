@@ -314,6 +314,77 @@ class RunTool(object):
                     RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
                 raise sys.exc_info()[1]
 
+    @staticmethod
+    def set_global_logger(logger):
+        """
+        设置全局使用的logger对象
+
+        @param {object} logger - logger对象,传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现info、warning、error等标准方法
+
+        """
+        RunTool.set_global_var('CALL_CHAIN_TOOL_LOGGER', logger)
+
+    @staticmethod
+    def get_global_logger():
+        """
+        获取全局使用的logger对象
+
+        @returns {object} - 全局使用的logger对象
+
+        """
+        return RunTool.get_global_var('CALL_CHAIN_TOOL_LOGGER')
+
+    @staticmethod
+    def get_object_class(obj):
+        """
+        获取对象的类
+
+        @param {object} obj - 要获取信息的对象
+
+        @returns {class} - 返回的对象的类，可以直接创建新对象，例如：
+            _class = get_object_class(obj)
+            _newobj = _class(para='')
+
+        """
+        return obj.__class__
+
+    @staticmethod
+    def get_object_attr_list(obj):
+        """
+        获取对象的属性清单
+
+        @param {object} obj - 要获取信息的对象
+
+        @returns {list} - 返回的属性清单数组（属性名列表）
+
+        """
+        return dir(obj)
+
+    @staticmethod
+    def get_object_class_name(obj):
+        """
+        获取对象的类名
+
+        @param {object} obj - 要获取信息的对象
+
+        @returns {string} - 返回类名
+
+        """
+        return obj.__class__.__name__
+
+    @staticmethod
+    def get_object_moudle_name(obj):
+        """
+        获取对象的模块名
+
+        @param {object} obj - 要获取信息的对象
+
+        @returns {string} - 返回模块名
+        """
+        return str(obj.__module__)
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作

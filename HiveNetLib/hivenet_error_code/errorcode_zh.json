@@ -21,5 +21,6 @@
     "other unknow result": "其他未知结果",
     "unsupport argument": "不支持的参数",
     "can't find operate object": "找不到操作对象",
-    "argument consistency error": "参数一致性检查错误"
+    "argument consistency error": "参数一致性检查错误",
+    "parallel task force stop": "并发任务强制中止"
 }

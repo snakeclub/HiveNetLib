@@ -21,5 +21,6 @@
   "other unknow result": "other unknow result",
   "unsupport argument": "unsupport argument",
   "can't find operate object": "can't find operate object",
-  "argument consistency error": "argument consistency error"
+  "argument consistency error": "argument consistency error",
+  "parallel task force stop": "parallel task force stop"
 }

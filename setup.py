@@ -28,7 +28,8 @@ SHORT_DESCRIPTION = """
 
 DEPENDENCIES1 = [
     'prompt-toolkit>=2.0.0',
-    'gevent>=1.2.2'
+    'gevent>=1.2.2',
+    'affinity>=0.1.0'
 ]
 
 DEPENDENCIES = []

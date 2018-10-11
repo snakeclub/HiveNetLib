@@ -15,6 +15,7 @@
     "20301": "unsupport argument",
     "20302": "can't find operate object",
     "20303": "argument consistency error",
+    "20304": "parallel task force stop",
     "20399": "function call other failure",
     "20601": "service start failure - service have been started",
     "20602": "service stop failure - service have been shutdown",

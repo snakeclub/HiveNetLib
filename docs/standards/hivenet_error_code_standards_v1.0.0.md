@@ -184,11 +184,13 @@ cresult_obj.net_info = [socket, id]
 #### 操作系统处理失败（20201-20299）
 
 #### 函数调用处理失败（20301-20399）
-| 代码值 | 英文描述                    | 中文描述         | 备注 |
-| ------ | --------------------------- | ---------------- | ---- |
-| 20301  | unsupport argument          | 不支持的参数     |      |
-| 20302  | can't find operate object   | 找不到操作对象   |      |
-| 20399  | function call other failure | 函数调用其他失败 |      |
+| 代码值 | 英文描述                    | 中文描述           | 备注 |
+| ------ | --------------------------- | ------------------ | ---- |
+| 20301  | unsupport argument          | 不支持的参数       |      |
+| 20302  | can't find operate object   | 找不到操作对象     |      |
+| 20303  | argument consistency error  | 参数一致性检查错误 |      |
+| 20304  | parallel task force stop    | 并发任务强制中止   |      |
+| 20399  | function call other failure | 函数调用其他失败   |      |
 
 
 

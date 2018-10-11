@@ -3,7 +3,7 @@
 
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../../..'))
 from HiveNetLib.base_tools.debug_tool import DebugTool
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.simple_log import EnumLogLevel, EnumLoggerName, Logger
@@ -17,7 +17,7 @@ __AUTHOR__ = u'黎慧剑'  # 作者
 __PUBLISH__ = '2018.09.01'  # 发布日期
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
-                            '../../test_data/temp/debug_tool/').replace('\\', '/')
+                            '../../../test_data/temp/debug_tool/').replace('\\', '/')
 
 
 def test_debugtools_1():

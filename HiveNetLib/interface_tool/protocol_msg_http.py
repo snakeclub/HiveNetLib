@@ -222,15 +222,6 @@ class MsgHTTP(MsgFW):
         return _msg
 
     @classmethod
-    def set_submsg_value(cls, submsg, search_path, value, submsg_id=None, **kwargs):
-        """
-        设置子报文的内容
-        函数定义与set_msg_value一致： @see set_msg_value
-
-        """
-        return cls.set_msg_value(submsg, search_path, value, msg_id=submsg_id, **kwargs)
-
-    @classmethod
     def get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
         """
         获取主报文的内容
@@ -250,15 +241,6 @@ class MsgHTTP(MsgFW):
         if _upper in msg.para_upper_map.keys():
             _get_value = msg.para[msg.para_upper_map[_upper]]
         return _get_value
-
-    @classmethod
-    def get_submsg_value(cls, submsg, search_path, submsg_id=None, **kwargs):
-        """
-        获取主报文的内容
-        函数定义与get_msg_value一致： @see get_msg_value
-
-        """
-        return cls.get_msg_value(submsg, search_path, msg_id=submsg_id, **kwargs)
 
     @classmethod
     def append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
@@ -312,15 +294,6 @@ class MsgHTTP(MsgFW):
         return _msg_str
 
     @classmethod
-    def submsg_to_str(cls, submsg, submsg_id=None, **kwargs):
-        """
-        将子报文对象转换为字符串格式
-        函数定义与msg_to_str一致： @see msg_to_str
-
-        """
-        return cls.msg_to_str(submsg, msg_id=submsg_id, **kwargs)
-
-    @classmethod
     def str_to_msg(cls, msg_str, msg_id=None, **kwargs):
         """
         将字符串转换为主报文对象
@@ -341,15 +314,6 @@ class MsgHTTP(MsgFW):
 
         """
         return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
-
-    @classmethod
-    def str_to_submsg(cls, msg_str, submsg_id=None, **kwargs):
-        """
-        将字符串转换为主报文对象
-        函数定义与str_to_msg一致： @see str_to_msg
-
-        """
-        return cls.str_to_msg(msg_str, msg_id=submsg_id, **kwargs)
 
     @classmethod
     def msg_to_bytes(cls, msg, msg_id=None, **kwargs):

@@ -140,15 +140,6 @@ class MsgXML(MsgFW):
         return _msg
 
     @classmethod
-    def load_submsg(cls, obj, submsg_id=None, obj_type=None, **kwargs):
-        """
-        装载子报文体对象（独立对象，不嵌入主报文中）
-        函数定义与load_msg一致： @see load_msg
-
-        """
-        return cls.load_msg(obj=obj, msg_id=submsg_id, obj_type=obj_type, **kwargs)
-
-    @classmethod
     def set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
         """
         设置主报文的内容
@@ -174,15 +165,6 @@ class MsgXML(MsgFW):
         return _msg
 
     @classmethod
-    def set_submsg_value(cls, submsg, search_path, value, submsg_id=None, **kwargs):
-        """
-        设置子报文的内容
-        函数定义与set_msg_value一致： @see set_msg_value
-
-        """
-        return cls.set_msg_value(submsg, search_path, value, msg_id=submsg_id, **kwargs)
-
-    @classmethod
     def get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
         """
         获取主报文的内容（注意只获取第1个取到的节点值）
@@ -204,15 +186,6 @@ class MsgXML(MsgFW):
         else:
             _get_value = _nodes[0].text
         return _get_value
-
-    @classmethod
-    def get_submsg_value(cls, submsg, search_path, submsg_id=None, **kwargs):
-        """
-        获取主报文的内容
-        函数定义与get_msg_value一致： @see get_msg_value
-
-        """
-        return cls.get_msg_value(submsg, search_path, msg_id=submsg_id, **kwargs)
 
     @classmethod
     def append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
@@ -299,15 +272,6 @@ class MsgXML(MsgFW):
         return _msg_str
 
     @classmethod
-    def submsg_to_str(cls, submsg, submsg_id=None, **kwargs):
-        """
-        将子报文对象转换为字符串格式
-        函数定义与msg_to_str一致： @see msg_to_str
-
-        """
-        return cls.msg_to_str(submsg, msg_id=submsg_id, **kwargs)
-
-    @classmethod
     def str_to_msg(cls, msg_str, msg_id=None, **kwargs):
         """
         将字符串转换为主报文对象
@@ -330,15 +294,6 @@ class MsgXML(MsgFW):
 
         """
         return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
-
-    @classmethod
-    def str_to_submsg(cls, msg_str, submsg_id=None, **kwargs):
-        """
-        将字符串转换为主报文对象
-        函数定义与str_to_msg一致： @see str_to_msg
-
-        """
-        return cls.str_to_msg(msg_str, msg_id=submsg_id, **kwargs)
 
     @classmethod
     def msg_to_bytes(cls, msg, msg_id=None, **kwargs):

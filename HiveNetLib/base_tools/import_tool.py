@@ -77,7 +77,7 @@ class ImportTool(object):
             if import_member is None or import_member == '':
                 # 无需指定对象导入
                 _exec_code = 'import %s' % module_name
-                if len(as_name) > 0:
+                if as_name is not None:
                     _exec_code = '%s as %s' % (_exec_code, as_name)
             else:
                 _exec_code = 'from %s import %s' % (module_name, import_member)
@@ -100,6 +100,19 @@ class ImportTool(object):
 
         """
         return hasattr(module_obj, attr_name)
+
+    @staticmethod
+    def get_attr(module_obj, attr_name):
+        """
+        获取对象的指定属性（直接使用）
+
+        @param {Moudle} module_obj - 模块对象
+        @param {string} attr_name - 属性名（类名/函数名/属性名)
+
+        @returns {object} - 具体属性引用，可以直接使用
+
+        """
+        return getattr(module_obj, attr_name)
 
     @staticmethod
     def get_moudle_name(module_obj):
