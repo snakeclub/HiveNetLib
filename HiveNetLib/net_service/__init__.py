@@ -3,5 +3,5 @@
 
 
 __all__ = [
-    'base_service_fw', 'http_service', 'tcpip_service'
+    'net_service_fw', 'http_service', 'tcpip_service'
 ]

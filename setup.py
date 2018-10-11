@@ -26,13 +26,14 @@ HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功
 SHORT_DESCRIPTION = """
 一个方便开发人员调用的，集合一些常用开发功能的开发Python库.""".strip()
 
-DEPENDENCIES1 = [
+DEPENDENCIES = [
     'prompt-toolkit>=2.0.0',
     'gevent>=1.2.2',
-    'affinity>=0.1.0'
+    'affinity>=0.1.0',
+    'xmltodict>=0.11.0'
 ]
 
-DEPENDENCIES = []
+# DEPENDENCIES = []
 
 TEST_DEPENDENCIES = []
 
@@ -54,6 +55,7 @@ setup(
     packages=find_packages(),
     install_requires=DEPENDENCIES,
     tests_require=TEST_DEPENDENCIES,
+    package_data={'': ['*.json']},  # 这里将打包所有的json文件
     # 此项需要，否则卸载时报windows error
     zip_safe=False
 )

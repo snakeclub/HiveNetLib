@@ -26,7 +26,7 @@ import operator
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 from queue import Full, Empty
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
 from HiveNetLib.generic import CResult
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.value_tool import ValueTool
