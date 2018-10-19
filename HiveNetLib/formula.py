@@ -9,8 +9,10 @@
 
 """
 字符串公式解析模块
+
 @module formula
 @file formula.py
+
 """
 
 import os
@@ -18,9 +20,9 @@ import sys
 import datetime
 from operator import itemgetter
 from enum import Enum
-from simple_stream import StringStream
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
 from HiveNetLib.generic import NullObj
+from HiveNetLib.simple_stream import StringStream
 # from HiveNetLib.base_tools.string_tool import StringTool
 # from HiveNetLib.base_tools.debug_tool import DebugTool
 
@@ -35,6 +37,7 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
 class EnumFormulaSearchSortOrder(Enum):
     """
     检索结果排序模式
+
     @enum {string}
 
     """
@@ -49,6 +52,7 @@ class EnumFormulaSearchSortOrder(Enum):
 class EnumFormulaSearchResultType(Enum):
     """
     检索结果类型
+
     @enum {string}
 
     """
@@ -59,6 +63,7 @@ class EnumFormulaSearchResultType(Enum):
 class StructFormulaKeywordPara(object):
     """
     公式匹配关键字配置参数结构定义
+
     """
     is_single_tag = False  # 该标签是否单独一个标识，不含公式内容
     has_sub_formula = True  # 是否包含子公式，如果为True则代表继续分解公式里面的子公式
@@ -73,6 +78,7 @@ class StructFormulaKeywordPara(object):
 class StructFormula(object):
     """
     公式结构定义
+
     """
     formula_string = ''  # 公式完整字符串
     keyword = ''  # 公式的关键字标识
@@ -97,24 +103,20 @@ class FormulaTool(object):
                     \$ : 匹配字符串结尾
                     \* : 匹配任意字符（也可以是前面无字符）
                 如果前置字符/后置字符列表长度为0，则代表不判断前置及后置字符，等同于'\*'
-
         match_info - {object} - 某一匹配节点信息，为一个object:
                 object.source_str : string 匹配到的原文字符串
                 object.start_pos : int 匹配结果开始位置（不含前置字符）
                 object.end_pos : int 匹配结果结束位置（不含后置字符）
                 object.front_char : string 匹配到的前置字符
                 object.end_char : string 匹配到的后置字符
-
         match_result - {dict} - 匹配结果字典，格式为:
             key - string, 匹配上的字符串（match_list的key）
             value - dict, 匹配到的结果字典，key为start_pos, value为match_info，格式 @see FormulaTool/match_info
-
         compare_stack - {dict} - 中间匹配结果堆栈，格式为：
             key - string, 要匹配的字符串（match_list的key）
             value - dict, 所有部分匹配到且未完结的匹配信息（确认已匹配上加入match_result及确认不匹配删除的除外），格式为：
                 key - string, 前置字符 + 匹配开始位置（front_char+str(start_pos)）
                 value - object, 匹配的match_info，格式 @see FormulaTool/match_info
-
         keywords - {dict} - 公式关键字定义，格式如下：
             key - string 关键字标识名
             value - list 匹配定义数组，按顺序定义为:
@@ -129,6 +131,22 @@ class FormulaTool(object):
                         \$ : 以结尾为结束标签'\\$'
                         \t : 以下一个标签开始为当前结束标签'\\t'，注意不是代表tab的'\t'
 
+    @param {dict} keywords=dict() - 公式关键字定义， @see FormulaTool/keywords
+    @param {bool} ignore_case=False - 是否忽略大小写
+    @param {dict} deal_fun_list=dict() - 公式计算函数对照字典:
+        key - string keywords的关键字标识名
+        value - fun 对应的公式处理函数，函数的定义必须满足以下要求:
+            fun(formular_obj, **kwargs):
+                formular_obj : StructFormula 要处理公式对象（函数直接修改对象），该函数需更新对象的formula_value
+                kwargs ：计算公式所传入的key=value格式的参数，参数key由处理函数定义（建议统一定义便于简化处理）
+            注意：
+                1、可以在函数定义中直接指定要传入的指定参数名，但注意函数参数的最后必须指定**kwargs，:
+                    避免外部统一传入的参数与指定参数不一样的情况下出错，例如：
+                    def deal_fun_string(formular_obj, my_para1='', my_para2=[], **kwargs)
+                2、如果希望传入的指定参数能在公式处理过程中被修改并传递到其他公式处理，应该指定的参数类型不要:
+                    为string、int等非引用类型，而应该使用list、dict、object等引用类型
+    @param {function} default_deal_fun=None - 默认的公式处理函数，如果None代表默认使用default_deal_fun_string_content
+
     """
 
     #############################
@@ -141,12 +159,12 @@ class FormulaTool(object):
         """
         内部函数，从字符串中检索匹配字符清单，并返回所有结果
         从字符串中检索匹配字符清单，并返回所有结果，算法：
-            1、总体算法思路是建立待匹配堆栈，只是登记匹配字符和已匹配到的位置；堆栈保持不动，将检索字符串逐个字符流转入
-                堆栈中比对，匹配上则更新堆栈位置信息和增加部分匹配清单；完全匹配情况插入结果信息；
-            2、待匹配堆栈内容如下：
-                （1）固定匹配清单，在堆栈中固定保留，每次匹配都只匹配第一个字符
-                （2）部分匹配清单，当固定匹配清单匹配上的时候新增待匹配清单，后续匹配中发现不匹配的时候移出清单；
-                    每次匹配字符如果通过登记匹配字符位置，不通过移出清单，完全通过登记结果并移出清单。
+        1、总体算法思路是建立待匹配堆栈，只是登记匹配字符和已匹配到的位置；堆栈保持不动，将检索字符串逐个字符流转入
+            堆栈中比对，匹配上则更新堆栈位置信息和增加部分匹配清单；完全匹配情况插入结果信息；
+        2、待匹配堆栈内容如下：
+            （1）固定匹配清单，在堆栈中固定保留，每次匹配都只匹配第一个字符
+            （2）部分匹配清单，当固定匹配清单匹配上的时候新增待匹配清单，后续匹配中发现不匹配的时候移出清单；
+                每次匹配字符如果通过登记匹配字符位置，不通过移出清单，完全通过登记结果并移出清单。
 
         @param {string} source_str - 需要检索的字符串
         @param {dict} match_list - 要检索的匹配字符清单字典，格式 @see FormulaTool/match_list
@@ -494,8 +512,8 @@ class FormulaTool(object):
     def __formula_analyse_loop(formula_str, keywords, match_result, current_index, parent_key):
         """
         循环解析公式, 算法描述：
-            1、从current_index开始逐个从match_result找在keywords中定义的开始标签
-            2、如果找到开始标签，则冒泡调用__formula_analyse_loop，在标签后找自身的子公式，直到遇到父公式的结束标签
+        1、从current_index开始逐个从match_result找在keywords中定义的开始标签
+        2、如果找到开始标签，则冒泡调用__formula_analyse_loop，在标签后找自身的子公式，直到遇到父公式的结束标签
 
         @param {string} formula_str - 公式完整字符串
         @param {dict} keywords - 公式关键字定义， @see FormulaTool/keywords
@@ -1062,6 +1080,7 @@ class FormulaTool(object):
         将标签内容的字符串作为设置值
 
         @param {StructFormula} formular_obj - 要计算的公式
+
         """
         formular_obj.formula_value = formular_obj.content_string
 

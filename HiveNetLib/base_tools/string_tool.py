@@ -9,8 +9,10 @@
 
 """
 字符串处理模块
+
 @module string_tool
 @file string_tool.py
+
 """
 
 import copy
@@ -28,6 +30,7 @@ class StringTool(object):
     """
     字符串处理通用类
     提供各类字符串处理相关的常用工具函数（静态方法）
+
     """
 
     @staticmethod
@@ -56,6 +59,7 @@ class StringTool(object):
 
         @example
             StringTool.hex_to_bytes("A3D3F33433")
+
         """
         return bytes.fromhex(hex_str)
 
@@ -73,6 +77,7 @@ class StringTool(object):
 
         @example
             fix_str = StringTool.fill_fix_string('My job is', 50, ' ', False)
+
         """
         _str = str(deal_str)
         # 生成填充串
@@ -104,6 +109,7 @@ class StringTool(object):
 
         @example
             mylist = StringTool.get_list_from_str('aaa["a", 10, [39, 4], True, 21.4]bbb')
+
         """
         _array = []
         _index1 = deal_str.find("[")
@@ -147,6 +153,7 @@ class StringTool(object):
         @param {int} [start=0] - 查找开始位置
 
         @returns {int} - 返回找到的位置，如果找不到返回-1
+
         """
         if n < 1:
             # 已找不到了

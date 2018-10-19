@@ -9,8 +9,10 @@
 
 """
 接口报文处理框架
+
 @module msg_fw
 @file msg_fw.py
+
 """
 
 import os
@@ -31,7 +33,9 @@ __PUBLISH__ = '2018.09.12'  # 发布日期
 class EnumMsgObjType(Enum):
     """
     消息载体对象类型
+
     @enum {int}
+
     """
     File = 0  # 文件
     FileHandle = 1  # 打开的文件句柄
@@ -42,7 +46,9 @@ class EnumMsgObjType(Enum):
 class EnumMsgSRType(Enum):
     """
     报文收发类型
+
     @enum {int}
+
     """
     Request = 0  # 请求报文
     Response = 1  # 相应报文
@@ -69,7 +75,9 @@ class MsgFW(ABC):
     def base_object(self):
         """
         返回实例化后的消息体处理对象（可以用静态方法处理）
+
         @property {object}
+
         """
         return self._base_object
 
@@ -77,7 +85,9 @@ class MsgFW(ABC):
     def msg_id(self):
         """
         返回实例化后的消息标识
+
         @property {string}
+
         """
         return self._msg_id
 
@@ -200,7 +210,9 @@ class MsgFW(ABC):
     def MsgType(cls):
         """
         返回消息对象的类型（实现类应将自己类名返回）
+
         @property {string}
+
         """
         return 'MsgFW'
 
@@ -393,7 +405,9 @@ class IntfMsgFW(ABC):
     def msg(self):
         """
         获取报文信息对象
+
         @property {MsgFW}
+
         """
         return self.__msg
 
@@ -411,7 +425,9 @@ class IntfMsgFW(ABC):
     def proto_msg(self):
         """
         获取协议信息对象
+
         @property {MsgFW}
+
         """
         return self.__proto_msg
 

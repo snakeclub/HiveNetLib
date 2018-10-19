@@ -9,8 +9,10 @@
 
 """
 缓存处理框架
+
 @module simple_cache
 @file simple_cache.py
+
 """
 
 import threading
@@ -30,7 +32,9 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
 class EnumCacheSortedOrder(Enum):
     """
     缓存排序优先规则
+
     @enum {string}
+
     """
     HitTimeFirst = 'HitTimeFirst'  # 按命中时间优先排序
     HitCountFirst = 'HitCountFirst'  # 按命中次数优先排序
@@ -39,6 +43,10 @@ class EnumCacheSortedOrder(Enum):
 class BaseCache(ABC):
     """
     基础缓存理定义基类, 定义缓存处理的基本框架函数
+
+    @param {int} size=10 - 缓存大小，<=0 代表没有限制
+    @param {EnumCacheSortedOrder} sorted_order=EnumCacheSortedOrder.HitTimeFirst - 缓存排序优先规则
+
     """
 
     #############################
@@ -150,6 +158,7 @@ class BaseCache(ABC):
     def _check_size_and_cut(self):
         """
         检查缓存列表是否超过指定大小，如果超过则按优先级从后删除缓存
+
         """
         if self._cache_size <= 0:
             return
@@ -168,6 +177,7 @@ class BaseCache(ABC):
     def clear(self):
         """
         清除所有缓存
+
         """
         # 先清除数据，再清除其他
         self._clear_cache_data()
@@ -366,6 +376,7 @@ class MemoryCache(BaseCache):
     def _clear_cache_data(self):
         """
         清除缓存所有实际数据, 由于不涉及另行存储数据，无需处理
+
         """
         return
 

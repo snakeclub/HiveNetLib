@@ -9,8 +9,10 @@
 
 """
 通用调试工具
+
 @module debug_tool
 @file debug_tool.py
+
 """
 
 import sys
@@ -72,6 +74,7 @@ class DebugTool(object):
     def debug_print(*args, **kwargs):
         """
         打印调试信息，可打印传入的多个对象
+
         """
         DEBUG_TOOLS_SWITCH_ON = RunTool.get_global_var('DEBUG_TOOLS_SWITCH_ON')
         if DEBUG_TOOLS_SWITCH_ON is None:
@@ -167,6 +170,7 @@ class DebugTool(object):
         @param {dict} kwargs - keyvalue的对象字典
 
         @returns {iterable} - 每次迭代返回一个打印值
+
         """
         for _obj in args:
             yield '%s[key=]%s' % (

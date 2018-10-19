@@ -9,8 +9,10 @@
 
 """
 测试相关工具
+
 @module test_tool
 @file test_tool.py
+
 """
 
 import sys
@@ -30,6 +32,7 @@ __PUBLISH__ = '2018.08.30'  # 发布日期
 class TestTool(object):
     """
     测试相关工具，提供各类检查比较函数
+
     """
 
     @staticmethod
@@ -42,6 +45,7 @@ class TestTool(object):
         @param {bool} print_if_diff=True - 当两个list不一致时是否打印对象信息
 
         @returns {bool} - True-两个list一致，False-两个list不一致
+
         """
         is_same = True
         try:
@@ -82,6 +86,7 @@ class TestTool(object):
         @param {bool} print_if_diff=True - 当两个字典不一致时是否打印对象信息
 
         @returns {bool} - True-两个字典一致，False-两个字典不一致
+
         """
         is_same = False
         if isinstance(src_data, str):

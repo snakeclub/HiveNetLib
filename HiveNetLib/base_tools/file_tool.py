@@ -9,8 +9,10 @@
 
 """
 文件处理工具模块
+
 @module file_tool
 @file file_tool.py
+
 """
 
 import sys
@@ -31,6 +33,7 @@ class FileTool(object):
     """
     文件处理工具
     提供各类文件、目录相关的常用工具函数（静态方法）
+
     """
 
     @staticmethod
@@ -98,6 +101,7 @@ class FileTool(object):
         @param {string} path - 要获取的目录路径
 
         @returns {string} - 目录名
+
         """
         _path = os.path.split(os.path.realpath(path))[0].rstrip('\\/').replace('\\', '/')
         _index = _path.rfind('/')
@@ -117,6 +121,7 @@ class FileTool(object):
 
         @example
             FileTool.create_dir("c:/test/")
+
         """
         os.makedirs(path)
 
@@ -133,6 +138,7 @@ class FileTool(object):
 
         @example
             filelist = FileTools.get_filelist(path='c:\\')
+
         """
         _filelist = []
         _file_names = os.listdir(path)
@@ -265,6 +271,7 @@ class FileTool(object):
 
         @param {string} path='' - 要处理的文件夹
         @param {string} regex_str='' - 文件名匹配的正则表达式
+
         """
         _pattern = None
         _path = os.path.realpath(path)
@@ -293,6 +300,7 @@ class FileTool(object):
         @param {string} src_path='' - 源文件夹
         @param {string} dest_path='' - 目标文件夹
         @param {string} regex_str='' - 文件名匹配的正则表达式
+
         """
         _pattern = None
         _dest_path = os.path.realpath(dest_path)

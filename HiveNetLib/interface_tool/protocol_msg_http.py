@@ -9,8 +9,10 @@
 
 """
 Http协议头信息
+
 @module protocol_msg_http
 @file protocol_msg_http.py
+
 """
 
 import os
@@ -61,7 +63,9 @@ class MsgHTTP(MsgFW):
     def MsgType(cls):
         """
         返回消息对象的类型（实现类应将自己类名返回）
+
         @property {string}
+
         """
         return 'MsgHTTP'
 

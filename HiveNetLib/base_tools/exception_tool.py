@@ -9,8 +9,10 @@
 
 """
 异常处理工具
+
 @module exception_tool
 @file exception_tool.py
+
 """
 
 import os
@@ -34,6 +36,7 @@ __PUBLISH__ = '2018.08.29'  # 发布日期
 class ExceptionTool(object):
     """
     异常处理工具,提供便捷的异常处理模式
+
     """
 
     @staticmethod
@@ -98,6 +101,7 @@ class ExceptionTool(object):
             with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'):
                 count = 1 / 0
                 count = count + 10000
+
         """
         try:
             yield
@@ -216,6 +220,7 @@ class ExceptionTool(object):
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
         @param {string} trace_str='' - 错误追踪堆栈日志，异常时的traceback.format_exc()
         @param {EnumLogLevel} log_level=EnumLogLevel.WARNING - 需要输出的自定义日志级别
+
         """
         if logger is not None:
             # 要输出的日志内容

@@ -9,8 +9,10 @@
 
 """
 调用链日志处理工具
+
 @module call_chain_tool
 @file call_chain_tool.py
+
 """
 
 import os
@@ -92,6 +94,7 @@ class CallChainTool(object):
     def start(self):
         """
         启动后台日志处理
+
         """
         self._pool.start()
 
@@ -113,6 +116,7 @@ class CallChainTool(object):
     def _api_chall_chain_logging_threadfun(self):
         """
         异步接口调用链日志的处理函数，从队列中获取任务信息并最终写入logger
+
         """
         # 从队列中获取接口登记任务
         _task = None

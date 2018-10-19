@@ -9,8 +9,10 @@
 
 """
 网络处理相关工具
+
 @module net_tool
 @file net_tool.py
+
 """
 
 __MOUDLE__ = 'net_tool'  # 模块名
@@ -24,6 +26,7 @@ class NetTool(object):
     """
     网络处理相关工具
     提供网络处理相关的函数，包括字节转换处理等
+
     """
 
     @staticmethod
@@ -42,6 +45,7 @@ class NetTool(object):
         @returns {bytes} - 转换后的字节数组
 
         @throws {OverflowError} - 如果整数转换出的字节数组长度超过长度或无符号位时传入负数
+
         """
         return int_value.to_bytes(length=fix_len, byteorder=byte_order, signed=signed)
 
@@ -60,6 +64,7 @@ class NetTool(object):
         @returns {int} - 转换后的整数
 
         @throws {OverflowError} - 无符号位时传入负数抛出该异常
+
         """
         return int.from_bytes(bytes_value, byteorder=byte_order, signed=signed)
 

@@ -9,8 +9,10 @@
 
 """
 运行参数处理通用工具
+
 @module run_tool
 @file run_tool.py
+
 """
 
 import sys
@@ -46,6 +48,7 @@ class RunTool(object):
     """
     运行参数处理通用类
     提供各类运行环境处理相关的常用工具函数（静态方法）
+
     """
 
     @staticmethod
@@ -58,6 +61,7 @@ class RunTool(object):
         @example
             命令行# python ggeneric.py key1=value1 key2=value2 key3="value 3" "key 4"=value4 "key 5"="value 5"
             input_para = RunTools.get_kv_opts()
+
         """
         # 建立要返回的字典
         _dict = {}
@@ -82,6 +86,7 @@ class RunTool(object):
         @param {string} name_str - 变量名（注意是名字字符串，不是传入变量）
 
         @returns {bool} - 是否已定义，True-已定义，False-未定义
+
         """
         try:
             type(eval(name_str))
@@ -120,6 +125,7 @@ class RunTool(object):
 
         @param {string} key - 要设置的全局变量key值
         @param {object} value - 要设置的全局变量值
+
         """
         global RUNTOOL_GLOBAL_VAR_LIST
         RUNTOOL_GLOBAL_VAR_LIST[key] = value
@@ -132,6 +138,7 @@ class RunTool(object):
         @param {string} key - 要获取的全局变量key值
 
         @returns {object} - 全局变量的值，如果找不到key则返回None
+
         """
         global RUNTOOL_GLOBAL_VAR_LIST
         if key in RUNTOOL_GLOBAL_VAR_LIST.keys():
@@ -155,6 +162,7 @@ class RunTool(object):
     def del_all_global_var():
         """
         清空所有全局变量
+
         """
         global RUNTOOL_GLOBAL_VAR_LIST
         RUNTOOL_GLOBAL_VAR_LIST.clear()
@@ -195,6 +203,7 @@ class RunTool(object):
 
         @param {string} process_name='' - 进程锁的进程名，默认值为''；如果为''代表获取执行程序的模块名
         @param {string} base_path='' - 进程锁文件指定的路径，默认值为''；如果为''代表获取执行程序的模块文件目录
+
         """
         try:
             _lock_file = RunTool.single_process_get_lockfile(
@@ -288,6 +297,7 @@ class RunTool(object):
         @example
             with RunTools.single_process_with():
                 # 以下为需要执行的程序逻辑
+
         """
         _get_process_lock = RunTool.single_process_enter(process_name=process_name,
                                                          base_path=base_path, is_try_del_lockfile=is_try_del_lockfile)
@@ -382,6 +392,7 @@ class RunTool(object):
         @param {object} obj - 要获取信息的对象
 
         @returns {string} - 返回模块名
+
         """
         return str(obj.__module__)
 

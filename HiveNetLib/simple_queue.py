@@ -9,8 +9,10 @@
 
 """
 队列任务处理模块
+
 @module simple_queue
 @file simple_queue.py
+
 """
 
 try:
@@ -43,7 +45,9 @@ __PUBLISH__ = '2018.09.30'  # 发布日期
 class EnumQueueType(Enum):
     """
     队列类型
+
     @enum {int}
+
     """
     FIFO = 0  # 先进先出
     LIFO = 1  # 后进先出
@@ -80,6 +84,10 @@ class QueueFw(ABC):
     基础队列处理框架，用于定义队列的公共方法，便于扩展不同的队列类型（例如支持各类MQ）
     框架基类重写了python基础库的Queue，调用方法与Queue一致，但增加了动态参数kwargs的扩展
 
+    @param {**kwargs} kwargs - 队列初始化动态参数，定义如下：
+            maxsize=0 {int} - 队列深度，如果为0代表不限制队列大小
+            注：其他定义参考具体的实例化类
+
     """
 
     #############################
@@ -95,7 +103,9 @@ class QueueFw(ABC):
     def init_kwargs(self):
         """
         获取初始化队列的参数
+
         @property {dict}
+
         """
         return self._init_kwargs
 
@@ -344,8 +354,11 @@ class MemoryQueue(QueueFw):
     """
     QueueFw的内存基础队列实现
     重新实现Python基础的Queue、LifoQueue和PriorityQueue
-
     注意：该队列只能线程共享，不能进程共享，如果需进程共享，可直接使用multiprocessing.Queue
+
+    @param {**kwargs} kwargs - 初始化参数，定义如下：
+        queue_type {EnumQueueType} - 队列类型，默认为EnumQueueType.FIFO
+        maxsize {int} - 队列最大深度, 0代表不限制
 
     """
 

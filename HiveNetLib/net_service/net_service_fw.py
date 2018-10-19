@@ -9,8 +9,10 @@
 
 """
 网络服务框架
+
 @module net_service_fw
 @file net_service_fw.py
+
 """
 
 import os
@@ -40,6 +42,7 @@ __PUBLISH__ = '2018.09.04'  # 发布日期
 class EnumNetServerRunStatus(Enum):
     """
     服务器运行状态
+
     @enum {string}
 
     """
@@ -54,6 +57,26 @@ class NetServiceFW(ABC):
     """
     网络服务框架类
     抽象网络编程的公共方法形成框架，并提供基本的处理功能，简化网络协议编程的难度
+
+    @param {Logger} logger=None - 日志对象，服务过程中通过该函数写日志:
+        可以为标准的logging日志库对象，也可以为simple_log对象，但要求对象实现:
+        标准的info、debug、warning、error、critical五个日志方法
+    @param {function} server_status_info_fun=None - 外围传入的网络服务状态变更通知函数对象，当网络服务状态发生变更时通过:
+        该函数通知调用方；形式为fun(server_status, result):
+        其中server_status为服务器状态EnumNetServerRunStatus，
+        result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
+    @param {function} server_connect_deal_fun=None - 外围传入的网络服务与客户端连接后对连接的处理线程函数对象，在该函数中:
+        实现服务器端具体的通讯处理（如循环收报文、返回报文等）；
+        形式为fun(thread_id, server_opts, net_info, self_tag):
+            thread_id - 线程ID
+            server_opts -服务的启动参数
+            net_info - 具体实现的连接信息（例如Socket对象）
+            self_tag - 用于发起端传入自身的识别标识
+        需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
+    @param {string} self_tag='' - 自定义标识
+    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+    @param {string} server_name='NetService' - 服务名，记录日志使用
+    @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
 
     @example
         1、服务器端的使用方法，假设实现类为XService
@@ -166,6 +189,7 @@ class NetServiceFW(ABC):
     def _load_i18n_dict(self):
         """
         装载多国语言字典
+
         """
         _i18n_obj = get_global_i18n()
         if _i18n_obj is None:
@@ -364,6 +388,7 @@ class NetServiceFW(ABC):
     def log_level(self):
         """
         获取正常日志输出级别
+
         @property {EnumLogLevel}
 
         """
@@ -373,6 +398,7 @@ class NetServiceFW(ABC):
     def log_level(self, value):
         """
         设置正常日志输出级别
+
         @property {EnumLogLevel} value - 输出日志级别
 
         """
@@ -382,6 +408,7 @@ class NetServiceFW(ABC):
     def server_opts(self):
         """
         获取服务器启动参数
+
         @property {object}
 
         @example
@@ -403,6 +430,7 @@ class NetServiceFW(ABC):
     def server_run_status(self):
         """
         获取服务端服务当前状态
+
         @property {EnumNetServerRunStatus}
 
         """
@@ -412,6 +440,7 @@ class NetServiceFW(ABC):
     def server_run_status_desc(self):
         """
         获取服务端服务当前状态的描述
+
         @property {string}
 
         """

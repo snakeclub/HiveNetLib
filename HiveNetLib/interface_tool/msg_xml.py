@@ -9,8 +9,10 @@
 
 """
 xml报文处理模块
+
 @module msg_xml
 @file msg_xml.py
+
 """
 
 import os
@@ -43,7 +45,9 @@ class MsgXML(MsgFW):
     def MsgType(cls):
         """
         返回消息对象的类型（实现类应将自己类名返回）
+
         @property {string}
+
         """
         return 'MsgXML'
 

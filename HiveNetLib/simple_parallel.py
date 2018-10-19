@@ -9,9 +9,6 @@
 
 """
 并发处理模块，多线程、多进程支持
-@module simple_parallel
-@file simple_parallel.py
-
 注意：本模块要导入affinity，该工具在windows平台需要同步安装pywin32；
     另外要修改安装路径下：affinity/__init__.py文件的语法错误：
         except win32process.error, e:
@@ -19,6 +16,10 @@
         修改为:
         except win32process.error as e:
             raise ValueError
+
+@module simple_parallel
+@file simple_parallel.py
+
 """
 
 import os
@@ -54,6 +55,7 @@ __PUBLISH__ = '2018.10.02'  # 发布日期
 class AlreadyRunning(Exception):
     """
     已运行异常
+
     """
     pass
 
@@ -61,6 +63,7 @@ class AlreadyRunning(Exception):
 class NotRunning(Exception):
     """
     未运行异常
+
     """
     pass
 
@@ -68,6 +71,7 @@ class NotRunning(Exception):
 class CallOverTime(Exception):
     """
     当执行超时时，抛出该异常
+
     """
     pass
 
@@ -75,6 +79,9 @@ class CallOverTime(Exception):
 class ParallelLockFw(ABC):
     """
     并发锁框架类，定义各类并发技术的通用函数架构
+
+    @param {**kwargs} kwargs - 初始化参数，具体参数定义参考具体实现类
+
     """
 
     #############################
@@ -156,6 +163,8 @@ class ParallelShareDictFw(ABC):
     并发任务共享字典框架，用于支持并发任务之间的基础数据共享（查询和修改）
     整体思路是重载取值和赋值运算符，取值前先获取最新数据，赋值后提交更新
 
+    @param {string} tag - 唯一标识
+
     """
     def __init__(self, tag):
         """
@@ -170,9 +179,11 @@ class ParallelShareDictFw(ABC):
     def __getitem__(self, key):
         """
         重载要获取的数据加载方法
+
         @param {object} key - 索引
 
         @returns {object} - 返回更新后的值
+
         """
         return self._refresh(key)
 
@@ -228,6 +239,55 @@ class ParallelShareDictFw(ABC):
 class ParallelFw(ABC):
     """
     并发处理框架类，定义并发处理通用函数架构
+
+    @param {fuction} deal_fun - 并发处理主函数，按顺序入参，可以有返回值
+    @param {tuple} run_args=None - 并发处理主函数的入参列表
+    @param {dict} run_kwargs=None - 并发处理主函数的动态入参列表
+    @param {bool} auto_start=False - 是否创建时自动发起并发任务
+    @param {string} pid='' - 并发对象的id
+    @param {string} pname='' - 并发对象的标识名
+    @param {ParallelLockFw} lock=None - 并发锁对象，控制多个并发对象根据该锁控制单一处理
+    @param {fuction} callback_fun=None - 回调函数，在执行完函数后执行，定义如下
+        fun(id, name, call_result, deal_fun_ret)
+            id - 并发对象的id
+            name - 并发对象的标识名
+            call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
+                如果发生异常，返回'20399'，并登记异常信息
+            deal_fun_ret - deal_fun函数执行的返回值
+    @param {bool} set_daemon=False - 是否设置守护，如果设置守护，则在主进程中使用join方法等待所有并发完成，
+        否则主进程结束后并发执行的结果不可预知；如果不设置守护，主进程结束后并发任务仍会执行
+    @param {Logger} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
+        1、标准logging的logger对象
+        2、自定义的日志类对象，但应实现info、warning、error等标准方法
+    @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+        注：通过RunTool.set_global_logger进行设置
+    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+    @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
+        注：对于多进程及分布式并发任务，应采取该日志模式
+    @param {string} distributed_logger_module_name='' - 分布式日志类模块名
+    @param {string} distributed_logger_class_name='' - 分布式日志类类名
+    @param {tuple} distributed_logger_args=None - 分布式日志类创建参数
+    @param {dict} distributed_logger_kwargs=None - 分布式日志类创建参数
+    @param {dict} distributed_logger_replace_para=dict() - 分布式日志动态参数替换，在每创建一个并发任务通过该参数修改日志参数
+        key - 如果是int类型，代表替换distributed_logger_args的第几个参数；如果是string，代表替换distributed_logger_kwargs的指定参数
+        value - 替换参数字典，key为要替换正则表达式字符，value为要替换的动态值
+            要替换的动态值，可选值有以下几种：
+                'pid' - 并发任务id
+                'pname' - 并发任务名
+                'pocess_id' - 进程ID
+                'thread_id' - 线程ID
+    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
+        注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
+            log_fun = {
+                EnumLogLevel.INFO: self._logger.info,
+                EnumLogLevel.DEBUG: self._logger.debug,
+                EnumLogLevel.WARNING: self._logger.warning,
+                EnumLogLevel.ERROR: self._logger.error,
+                EnumLogLevel.CRITICAL: self._logger.critical
+            }
+
+    @param {**kwargs} kwargs - 初始化参数，具体参数定义参考具体实现类
+
     """
     #############################
     # 内部变量
@@ -254,7 +314,9 @@ class ParallelFw(ABC):
     def is_running(self):
         """
         检查任务是否正在执行
+
         @property {bool}
+
         """
         return self._is_running
 
@@ -726,6 +788,7 @@ class ParallelFw(ABC):
     ):
         """
         创建分布式日志函数数组
+
         """
         _log_fun = None
         if (
@@ -754,6 +817,7 @@ class ParallelFw(ABC):
     def _init(self):
         """
         初始化并发对象
+
         """
         return
 
@@ -796,6 +860,7 @@ class ParallelFw(ABC):
     def _create_is_running_obj(self):
         """
         创建是否运行状态的共享变量
+
         """
         return ProcessParallelShareDict(self._unique_id)
 
@@ -815,6 +880,7 @@ class ParallelFw(ABC):
 
         @param {bool} is_running_obj - <description>
         @param {[type]} status - <description>
+
         """
         is_running_obj['is_running'] = status
 
@@ -822,6 +888,77 @@ class ParallelFw(ABC):
 class ParallelPool(object):
     """
     并发任务池(线程池、进程池)
+
+    @param {fuction} deal_fun - 并发任务处理主函数，按顺序入参，可以有返回值
+            注：该函数内部需自行实现获取数据并处理的流程，但约定如果无处理数据，函数应返回None（用于并发池判断是否释放任务）
+    @param {ParallelFw} parallel_class=None - 并行任务类定义对象，获取方法如下：
+        (1)import对象后，直接取类名：parallel_class=ThreadParallel
+        (2)未import的对象，使用ImportTool的方式：
+            parallel_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ThreadParallel')
+        (3)已有动态的对象，直接取对象的所属类：parallel_class=obj.__class__
+    @param {tuple} run_args=None - 并发任务处理主函数的入参列表
+    @param {dict} run_kwargs=None - 并发任务处理主函数的动态入参列表
+    @param {string} pname='' - 并发任务处理主函数的标识名
+    @param {ParallelLockFw} lock=None - 并发锁对象，控制多个并发对象根据该锁控制单一处理
+    @param {fuction} callback_fun=None - 回调函数，在执行完函数后执行，定义如下
+        fun(id, name, call_result, deal_fun_ret)
+            id - 并发对象的id
+            name - 并发对象的标识名
+            call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
+                如果发生异常，返回'20399'，并登记异常信息
+            deal_fun_ret - deal_fun函数执行的返回值
+
+    @param {Logger} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
+        1、标准logging的logger对象
+        2、自定义的日志类对象，但应实现info、warning、error等标准方法
+    @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+        注：通过RunTool.set_global_logger进行设置
+    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+    @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
+        注：对于多进程及分布式并发任务，应采取该日志模式
+    @param {string} distributed_logger_module_name='' - 分布式日志类模块名
+    @param {string} distributed_logger_class_name='' - 分布式日志类类名
+    @param {tuple} distributed_logger_args=None - 分布式日志类创建参数
+    @param {dict} distributed_logger_kwargs=None - 分布式日志类创建参数
+    @param {dict} distributed_logger_replace_para=dict() - 分布式日志动态参数替换，在每创建一个并发任务通过该参数修改日志参数
+        key - 如果是int类型，代表替换distributed_logger_args的第几个参数；如果是string，代表替换distributed_logger_kwargs的指定参数
+        value - 替换参数字典，key为要替换正则表达式字符，value为要替换的动态值
+            要替换的动态值，可选值有以下几种：
+                'pid' - 并发任务id
+                'pname' - 并发任务名
+                'pocess_id' - 进程ID
+                'thread_id' - 线程ID
+    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
+        注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
+            log_fun = {
+                EnumLogLevel.INFO: self._logger.info,
+                EnumLogLevel.DEBUG: self._logger.debug,
+                EnumLogLevel.WARNING: self._logger.warning,
+                EnumLogLevel.ERROR: self._logger.error,
+                EnumLogLevel.CRITICAL: self._logger.critical
+            }
+    @param {bool} auto_start=False - 是否自动启动并发池
+    @param {bool} auto_stop=False - 是否自动关闭并发池（当任务都已全部完成处理）
+    @param {QueueFw} task_queue=None - 并发池需要处理的任务队列
+        注：如果有指定队列，get_task_num_fun参数无效，则自动根据队列长度检查待处理任务
+    @param {function} get_task_num_fun=None - 获取待处理任务数量的函数
+        注：如果task_queue和get_task_num_fun均为None，则直接创建最大数量的线程数，且不释放空闲任务
+    @param {list} get_task_num_fun_args=None - 获取待处理任务数量的函数，的入参列表
+    @param {int} maxsize=10 - 并发池最大并发对象数
+    @param {int} minsize=0 - 并发池最小并发对象数
+    @param {number} worker_release_time=10 - 空闲工作并发对象释放时间，单位为秒, 0代表不控制空闲释放
+    @param {number} worker_overtime=0 - 正在执行的任务超时时间（秒），0代表不控制超时
+        注：对于超时执行任务，将视为失效任务，可以选择直接忽略或强制中止
+    @param {bool} force_kill_overtime_worker=False - 是否强制中止失效任务
+    @param {bool} replace_overtime_worker=False - 是否创建新任务替代超时任务
+        注：仅当force_kill_overtime_worker=False时才会进行替代
+    @param {number} daemon_thread_time=0.01 - 守护线程的间隔时间
+    @param {ParallelShareDictFw} sharedict_class=None - 进程间共享字典对象的类对象，获取方法参考parallel_class：
+        sharedict_class=ThreadParallelShareDict
+    @param {ParallelLockFw} parallel_lock_class=None - 进程间锁对象的类对象，获取方法参考parallel_class：
+        parallel_lock_class=ThreadParallelLock
+    @param {**kwargs} kwargs - 并行任务类对应的初始化参数，具体参数定义参考具体实现类
+
     """
     #############################
     # 公共函数
@@ -1007,6 +1144,7 @@ class ParallelPool(object):
     def start(self):
         """
         启动并发池
+
         """
         if self._status != 0:
             raise AlreadyRunning
@@ -1108,7 +1246,9 @@ class ParallelPool(object):
     def is_stop(self):
         """
         并发池是否停止状态
+
         @property {bool}
+
         """
         return self._status == 0
 
@@ -1158,18 +1298,19 @@ class ParallelPool(object):
     def _worker_deal_fun(cls, tid, share_info, worker_info, **kwargs):
         """
         工作进程（线程）实际执行函数，循环调用self._deal_fun进行任务处理
-            kwargs的参数包括：
-                log_fun
-                log_level
-                pool_id
-                pname
-                worker_release_time
-                lock
-                deal_fun
-                run_args
-                run_kwargs
-                callback_fun
-                is_logger_to_deal_fun
+        kwargs的参数包括：
+            log_fun
+            log_level
+            pool_id
+            pname
+            worker_release_time
+            lock
+            deal_fun
+            run_args
+            run_kwargs
+            callback_fun
+            is_logger_to_deal_fun
+
         """
         if kwargs['log_fun'] is not None:
             kwargs['log_fun'][kwargs['log_level']](
@@ -1354,6 +1495,7 @@ class ParallelPool(object):
     def _daemon_fun(self):
         """
         守护进程，对任务的控制由该进程处理
+
         """
         self._status = 1  # 并发池的状态，0-未运行，1-正在运行，2- 暂停, 3-通知暂停，4-通知恢复，5-通知停止
         # 循环进行处理
@@ -1571,6 +1713,9 @@ class ParallelPool(object):
 class ThreadParallelLock(ParallelLockFw):
     """
     线程并发锁(基于ParallelLockFw的实现)
+
+    @param {**kwargs} kwargs - 初始化参数，暂无用
+
     """
     #############################
     # 内部函数，继承
@@ -1606,6 +1751,9 @@ class ThreadParallelLock(ParallelLockFw):
 class ProcessParallelLock(ParallelLockFw):
     """
     进程并发锁(基于ParallelLockFw的实现)
+
+    @param {**kwargs} kwargs - 初始化参数，暂无用
+
     """
     #############################
     # 内部函数，继承
@@ -1641,6 +1789,7 @@ class ProcessParallelLock(ParallelLockFw):
 class ThreadParallelShareDict(ParallelShareDictFw):
     """
     线程共享字典对象(基于ParallelShareDictFw的实现)
+
     """
     #############################
     # 需实现类实现的接口定义
@@ -1691,6 +1840,7 @@ class ThreadParallelShareDict(ParallelShareDictFw):
 class ProcessParallelShareDict(ParallelShareDictFw):
     """
     线程共享字典对象(基于ParallelShareDictFw的实现)
+
     """
     #############################
     # 需实现类实现的接口定义
@@ -1731,6 +1881,7 @@ class ProcessParallelShareDict(ParallelShareDictFw):
 class ThreadParallel(ParallelFw):
     """
     多线程并行任务处理
+
     """
     #############################
     # 内部变量
@@ -1819,6 +1970,7 @@ class ThreadParallel(ParallelFw):
     def _create_is_running_obj(self):
         """
         创建是否运行状态的共享变量
+
         """
         return {'is_running': False}
 
@@ -1827,6 +1979,7 @@ class ProcessParallel(ParallelFw):
     """
     多进程并行任务处理
     部分沿用了多线程的代码，只是部分函数重载
+
     """
 
     #############################

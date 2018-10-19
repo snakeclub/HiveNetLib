@@ -9,8 +9,10 @@
 
 """
 增强的交互命令行扩展处理，基于prompt_toolkit进行封装和扩展
+
 @module prompt_plus
 @file prompt_plus.py
+
 """
 
 from __future__ import unicode_literals
@@ -74,6 +76,7 @@ class PromptPlusCmdParaLexer(Lexer):
     """
     PromptPlus的命令关键字解析器，继承prompt_toolkit.Lexer类，实现自身对命令参数的解析和高亮处理
     参考SimpleLexer(Lexer)，实际上需要实现的接口函数为lex_document(self, document)
+
     """
 
     #############################
@@ -96,6 +99,7 @@ class PromptPlusCmdParaLexer(Lexer):
         @param {string} match_type='' - 匹配类型（cmd|name_para|short_para|long_para）
 
         @returns {string} - 没有匹配上返回''，匹配上返回对应的关键字
+
         """
         _ret_key = ''
         if match_type == 'cmd':
@@ -149,6 +153,7 @@ class PromptPlusCmdParaLexer(Lexer):
             注意：字符处理完后可能会在最后多一个char_str为空的列表项，完整结束后需判断和删除
         @param {list} info_list=None - 与style_list一一对应，等级每个标记的具体信息，传入的是上一个字符处理后的列表，
             处理中会更新，格式为:[开始位置(int), 结束位置(int), 标记类型(''|cmd|name_para|short_para|long_para|wrong)]
+
         """
         # 初始化可变入参
         if current_info is None:
@@ -294,6 +299,7 @@ class PromptPlusCmdParaLexer(Lexer):
         @param {list} current_info=None - 当前正在处理的字符所处的词的处理信息
 
         @returns {list} - 样式清单列表
+
         """
         # 初始化可变参数
         if current_info is None:
@@ -359,6 +365,7 @@ class PromptPlusCmdParaLexer(Lexer):
                 [('style_str','char_str'), ('style_str','char_str'), ...],
                 ...
             ]
+
         """
         # 初始化可变参数
         if lines is None:
@@ -416,6 +423,7 @@ class PromptPlusCmdParaLexer(Lexer):
 
         @param {cmdpara} cmd_para=None - 命令参数字典
         @param {bool} ignore_case=False - ignore_case 匹配命令是否忽略大小写
+
         """
         # 初始化可变参数
         if cmd_para is None:
@@ -429,6 +437,7 @@ class PromptPlusCmdParaLexer(Lexer):
         实现Lexer类的解析文档函数，按行解析并返回对应的样式，字符列表
 
         @param {prompt_toolkit.document} document - 要解析的lex文档
+
         """
         lines = document.lines
 
@@ -455,6 +464,7 @@ class PromptPlusCompleter(Completer):
     """
     PromptPlus的自动完成类，根据输入的状态以及命令行提示可用的命令和参数输入
     该类继承prompt_toolkit.Completer类，参考DummyCompleter类，主要对外提供get_completions接口
+
     """
 
     #############################
@@ -480,6 +490,7 @@ class PromptPlusCompleter(Completer):
         @param {string} match_type='' - 匹配类型（cmd|name_para|short_para|long_para）
 
         @returns {string} - 没有匹配上返回''，匹配上返回对应的关键字
+
         """
         _ret_key = ''
         if match_type == 'cmd':
@@ -517,6 +528,7 @@ class PromptPlusCompleter(Completer):
         @param {prompt_toolkit.document} document - 要检查的文档
 
         @returns {bool} - 文档当前位置是否在字符串中
+
         """
         _lineno = document.cursor_position_row
         _lineindex = document.cursor_position_col
@@ -563,6 +575,7 @@ class PromptPlusCompleter(Completer):
         @param {prompt_toolkit.document} document - 要获取的文档
 
         @returns {list} - 获取到的填充词列表
+
         """
         _cmd = ''
         _current_word = document.get_word_before_cursor()
@@ -593,6 +606,7 @@ class PromptPlusCompleter(Completer):
         @param {prompt_toolkit.document} document - 要处理的文档
 
         @returns {string} - 找到当前位置前的词
+
         """
         _word_before_cursor = document.get_word_before_cursor()
         # 检查当前词的前一个字符是否空格或文本开头，如果不是，则需要向前查找
@@ -616,6 +630,7 @@ class PromptPlusCompleter(Completer):
         @param {cmdpara} cmd_para=None - 命令参数字典
         @param {bool} ignore_case=False - 匹配命令是否忽略大小写
         @param {int} slow_time=0 - 延迟提示的时长（秒），0代表不延迟
+
         """
         # 初始化可变参数
         if cmd_para is None:
@@ -658,6 +673,7 @@ class PromptPlusCompleter(Completer):
 
         @param {prompt_toolkit.document} document - 要处理的文档
         @param {function} complete_event - 事件
+
         """
         self.loading = True
         word_before_cursor = self._get_word_before_cursor(document=document)
@@ -683,8 +699,8 @@ class PromptPlusCompleter(Completer):
 class PromptPlus(object):
     """
     命令行扩展处理类,利用python-prompt-toolkit实现人机交互处理，再补充封装命令处理部分登记注册的功能，固定的操作:
-        Ctrl + C : abort,取消本次输入
-        Ctrl + D : exit,关闭命令行
+    Ctrl + C : abort,取消本次输入
+    Ctrl + D : exit,关闭命令行
 
     """
 
@@ -697,8 +713,6 @@ class PromptPlus(object):
         """
         简单命令行输入处理函数,获取键盘输入，并返回输入处理结果
 
-        @static
-
         @param {string} message='' - 获取输入的提示信息
         @param {function} deal_fun=None - 获取到输入后执行的处理函数fun(prompt_text='')，函数要求满足:
             输入参数为prompt_text，返回值为string
@@ -709,6 +723,7 @@ class PromptPlus(object):
             如果deal_fun不为None，则返回deal_fun的执行结果
 
         @throws {exception} - 可能会返回deal_fun执行中出现的各种异常
+
         """
         _prompt_text = prompt(message, **kwargs)
         ret_str = ''
@@ -725,16 +740,14 @@ class PromptPlus(object):
     def _analyse_para_stream_dealer(deal_obj=None, position=0, str_obj='', para_list=None):
         """
         逐个字符检索参数的流函数定义
-            算法描述:
-            1、para_list既作为结果对象，也作为堆栈对象进行处理，每一行的格式如下
-                [参数名, 参数值, 关联符('='或' ')，开始位置(int), 结束位置(int), 引号是否结束(bool), 处理是否结束(bool)]
-            2、逐个字符进行解析，如果判断到para_list最后一个信息未完成，则当前字符是延续上一个处理
-            3、优先匹配'-'开头的参数名，如果该参数名后紧接空格和非'-'开头的词，则认为这个词是对应的参数值
-            4、对于非'-'开头且不认为是'-'参数的参数值的对象，如果对象中间有'='，则拆分为参数名和参数值两部分，否则认为
-                直接就是独立的参数值
-            5、对于有双引号的情况，检索到双引号结束，且下一个字符不是空格的情况，则认为下一个字符是一起的
-
-        @static
+        算法描述:
+        1、para_list既作为结果对象，也作为堆栈对象进行处理，每一行的格式如下
+            [参数名, 参数值, 关联符('='或' ')，开始位置(int), 结束位置(int), 引号是否结束(bool), 处理是否结束(bool)]
+        2、逐个字符进行解析，如果判断到para_list最后一个信息未完成，则当前字符是延续上一个处理
+        3、优先匹配'-'开头的参数名，如果该参数名后紧接空格和非'-'开头的词，则认为这个词是对应的参数值
+        4、对于非'-'开头且不认为是'-'参数的参数值的对象，如果对象中间有'='，则拆分为参数名和参数值两部分，否则认为
+            直接就是独立的参数值
+        5、对于有双引号的情况，检索到双引号结束，且下一个字符不是空格的情况，则认为下一个字符是一起的
 
         @decorators StringStream - 定义为字符流处理函数
 
@@ -742,6 +755,7 @@ class PromptPlus(object):
         @param {int} position=0 - 当前处理位置
         @param {string} str_obj='' - 完整的字符对象
         @param {list} para_list=None - 处理结果缓存列表
+
         """
         # 初始化可变参数
         if para_list is None:
@@ -821,6 +835,7 @@ class PromptPlus(object):
 
         @returns {list} - 解析结果，格式如下:
             [参数名, 参数值, 关联符('='或' ')，开始位置(int), 结束位置(int), 引号是否结束(bool), 处理是否结束(bool)]
+
         """
         _para_list = list()
         if is_start_in_string:
@@ -907,6 +922,7 @@ class PromptPlus(object):
         根据类的当前参数重新初始化prompt实例对象
 
         @throws {ValueError} - 当传入的参数值不对的时候抛出该异常
+
         """
         # 根据传入参数设置一些特殊值，简化外部处理
         # cmd_para
@@ -966,7 +982,8 @@ class PromptPlus(object):
 
         @param {string} message - 要处理的消息
 
-        @returns {string} - 返回格式化后的消息?
+        @returns {string} - 返回格式化后的消息
+
         """
         _message = message
         if self._prompt_init_para['enable_color_set']:
@@ -980,6 +997,7 @@ class PromptPlus(object):
         @param {string} cmd='' - 要匹配的命令字符串
 
         @returns {string} - 命令字符串所在的位置
+
         """
         ret_key = ''
         if self._prompt_init_para['ignore_case']:
@@ -1001,6 +1019,7 @@ class PromptPlus(object):
         @param {string} message='' - 传入的提示信息
 
         @returns {string} - 返回执行函数的返回结果
+
         """
         if ('on_abort' in self._prompt_init_para.keys() and
                 self._prompt_init_para['on_abort'] is not None):
@@ -1024,6 +1043,7 @@ class PromptPlus(object):
         @param {string} message='' - 传入的提示信息
 
         @returns {string} - 返回执行函数的返回结果
+
         """
         if ('on_exit' in self._prompt_init_para.keys() and
                 self._prompt_init_para['on_exit'] is not None):
@@ -1048,6 +1068,7 @@ class PromptPlus(object):
         @param {string} cmd_str='' - 要执行的命令字符串（含参数）
 
         @returns {string} - 返回执行函数的返回结果
+
         """
         _cmd = cmd_str
         _cmd_para_str = ''
@@ -1095,6 +1116,7 @@ class PromptPlus(object):
         @param {string} message='' - 输入提示信息
         @param {string} cmd_str='' - 匹配到的命令
         @param {bool} is_print_async_execute_info=True - 异步执行时是否打印执行信息
+
         """
         if is_print_async_execute_info:
             _print_str = 'begin execute (message[%s]): cmd[%s]' % (message, cmd_str)
@@ -1121,6 +1143,7 @@ class PromptPlus(object):
         """
         异步模式的命令行循环获取命令线程服务, 标识为异步模式
         获取到一个命令后，将命令放入队列，然后马上处理下一个命令的接收
+
         """
         while True:
             _print_str = ''
@@ -1163,6 +1186,7 @@ class PromptPlus(object):
         异步模式从队列中获取命令行并启动后台线程执行处理， 标识为异步模式
 
         @param {bool} is_print_async_execute_info - 异步执行时是否打印执行信息
+
         """
         while True:
             _cmd = tuple()
@@ -1238,6 +1262,7 @@ class PromptPlus(object):
             '29999' - 其他系统失败
             '10001' - 用户中断输入（Ctrl + C）
             '10002' - 用户退出应用（Ctrl + D）
+
         """
         _result = CResult(code='00000', msg=u'success')
         _print_str = ''
@@ -1302,6 +1327,7 @@ class PromptPlus(object):
         @param {bool} is_async=False - 是否异步模式，即在命令执行完成前就可以接收下一个命令输入，
             否则等待命令结束后才接收下一个命令输入
         @param {bool} is_print_async_execute_info=True - 异步模式下是否打印执行信息（开始、结束）
+
         """
         # 先打印提示信息
         print(tips)

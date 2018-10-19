@@ -9,8 +9,10 @@
 
 """
 简单流数据获取及处理库
+
 @module simple_stream
 @file simple_stream.py
+
 """
 
 import os
@@ -34,6 +36,7 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
 class EnumStreamClosedStatus(Enum):
     """
     流中止的状态枚举值
+
     @enum {string}
 
     """
@@ -46,6 +49,25 @@ class EnumStreamClosedStatus(Enum):
 class BaseStream(ABC):
     """
     基础流数据处理定义基类, 定义流数据处理的基本框架函数
+
+    @param {bool} back_forward=False - 是否允许反向移动，即跳转回前面已获取过的数据
+    @param {bool} keep_wait_data=False - 无数据时是否继续等待新数据进入，即到数据结尾后，关闭处理，还是继续等待扫描新数据
+    @param {bool} stop_by_excepiton=False - 当出现异常时是否中止流处理
+    @param {object} logger=None - 出现错误时进行error输出的日志类（需实现error方法），None代表不输出日志
+    @param {function} dealer_exception_fun=None - 流处理异常时执行的通知函数,函数有6个入参：
+        stream_tag : string 流标识
+        stream_obj : object 流对象
+        deal_obj : object 正在处理的流对象
+        position : object 正在处理的流对象的位置
+        dealer_handle : fun 出现异常时所执行的处理函数对象
+        error_obj : object 异常对象，sys.exc_info()
+        trace_str : string 异常的堆栈信息
+    @param {function} stream_closed_fun=None - 流处理结束时执行的通知函数,函数有2个入参：
+        stream_tag : string 流标识
+        stream_obj : object 流对象
+        position : object 正在处理的流对象的位置
+        closed_status : EnumStreamClosedStatus 关闭状态
+
     """
 
     #############################
@@ -72,6 +94,7 @@ class BaseStream(ABC):
     def back_forward(self):
         """
         获取是否允许反向移动的标记
+
         @property {bool}
 
         """
@@ -81,6 +104,7 @@ class BaseStream(ABC):
     def keep_wait_data(self):
         """
         获取无数据时是否继续等待新数据进入
+
         @property {bool}
 
         """
@@ -756,6 +780,22 @@ class BaseStream(ABC):
 class StringStream(BaseStream):
     """
     字符串流, 继承BaseStream，实现字符串的流处理
+
+    @param {bool} stop_by_excepiton=False - 当出现异常时是否中止流处理
+    @param {object} logger=None - 出现错误时进行error输出的日志类（需实现error方法），None代表不输出日志
+    @param {function} dealer_exception_fun=None - 流处理异常时执行的通知函数,函数有6个入参：
+        stream_tag : string 流标识
+        stream_obj : object 流对象
+        deal_obj : object 正在处理的流对象
+        position : object 正在处理的流对象的位置
+        dealer_handle : fun 出现异常时所执行的处理函数对象
+        error_obj : object 异常对象，sys.exc_info()
+        trace_str : string 异常的堆栈信息
+    @param {function} stream_closed_fun=None - 流处理结束时执行的通知函数,函数有2个入参：
+        stream_tag : string 流标识
+        stream_obj : object 流对象
+        position : object 正在处理的流对象的位置
+        closed_status : EnumStreamClosedStatus 关闭状态
 
     @example
         1、使用实例对象的方法(str_obj为要处理的字符串)

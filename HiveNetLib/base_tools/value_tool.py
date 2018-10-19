@@ -9,8 +9,10 @@
 
 """
 值处理通用工具
+
 @module value_tool
 @file value_tool.py
+
 """
 
 import sys
@@ -28,6 +30,7 @@ __PUBLISH__ = '2018.09.30'  # 发布日期
 class ValueTool(object):
     """
     值处理通用工具
+
     """
 
     @staticmethod

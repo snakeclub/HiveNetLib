@@ -9,8 +9,10 @@
 
 """
 国际化文本处理模块
+
 @module simple_i18n
 @file simple_i18n.py
+
 """
 
 import os
@@ -44,6 +46,7 @@ def get_global_i18n():
     获取全局SimpleI18N实例对象
 
     @returns {SimpleI18N} - 如果未设置返回None
+
     """
     return RunTool.get_global_var('SIMPLE_I18N_GLOBAL_OBJECT')
 
@@ -98,15 +101,20 @@ def init_global_i18n():
 class SimpleI18N(object):
     """
     国际化文本处理类
+
     """
 
     #############################
     # 变量
     #############################
     lang = 'en'  # 默认语言
+    __trans_dict = dict()  # 语言信息字典
 
-    """
-    语言信息字典，格式如下：
+    @property
+    def trans_dict(self):
+        """
+        返回已装载的多国语言字典
+        格式如下：
         {
             'en': {
                 'success' : 'success',
@@ -119,14 +127,9 @@ class SimpleI18N(object):
                 'my name is $1' : '我的名字是$1'
             }
         }
-    """
-    __trans_dict = dict()
 
-    @property
-    def trans_dict(self):
-        """
-        返回已装载的多国语言字典
         @property {dict}
+
         """
         return self.__trans_dict
 

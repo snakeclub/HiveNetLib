@@ -9,8 +9,10 @@
 
 """
 Http协议服务
+
 @module http_service
 @file http_service.py
+
 """
 
 import os
@@ -43,6 +45,38 @@ class HttpService(TcpIpService):
     """
     Http协议服务
     基于NetServiceFW框架，继承TcpIpService
+
+    @param {Logger} logger=None - 日志对象，服务过程中通过该函数写日志:
+        可以为标准的logging日志库对象，也可以为simple_log对象，但要求对象实现:
+        标准的info、debug、warning、error、critical五个日志方法
+    @param {function} server_status_info_fun=None - 外围传入的网络服务状态变更通知函数对象，当网络服务状态发生变更时通过:
+        该函数通知调用方；形式为fun(server_status, result):
+        其中server_status为服务器状态EnumNetServerRunStatus，
+        result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
+    @param {function} server_connect_deal_fun=None - 外围传入的网络服务与客户端连接后对连接的处理线程函数对象，在该函数中:
+        实现服务器端具体的通讯处理（如循环收报文、返回报文等）；
+        形式为fun(thread_id, server_opts, net_info, self_tag):
+            thread_id - 线程ID
+            server_opts -服务的启动参数
+            net_info - 具体实现的连接信息（例如Socket对象）
+            self_tag - 用于发起端传入自身的识别标识
+        需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
+    @param {string} self_tag='' - 自定义标识
+    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+    @param {string} server_name='NetService' - 服务名，记录日志使用
+    @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
+    @param {function} server_http_deal_fun=None - http服务数据处理函数，用于处理服务端收到的http数据:
+        形式为：fun(net_info, proto_msg, msg)
+            net_info : 连接信息，与TcpIpService的net_info定义一致
+            proto_msg {MsgHTTP}  报文头对象
+            msg {bytes} 报文体对象
+        函数的返回结果为一个数组(is_close, msg, proto_msg)
+            is_close : True/False - 处理完成是否关闭连接，以支持长连接情况
+            msg {bytes} - 要返回的报文体，如果没有数据传None
+            proto_msg {MsgHTTP} - 要返回的协议头，如果不返回传None
+        注意：该参数传入代表使用服务自带的服务端监听处理线程函数，server_connect_deal_fun将失效
+    @param {bool} is_print_msg_log=True - 是否打印报文日志，仅server_http_deal_fun传入时有效
+    @param {string} default_data_encoding='utf-8' - 打印报文的默认字符集
 
     """
 

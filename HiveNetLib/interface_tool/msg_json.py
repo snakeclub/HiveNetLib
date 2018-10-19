@@ -9,8 +9,10 @@
 
 """
 json报文处理模块
+
 @module msg_json
 @file msg_json.py
+
 """
 
 import os
@@ -36,7 +38,6 @@ __PUBLISH__ = '2018.09.13'  # 发布日期
 class MsgJSON(MsgXML):
     """
     JSON报文信息处理类（message）
-
     原理为将JSON转换为XML格式进行处理，基于MsgXML降低使用成本
 
     """
@@ -50,7 +51,9 @@ class MsgJSON(MsgXML):
     def MsgType(cls):
         """
         返回消息对象的类型（实现类应将自己类名返回）
+
         @property {string}
+
         """
         return 'MsgJSON'
 

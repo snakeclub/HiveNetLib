@@ -7,6 +7,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+"""
+重定向标准界面输出的处理模块
+
+@module redirect_stdout
+@file redirect_stdout.py
+
+"""
+
 import sys
 import time
 import threading
@@ -25,6 +33,7 @@ __PUBLISH__ = '2018.09.04'  # 发布日期
 class EnumOriginalStdoutWriteType(Enum):
     """
     对原始的stdout的输出方式
+
     @enum {string}
 
     """
@@ -51,6 +60,19 @@ class RedirectOutputHandler(object):
     定义RedirectOutput类处理所需的输出句柄，实现真正的输出逻辑，使用方法有两类：
         1、直接使用该类生成默认的重定向句柄对象
         2、自定义输出句柄，继承该类，重载write和flush函数
+
+    @param {EnumRedirectOutputHandlerType} handler_type=EnumRedirectOutputHandlerType.Consloe - 输出句柄类型
+    @param {object} output_obj=None - 输出对象，根据handler_type不同传入不同参数
+        Consloe ： 无需传入
+        File ： string, 传入文件名路径
+        String ：list[0]=string，传入初始字符串，后续在该基础上逐步扩展（注意，是一个长度为1的数组）
+        StringList ： list()，传入初始字符对象列表
+        Logger : 日志对象，传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现info的标准方法
+            注意：Logger对象不支持清空flush方法
+    @param {bool} is_flush=False - 初始化时是否清空输出缓存（清空输出对象）
+    @param {string} encoding='utf-8' - 输出字符编码
 
     """
 
@@ -118,6 +140,7 @@ class RedirectOutputHandler(object):
     def flush(self):
         """
         清空输入缓存（清空输出对象, 实现标准输出必须包括的函数）
+
         """
         if self._handler_type == EnumRedirectOutputHandlerType.Consloe:
             sys.__stdout__.flush()
@@ -143,7 +166,12 @@ class RedirectOutput(object):
     输出重定向类
     (参考材料：@see https://www.cnblogs.com/turtle-fly/p/3280519.html)
 
-    @example
+    @param {bool} auto_start=False - 是否初始化时自动启动重定向处理
+    @param {object} original_stdout=None - 初始输出对象，如果为None则记录为sys.stdout
+    @param {EnumOriginalStdoutWriteType} original_stdout_write_type=EnumOriginalStdoutWriteType.NoWrite - 对原始的stdout的输出处理方式
+    @param {bool} is_asyn=False - 是否异步处理（异步处理通过队列缓存通过线程写，可以快速返回结果）
+    @param {RedirectOutputHandler[]} output_handlers=list() - 需要重定向到的输出对象（RedirectOutputHandler）列表
+    @param {bool} wait_write_end_when_asyn=False - 异步模式关闭重定向时是否等待全部对象写完
 
     """
 
@@ -217,6 +245,7 @@ class RedirectOutput(object):
     def flush(self):
         """
         清空输入缓存（实现标准输出必须包括的函数）
+
         """
         if self._is_started:
             # 只有在启动的时候进行处理
@@ -252,6 +281,7 @@ class RedirectOutput(object):
     def stop_redirect(self):
         """
         停止重定向处理
+
         """
         self._write_lock.acquire()
         try:
@@ -311,6 +341,7 @@ class RedirectOutput(object):
     def __bg_thread_fun(self):
         """
         后台输出的线程执行函数
+
         """
         self._is_bg_thread_running = True
         while(True):

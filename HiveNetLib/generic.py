@@ -9,8 +9,10 @@
 
 """
 通用基础模块
+
 @module generic
 @file generic.py
+
 """
 
 
@@ -38,6 +40,7 @@ class NullObj(object):
     @example
         msg_obj = NullObj()
         msg_obj.text = u'动态添加属性'
+
     """
     pass
 
@@ -52,6 +55,7 @@ class CResult(object):
             result.job = 'NewJob'
             result.k1 = 10
             return result
+
     """
 
     #############################
@@ -107,6 +111,7 @@ class CResult(object):
     def is_success(self):
         """
         判断当前错误对象是否成功
+
         """
         return (self.code[0] == '0')
 
@@ -140,6 +145,7 @@ class CResult(object):
         不会影响原来的变量值；复杂数据类型（dict等）要通过deepcopy方式拷贝，避免同一内存信息改变互相影响
 
         @param {object} dest_obj - 要复制到的CResult对象
+
         """
         dest_obj.code = self.code
         dest_obj.msg = self.msg
@@ -181,6 +187,7 @@ class CResult(object):
     def __str__(self):
         """
         提供系统层级的str输出格式化字符
+
         """
         _str = '%s:\n' % (str(type(self)))
         # 其他属性

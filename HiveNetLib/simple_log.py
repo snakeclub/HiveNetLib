@@ -9,8 +9,10 @@
 
 """
 简单日志模块
+
 @module simple_log
 @file simple_log.py
+
 """
 
 import sys
@@ -270,7 +272,9 @@ _LOGGER_DEFAULT_JSON_CONSOLE_STR = u'''{
 class EnumLogLevel(Enum):
     """
     日志级别
+
     @enum {int}
+
     """
     DEBUG = logging.DEBUG  # 调试
     INFO = logging.INFO  # 一般
@@ -282,6 +286,7 @@ class EnumLogLevel(Enum):
 class EnumLoggerName(Enum):
     """
     输出日志类型,用于编码时快捷获取输出日志类型字符内容
+
     @enum {string}
 
     """
@@ -294,6 +299,7 @@ class EnumLoggerName(Enum):
 class EnumLoggerConfigType(Enum):
     """
     日志配置方式
+
     @enum {string}
 
     """
@@ -305,6 +311,22 @@ class EnumLoggerConfigType(Enum):
 class Logger(object):
     """
     日志输出类, 封装Python自带logging库的日志类，简化日志类的配置和输出
+
+    @param {string} conf_file_name='logger.json' - 日志配置文件路径和文件名:
+            默认为'logger.conf'，如果找不到配置文件本函数会自动创带默认设置的配置文件
+    @param {string} logger_name='root' - 输出日志类型，根据conf配置可以新增自定义类型，默认为'root':
+        root-输出到屏幕,File-输出到文件,ConsoleAndFile-同时输出到屏幕和文件
+    @param {string} logfile_path='' - 如果已有配置文件的情况该参数无效
+        日志输出文件的路径（含文件名），''代表使用'log/程序名.log'
+    @param {EnumLoggerConfigType} config_type=EnumLoggerConfigType.JSON_FILE - 日志配置方式
+    @param {bool} auto_create_conf=True - 是否自动创建配置文件（找不到指定的配置文件时），默认为True
+    @param {bool} is_print_file_name=True - 是否输出文件名，默认为True
+    @param {bool} is_print_fun_name=True - 是否输出函数名，默认为True
+    @param {bool} is_create_logfile_by_day=True - 是否按天生成新的日志文件，默认为True
+    @param {int} call_level=0 - 用write_log函数输出文件名和函数名的层级:
+        0代表获取直接调用函数；1代表获取直接调用函数的上一级
+    @param {string} file_name_format='[FILE:%(FILE)s]' - 打印文件名信息项的格式（用实际文件名替换%(FILE)s）
+    @param {string} fun_name_format='[FUN:%(FUN)s]' - 打印函数名信息项的格式（用实际文件名替换%(FUN)s）
 
     @example
         1、import snakerlib.simple_log
@@ -362,6 +384,7 @@ class Logger(object):
     def base_logger(self):
         """
         获取底层的logger对象, (logging.getLogger()对象)
+
         @property {logger}
 
         """
@@ -489,6 +512,7 @@ class Logger(object):
     def __create_conf_file(self):
         """
         自动创建日志配置文件（内部函数）, 检查类中指定的配置文件是否存在，如果不存在则进行创建
+
         """
         _path_dir, _path_file_name = os.path.split(os.path.realpath(self.__conf_file_name))
         if not os.path.exists(_path_dir):
@@ -513,6 +537,7 @@ class Logger(object):
     def __create_log_dir(self):
         """
         遍历对应logger的配置并创建日志路径
+
         """
         if self.__config_type == EnumLoggerConfigType.INI_FILE:
             # conf配置文件

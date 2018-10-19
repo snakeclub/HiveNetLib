@@ -9,8 +9,10 @@
 
 """
 TcpIp协议服务
+
 @module tcpip_service
 @file tcpip_service.py
+
 """
 
 import os
@@ -37,7 +39,6 @@ class TcpIpService(NetServiceFW):
     """
     TcpIp协议服务
     基于NetServiceFW框架
-
     server_opts定义：
         _server_opts = NullObj()
         _server_opts.ip = ip  # 主机名或IP地址
@@ -45,7 +46,6 @@ class TcpIpService(NetServiceFW):
         _server_opts.max_connect = 20  # 允许最大连接数
         _server_opts.recv_timeout = 10000  # 数据接收的超时时间，单位为毫秒
         _server_opts.send_timeout = 10000  # 数据发送的超时时间，单位为毫秒
-
     net_info定义：
         net_info = NullObj()
         net_info.csocket - socket对象
