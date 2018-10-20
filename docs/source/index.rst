@@ -7,9 +7,10 @@ Welcome to HiveNetLib's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
+   
+   HiveNetLib
+   tutorial
+   standards
 
 
 Indices and tables

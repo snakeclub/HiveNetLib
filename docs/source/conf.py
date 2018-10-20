@@ -18,6 +18,10 @@ import sys
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../../../HiveNetLib'))  # 新增检索路径
 import sphinx_rtd_theme  # 在文件开头新增导入
+# 支持MarkDown需导入
+import recommonmark
+from recommonmark.parser import CommonMarkParser
+from recommonmark.transform import AutoStructify
 
 
 # -- Project information -----------------------------------------------------
@@ -30,7 +34,6 @@ author = '黎慧剑'
 version = ''
 # The full version, including alpha/beta/rc tags
 release = '0.1.0'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -74,7 +77,13 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+# source_suffix = '.rst' 修改为支持md文档
+source_suffix = ['.rst', '.md']
+
+# 支持markdown文档
+source_parsers = {
+    '.md': 'recommonmark.parser.CommonMarkParser'
+}
 
 # The master toctree document.
 master_doc = 'index'
@@ -84,7 +93,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'zh_cn'
+language = 'zh_CN'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -208,3 +217,15 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+
+# app setup hook
+def setup(app):
+    print('------------------启动会先执行-------------------')
+    app.add_config_value('recommonmark_config', {
+        # 'url_resolver': lambda url: github_doc_root + url,
+        'auto_toc_tree_section': 'Contents',
+        'enable_eval_rst': True,
+        'enable_auto_doc_ref': True,
+    }, True)
+    app.add_transform(AutoStructify)
