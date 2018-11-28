@@ -331,7 +331,7 @@ class NetServiceFW(ABC):
                         self.__server_connect_thread_add(_thread_id, _new_thread)
                         _new_thread.setDaemon(True)
                         _new_thread.start()
-                    elif _accept_result.code != '20007':
+                    elif _accept_result.code != '20407':
                         # 不是超时的其他获取错误，打印信息
                         self._logger_fun[EnumLogLevel.ERROR](
                             "[LIS][NAME:%s][EX:%s]%s: %s\n%s" % (
@@ -510,7 +510,7 @@ class NetServiceFW(ABC):
             子类通过_serverOpts.xxx获取具体的属性值
         @param {bool} is_wait=False - 是否等待服务启动完成后再退出
 
-        @returns {CResult} - 启动结果，result.code：'00000'-成功，'20601'-服务不属于停止状态，不能启动，其他-异常
+        @returns {CResult} - 启动结果，result.code：'00000'-成功，'21401'-服务不属于停止状态，不能启动，其他-异常
 
         """
         _result = CResult(code='00000')  # 成功
@@ -527,7 +527,7 @@ class NetServiceFW(ABC):
             try:
                 if self.__server_run_status != EnumNetServerRunStatus.Stop:
                     # 不属于停止状态，不能启动
-                    _result = CResult(code='20601')  # 服务启动失败-服务已启动
+                    _result = CResult(code='21401')  # 服务启动失败-服务已启动
                     self._logger_fun[self._log_level](
                         '[LIS-STARTING][NAME:%s]%s' % (self._server_name, _result.msg))
                     return _result
@@ -560,7 +560,7 @@ class NetServiceFW(ABC):
 
         @param {bool} is_wait=True - 是否等待服务器所有线程都处理完成后再关闭，True-等待所有线程完成处理，False-强制关闭
 
-        @returns {CResult} - 停止结果，result.code：'00000'-成功，'20602'-服务停止失败-服务已关闭，'29999'-其他系统失败
+        @returns {CResult} - 停止结果，result.code：'00000'-成功，'21402'-服务停止失败-服务已关闭，'29999'-其他系统失败
 
         """
         _result = CResult(code='00000')  # 成功
@@ -590,7 +590,7 @@ class NetServiceFW(ABC):
                     self._server_status_change(_status, _result)
                 else:
                     # 不属于运行状态，不能处理
-                    _result = CResult(code='20602')  # 服务停止失败-服务已关闭
+                    _result = CResult(code='21402')  # 服务停止失败-服务已关闭
                     self._logger_fun[self._log_level](
                         '[LIS-STOPING][NAME:%s]%s' % (self._server_name, _result.msg))
                     return _result
@@ -634,7 +634,7 @@ class NetServiceFW(ABC):
         @param {objcet} net_info - 网络连接信息对象，_start_server_without_accept中获取到的结果
 
         @returns {CResult} - 获取网络连接结果:
-            result.code ：'00000'-成功，'20007'-获取客户端连接请求超时
+            result.code ：'00000'-成功，'20407'-获取客户端连接请求超时
             result.net_info ：客户端连接信息对象，该对象将传给后续单个连接处理的线程
 
         """
@@ -653,7 +653,7 @@ class NetServiceFW(ABC):
         @param {dict} recv_para={} - 读取数据的参数（例如长度、超时时间等，由实现类自定义）
 
         @returns {CResult} - 数据获取结果:
-            result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
+            result.code ：'00000'-成功，'20403'-获取数据超时，其他为获取失败
             result.data ：获取到的数据对象（具体类型和定义，由实现类自定义）
             result.recv_time : datetime 实际开始接受数据时间
 
@@ -672,7 +672,7 @@ class NetServiceFW(ABC):
         @param {dict} send_para={} - 写入数据的参数（例如长度、超时时间等，由实现类自定义）
 
         @returns {CResult} - 发送结果:
-            result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败
+            result.code ：'00000'-成功，'20404'-写入数据超时，其他为写入失败
             result.send_time : datetime 实际发送完成时间
 
         """

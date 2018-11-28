@@ -24,7 +24,7 @@ prompt_plus是基Python语言开发的一个增强的交互命令行扩展处理
 
 **enable_history_search** :  bool or Filter， 默认为False, 是否启用通过上箭头键获取输入历史，和history参数共同应用；如果未指定history参数，则默认使用InMemoryHistory
 
- 
+
 
 前面提到的Filter的说明： prompt_toolkit.filters.Filter类（抽象类，继承类必须至少实现__call__函数-必须返回bool值）:
 
@@ -49,7 +49,7 @@ prompt_plus是基Python语言开发的一个增强的交互命令行扩展处理
 **示例1：获取命令行输入，执行自定义函数，返回自定义提示结果：**
 
 ```
-from prompt_plus import PromptPlus 
+from prompt_plus import PromptPlus
 
 def fun1(prompt_text=''):
     """自定义获取输入后的执行函数"""
@@ -68,7 +68,7 @@ from pygments.lexers import HtmlLexer
 from prompt_toolkit.shortcuts import prompt
 from prompt_toolkit.styles import Style
 from prompt_toolkit.lexers import PygmentsLexer
-from prompt_plus import PromptPlus 
+from prompt_plus import PromptPlus
 
 result3 = PromptPlus.simple_prompt(message='输入HTML代码>', deal_fun=None,
                                        lexer=PygmentsLexer(HtmlLexer), style=our_style)
@@ -159,7 +159,7 @@ def default_cmd_dealfun(message='', cmd='', cmd_para=''):
     return '返回在命令行显示的结果信息'
 ```
 
-#### on_abort /on_exit 
+#### on_abort /on_exit
 
 on_abort 是当用户取消输入（Ctrl + C）时执行的函数 ；on_exit 是当用户退出（Ctrl + D）时执行的函数（**注意如果已输入部分内容，Ctrl + D将不生效**）。两类函数的定义一样，为fun(message='')，返回值为string，是执行命令函数要输出的内容。
 
@@ -175,7 +175,7 @@ def on_exit(message=''):
     return '返回在命令行显示的结果信息'
 ```
 
-### 1. 实例化PromptPlus 
+### 1. 实例化PromptPlus
 
 实例化PromptPlus类，传入建立命令行交互的各类参数，具体参数见构造函数的定义，示例如下：
 
@@ -197,8 +197,8 @@ prompt_once 方法每次只执行一次的输入获取（与simple_prompt类似�
 ```
 '00000' - 处理成功
 '29999' - 出现未知异常
-'10001' - 用户中断输入（Ctrl + C）
-'10002' - 用户退出应用（Ctrl + D）
+'10100' - 用户中断输入（Ctrl + C）
+'10101' - 用户退出应用（Ctrl + D）
 ```
 
 示例：

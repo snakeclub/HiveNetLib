@@ -1,5 +1,8 @@
 {
     "success": "成功",
+    "business failure": "业务失败",
+    "system failure": "系统失败",
+    "unknow": "未知",
     "user cancel": "用户中断操",
     "user close app": "用户关闭应用",
     "other business failure": "其他业务失败",

@@ -152,7 +152,7 @@ class HttpService(TcpIpService):
         @param {dict} recv_para - 获取参数，暂未使用
 
         @returns {CResult} - 数据获取结果:
-            result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
+            result.code ：'00000'-成功，'20403'-获取数据超时，其他为获取失败
             result.data ：获取到的数据对象，类型为MsgHTTP
             result.recv_time : datetime 实际开始接受数据时间
 
@@ -184,7 +184,7 @@ class HttpService(TcpIpService):
                 # 检查是否超时
                 if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
                     # 已超时
-                    _result.change_code(code='20003')
+                    _result.change_code(code='20403')
                     break
 
                 _read_result = TcpIpService.recv_data(net_info, _recv_para)
@@ -222,7 +222,7 @@ class HttpService(TcpIpService):
         @param {dict} recv_para - 获取参数，暂未使用
 
         @returns {CResult} - 数据获取结果:
-            result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
+            result.code ：'00000'-成功，'20403'-获取数据超时，其他为获取失败
             result.msg ：获取到的数据对象，类型为bytes
             result.recv_time : datetime 实际开始接受数据时间
 
@@ -252,7 +252,7 @@ class HttpService(TcpIpService):
         @param {dict} recv_para - 读取数据的参数(暂时无用)
 
         @returns {CResult} - 数据获取结果:
-            result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
+            result.code ：'00000'-成功，'20403'-获取数据超时，其他为获取失败
             result.data ：获取到的数据对象，为一个二元数组
                 (proto_msg, msg) - MsgHTTP报文头，二进制报文数据
             result.recv_time : datetime 实际开始接受数据时间
@@ -291,7 +291,7 @@ class HttpService(TcpIpService):
         @param {dict} send_para - 写入数据的参数
 
         @returns {CResult} - 发送结果:
-            result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败
+            result.code ：'00000'-成功，'20404'-写入数据超时，其他为写入失败
             result.send_time : datetime 实际发送完成时间
 
         """

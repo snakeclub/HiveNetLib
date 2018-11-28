@@ -48,7 +48,7 @@ class TestExcepitonTool(unittest.TestCase):
             _result,
             logger=None,
             expect=(),
-            error_map={ImportError: ('20001', None), BlockingIOError: ('20007', None)},
+            error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',
             force_log_level=None
         ):
@@ -62,27 +62,27 @@ class TestExcepitonTool(unittest.TestCase):
             _result,
             logger=None,
             expect=(),
-            error_map={ImportError: ('20001', None), BlockingIOError: ('20007', None)},
+            error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',
             force_log_level=None
         ):
             raise ImportError
 
-        self.assertTrue(_result.code == '20001',
-                        '20001 result error, code:' + _result.code)
+        self.assertTrue(_result.code == '20401',
+                        '20401 result error, code:' + _result.code)
 
         _result = CResult('00000')
         with ExceptionTool.ignored_cresult(
             _result,
             logger=None,
             expect=(),
-            error_map={ImportError: ('20001', None), BlockingIOError: ('20007', None)},
+            error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',
             force_log_level=None
         ):
             raise BlockingIOError
 
-        self.assertTrue(_result.code == '20007', '20007 result error, code:' + _result.code)
+        self.assertTrue(_result.code == '20407', '20407 result error, code:' + _result.code)
 
 
 if __name__ == '__main__':

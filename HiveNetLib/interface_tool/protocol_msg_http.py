@@ -99,8 +99,8 @@ class MsgHTTP(MsgFW):
                 msg.para {dict} - 报文参数，key为参数名，value为参数值，都是string格式
                 msg.para_upper_map {dict} - 报文参数名大写映射，key为大写的参数名，value为原报文参数（支持不区分大小写）
 
-        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
-        @throws {ValueError} - 对应标准错误码20302，当msg_sr_type取值冲突时抛出
+        @throws {UnboundLocalError} - 对应标准错误码21001，当遇到obj_type不支持时抛出
+        @throws {ValueError} - 对应标准错误码21002，当msg_sr_type取值冲突时抛出
 
         """
         _msg = None
@@ -237,7 +237,7 @@ class MsgHTTP(MsgFW):
 
         @returns {string} - 获取到的值，当参数不存在时返回None
 
-        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
+        @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
         """
         _get_value = None

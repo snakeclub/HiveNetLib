@@ -63,7 +63,8 @@ class CResult(object):
     #############################
 
     _i18n_obj = None  # 国际化类实例化对象
-    i18n_msg_id = ''  # 国际化记录下来的错误码ID串
+    i18n_error_type_msg_id = ''  # 国际化记录下来的错误类型ID串
+    i18n_msg_id = ''  # 国际化记录下来的错误明细编码ID串
     i18n_msg_paras = ()  # 国际化记录下来的可替换参数变量
 
     def __init__(self, code='00000', msg=None, error=None, trace_str='',
@@ -85,28 +86,43 @@ class CResult(object):
         """
         self.code = code
         self.msg = msg
+        self.i18n_msg_id = msg
+        self.i18n_msg_paras = i18n_msg_paras
         self._i18n_obj = i18n_obj
         if msg is None:
             if i18n_obj is None:
                 # 使用全局国际化控件
                 self._i18n_obj = get_global_i18n()
+
             # 尝试先装载错误码映射
             _map_error_code = self.__get_map_error_code()
-            # 获取代码表
-            if code in _map_error_code.keys():
-                self.msg = _map_error_code[code]
+
+            # 获取代码表，区分错误类型及错误明细编码
+            if code[0] in _map_error_code.keys():
+                self.i18n_error_type_msg_id = _map_error_code[code[0]]
             else:
-                self.msg = ''
+                self.i18n_error_type_msg_id = 'unknow'  # 没有定义国际化时使用未知代替
+
+            if code[1:] in _map_error_code.keys():
+                self.i18n_msg_id = _map_error_code[code[1:]]
+            else:
+                self.i18n_msg_id = ''
 
         self.error = error
         self.trace_str = trace_str
         if i18n_obj is not None:
             # 需要国际化处理
             self._i18n_obj = i18n_obj
-            self.i18n_msg_id = msg
-            self.i18n_msg_paras = i18n_msg_paras
-            # 处理国际化
-            self.msg = self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
+
+        # 处理国际化
+        if self._i18n_obj is not None:
+            if self.i18n_error_type_msg_id != '':
+                self.msg = self._i18n_obj.translate(self.i18n_error_type_msg_id)
+                if self.i18n_msg_id != '':
+                    self.msg = self.msg + ': '
+
+            if self.i18n_msg_id != '':
+                self.msg = self.msg + self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
 
     def is_success(self):
         """
@@ -115,28 +131,47 @@ class CResult(object):
         """
         return (self.code[0] == '0')
 
-    def change_code(self, code='00000', msg=None):
+    def change_code(self, code='00000', msg=None, i18n_msg_paras=None):
         """
         改变错误码及错误信息
 
         @param {string} code='00000' - 错误码
         @param {string} msg=None - 错误信息描述，如果i18n_obj不为None时，该参数传入的是国际化的消息ID
             注意：如果初始化时不传入msg（即msg=None时），自动通过code查找具体的错误信息，且在i18n_obj为None时使用全局国际化对象处理国际化信息
+        @param {tuple} i18n_msg_paras=() - 与msg配套使用，当使用国际化时，可以传入变量，用于替换msg中的$1占位符
+            注意：如果初始化时不传入i18n_msg_paras（即i18n_msg_paras=None时），代表不改变原来传入的占位符变量
 
         """
         self.code = code
         self.msg = msg
+        self.i18n_msg_id = msg
+        if i18n_msg_paras is not None:
+            self.i18n_msg_paras = i18n_msg_paras
+
         if msg is None:
             # 尝试先装载错误码映射
             _map_error_code = self.__get_map_error_code()
 
-            # 获取代码表
-            if code in _map_error_code.keys():
-                self.msg = _map_error_code[code]
+            # 获取代码表，区分错误类型及错误明细编码
+            if code[0] in _map_error_code.keys():
+                self.i18n_error_type_msg_id = _map_error_code[code[0]]
             else:
-                self.msg = ''
-        # 国际化处理
-        self.set_i18n_msg(msg=self.msg)
+                self.i18n_error_type_msg_id = 'unknow'  # 没有定义国际化时使用未知代替
+
+            if code[1:] in _map_error_code.keys():
+                self.i18n_msg_id = _map_error_code[code[1:]]
+            else:
+                self.i18n_msg_id = ''
+
+        # 处理国际化
+        if self._i18n_obj is not None:
+            if self.i18n_error_type_msg_id != '':
+                self.msg = self._i18n_obj.translate(self.i18n_error_type_msg_id)
+                if self.i18n_msg_id != '':
+                    self.msg = self.msg + ': '
+
+            if self.i18n_msg_id != '':
+                self.msg = self.msg + self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
 
     def copy_to(self, dest_obj):
         """
@@ -153,6 +188,7 @@ class CResult(object):
         dest_obj.trace_str = self.trace_str
         dest_obj.i18n_msg_id = self.i18n_msg_id
         dest_obj.i18n_msg_paras = self.i18n_msg_paras
+        dest_obj.i18n_error_type_msg_id = self.i18n_error_type_msg_id
 
     def set_i18n_msg(self, msg, i18n_msg_paras=()):
         """
@@ -162,6 +198,7 @@ class CResult(object):
         @param {tuple} i18n_msg_paras=() - 与msg配套使用，当使用国际化时，可以传入变量，用于替换msg中的$1占位符
 
         """
+        self.i18n_error_type_msg_id = ''
         if self._i18n_obj is None:
             self.msg = msg
         else:

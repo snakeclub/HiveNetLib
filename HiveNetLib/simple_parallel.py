@@ -252,7 +252,7 @@ class ParallelFw(ABC):
             id - 并发对象的id
             name - 并发对象的标识名
             call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                如果发生异常，返回'20399'，并登记异常信息
+                如果发生异常，返回'21399'，并登记异常信息
             deal_fun_ret - deal_fun函数执行的返回值
     @param {bool} set_daemon=False - 是否设置守护，如果设置守护，则在主进程中使用join方法等待所有并发完成，
         否则主进程结束后并发执行的结果不可预知；如果不设置守护，主进程结束后并发任务仍会执行
@@ -346,7 +346,7 @@ class ParallelFw(ABC):
                 id - 并发对象的id
                 name - 并发对象的标识名
                 call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                    如果发生异常，返回'20399'，并登记异常信息
+                    如果发生异常，返回'21399'，并登记异常信息
                 deal_fun_ret - deal_fun函数执行的返回值
         @param {bool} set_daemon=False - 是否设置守护，如果设置守护，则在主进程中使用join方法等待所有并发完成，
             否则主进程结束后并发执行的结果不可预知；如果不设置守护，主进程结束后并发任务仍会执行
@@ -516,7 +516,7 @@ class ParallelFw(ABC):
             self._stat_lock.release()
 
         # 没有抛出异常，说明执行成功，执行callback函数
-        _call_result = CResult(code='20304')  # 强行中止
+        _call_result = CResult(code='21004')  # 强行中止
         _deal_fun_ret = None
         with ExceptionTool.ignored_all():
             self._self_callback(_call_result, _deal_fun_ret)
@@ -630,8 +630,8 @@ class ParallelFw(ABC):
         内部并发任务回调处理函数
 
         @param {CResult} call_result - 线程执行的结果,如果执行无异常返回'00000'；
-            如果发生异常，返回'20399'，并登记异常信息
-            如果被强制中止，返回'20304'，并登记异常信息
+            如果发生异常，返回'21399'，并登记异常信息
+            如果被强制中止，返回'21004'，并登记异常信息
         @param {object} deal_fun_ret - deal_fun函数执行的返回值
         @param {dict} kwargs={} - 回调函数所需用到的所有参数，包括：
             log_fun {dict} -  已处理好的日志数组，如果没有日志控件传None，格式如下：
@@ -905,7 +905,7 @@ class ParallelPool(object):
             id - 并发对象的id
             name - 并发对象的标识名
             call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                如果发生异常，返回'20399'，并登记异常信息
+                如果发生异常，返回'21399'，并登记异常信息
             deal_fun_ret - deal_fun函数执行的返回值
 
     @param {Logger} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
@@ -996,7 +996,7 @@ class ParallelPool(object):
                 id - 并发对象的id
                 name - 并发对象的标识名
                 call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                    如果发生异常，返回'20399'，并登记异常信息
+                    如果发生异常，返回'21399'，并登记异常信息
                 deal_fun_ret - deal_fun函数执行的返回值
 
         @param {Logger} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:

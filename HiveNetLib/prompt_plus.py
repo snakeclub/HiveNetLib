@@ -1155,12 +1155,12 @@ class PromptPlus(object):
             except KeyboardInterrupt:
                 # 用户取消输入
                 # 执行on_abort函数
-                _exit_code = '10001'
+                _exit_code = '10100'
                 _print_str = self._call_on_abort(message=_message)
             except EOFError:
                 # 用户退出处理
                 # 执行on_exit函数
-                _exit_code = '10002'
+                _exit_code = '10101'
                 _print_str = self._call_on_exit(message=_message)
 
             # 如果有值打印输出
@@ -1260,8 +1260,8 @@ class PromptPlus(object):
         @returns {CResult} - 处理结果，code定义如下:
             '00000' - 成功
             '29999' - 其他系统失败
-            '10001' - 用户中断输入（Ctrl + C）
-            '10002' - 用户退出应用（Ctrl + D）
+            '10100' - 用户中断输入（Ctrl + C）
+            '10101' - 用户退出应用（Ctrl + D）
 
         """
         _result = CResult(code='00000', msg=u'success')
@@ -1285,7 +1285,7 @@ class PromptPlus(object):
                 _cmd_str = eval(_run_str)
             except KeyboardInterrupt:
                 # 用户取消输入
-                _result.code = '10001'
+                _result.code = '10100'
                 _result.msg = u'get abort single(KeyboardInterrupt)'
                 _result.error = sys.exc_info()
                 _result.trace_str = traceback.format_exc()
@@ -1293,7 +1293,7 @@ class PromptPlus(object):
                 _print_str = self._call_on_abort(message=_message)
             except EOFError:
                 # 用户退出处理
-                _result.code = '10002'
+                _result.code = '10101'
                 _result.msg = u'get exit single(EOFError)'
                 _result.error = sys.exc_info()
                 _result.trace_str = traceback.format_exc()

@@ -74,7 +74,7 @@ resume - 恢复并行池任务处理
                 id - 并发对象的id
                 name - 并发对象的标识名
                 call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                    如果发生异常，返回'20399'，并登记异常信息
+                    如果发生异常，返回'21399'，并登记异常信息
                 deal_fun_ret - deal_fun函数执行的返回值
         @param {bool} set_daemon=False - 是否设置守护，如果设置守护，则在主进程中使用join方法等待所有并发完成，
             否则主进程结束后并发执行的结果不可预知；如果不设置守护，主进程结束后并发任务仍会执行
@@ -191,7 +191,7 @@ _t1.force_stop()
                 id - 并发对象的id
                 name - 并发对象的标识名
                 call_result - 线程执行的结果，CResult对象，如果执行无异常返回'00000'；
-                    如果发生异常，返回'20399'，并登记异常信息
+                    如果发生异常，返回'21399'，并登记异常信息
                 deal_fun_ret - deal_fun函数执行的返回值
 
         @param {Logger} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
@@ -279,7 +279,7 @@ def demo():
     while _i < 100:
         _task_queue.put(_i)
         _i = _i + 1
-    
+
     # 定义进程池，注意大部分参数与ParallelFw一致
     _pool = ParallelPool(
         deal_fun=_deal_fun_demo5,
@@ -296,7 +296,7 @@ def demo():
         sharedict_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelShareDict'),
         parallel_lock_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelLock')
     )
-    
+
     # 启动并行池，该示例定义了自动结束
     _pool.start()
     while not _pool.is_stop:

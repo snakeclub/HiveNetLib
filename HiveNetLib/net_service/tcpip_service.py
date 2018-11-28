@@ -141,7 +141,7 @@ class TcpIpService(NetServiceFW):
         @param {objcet} net_info - 网络连接信息对象，_start_server_without_accept中获取到的结果
 
         @returns {CResult} - 获取网络连接结果:
-            result.code ：'00000'-成功，'20007'-获取客户端连接请求超时
+            result.code ：'00000'-成功，'20407'-获取客户端连接请求超时
             result.net_info ：客户端连接信息对象，该对象将传给后续单个连接处理的线程
 
         """
@@ -153,7 +153,7 @@ class TcpIpService(NetServiceFW):
             logger=self._logger,
             expect=(BlockingIOError),
             expect_no_log=True,  # 超时不记录日志
-            error_map={BlockingIOError: ('20007', None)},
+            error_map={BlockingIOError: ('20407', None)},
             self_log_msg='[LIS][NAME:%s]%s error: ' % (
                 self._server_name, _('accept client connect')),
             force_log_level=None
@@ -198,7 +198,7 @@ class TcpIpService(NetServiceFW):
             overtime {int} - 获取超时时间，单位为毫秒，非必要参数
 
         @returns {CResult} - 数据获取结果:
-            result.code ：'00000'-成功，'20003'-获取数据超时，其他为获取失败
+            result.code ：'00000'-成功，'20403'-获取数据超时，其他为获取失败
             result.data ：获取到的数据对象（具体类型和定义，由实现类自定义）
             result.recv_time : datetime 实际开始接受数据时间
             result.overtime : int 超时时间（毫秒），当返回结果为超时，可获取超时时间信息
@@ -227,7 +227,7 @@ class TcpIpService(NetServiceFW):
                 # 检查是否超时
                 if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
                     # 已超时
-                    _result.change_code(code='20003')
+                    _result.change_code(code='20403')
                     break
 
                 _buffer = b''
@@ -252,7 +252,7 @@ class TcpIpService(NetServiceFW):
         @param {dict} send_para - 写入数据的参数:
             overtime {int} - 发送超时时间，单位为毫秒, 非必须参数
         @returns {CResult} - 发送结果:
-            result.code ：'00000'-成功，'20004'-写入数据超时，其他为写入失败
+            result.code ：'00000'-成功，'20404'-写入数据超时，其他为写入失败
             result.send_time : datetime 实际发送完成时间
             result.overtime : int 超时时间（毫秒），当返回结果为超时，可获取超时时间信息
 
@@ -281,7 +281,7 @@ class TcpIpService(NetServiceFW):
                 # 检查是否超时
                 if (datetime.datetime.now() - _begin_time).total_seconds()*1000 > _overtime:
                     # 已超时
-                    _result.change_code(code='20004')
+                    _result.change_code(code='20404')
                     break
                 with ExceptionTool.ignored(expect=(BlockingIOError)):
                     # 发送数据

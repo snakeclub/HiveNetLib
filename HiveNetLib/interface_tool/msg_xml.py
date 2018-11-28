@@ -75,7 +75,7 @@ class MsgXML(MsgFW):
 
         @returns {object} - 报文体对象
 
-        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
+        @throws {UnboundLocalError} - 对应标准错误码21001，当遇到obj_type不支持时抛出
 
         """
         _msg = None
@@ -156,7 +156,7 @@ class MsgXML(MsgFW):
 
         @returns {object} - 设置值后的报文对象
 
-        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
+        @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
         """
         _msg = msg
@@ -180,7 +180,7 @@ class MsgXML(MsgFW):
 
         @returns {string} - 获取到的值
 
-        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
+        @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
         """
         _get_value = None
@@ -205,7 +205,7 @@ class MsgXML(MsgFW):
 
         @returns {object} - 完成添加后的主报文对象
 
-        @throws {NameError} - 对应标准错误码20302，当参数路径不存在时抛出
+        @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
         """
         _msg = msg

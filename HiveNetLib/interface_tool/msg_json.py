@@ -74,7 +74,7 @@ class MsgJSON(MsgXML):
 
         @returns {object} - 报文体对象
 
-        @throws {UnboundLocalError} - 对应标准错误码20301，当遇到obj_type不支持时抛出
+        @throws {UnboundLocalError} - 对应标准错误码21001，当遇到obj_type不支持时抛出
 
         """
         _msg = None

@@ -1,5 +1,8 @@
 {
   "success": "success",
+  "business failure": "business failure",
+  "system failure": "system failure",
+  "unknow": "unknow",
   "user cancel": "user cancel",
   "user close app": "user close app",
   "other business failure": "other business failure",
