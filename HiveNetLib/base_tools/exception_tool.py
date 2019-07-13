@@ -20,7 +20,9 @@ import sys
 import copy
 import traceback
 from contextlib import contextmanager
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -183,7 +185,7 @@ class ExceptionTool(object):
             _trace_str = traceback.format_exc()
             if expect_use_error_map and _error[0] in _error_map.keys():
                 result_obj.change_code(code=_error_map[_error[0]][0], msg=_error_map[_error[0]][1])
-                result_obj.error = _error
+                result_obj.error = str(_error[0])
                 result_obj.trace_str = _trace_str
             else:
                 # 按成功处理
@@ -194,12 +196,12 @@ class ExceptionTool(object):
             _trace_str = traceback.format_exc()
             if _error[0] in _error_map.keys():
                 result_obj.change_code(code=_error_map[_error[0]][0], msg=_error_map[_error[0]][1])
-                result_obj.error = _error
+                result_obj.error = str(_error[0])
                 result_obj.trace_str = _trace_str
             else:
                 # 其他失败
                 result_obj.change_code(code=_error_map['DEFAULT'][0], msg=_error_map['DEFAULT'][1])
-                result_obj.error = _error
+                result_obj.error = str(_error[0])
                 result_obj.trace_str = _trace_str
 
             _log_level = EnumLogLevel.ERROR

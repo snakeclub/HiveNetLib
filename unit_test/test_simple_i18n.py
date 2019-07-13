@@ -16,9 +16,10 @@
 import os
 import sys
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
-from simple_i18n import SimpleI18N, _, set_global_i18n
-from base_tools.test_tool import TestTool
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.simple_i18n import SimpleI18N, _, set_global_i18n
+from HiveNetLib.base_tools.test_tool import TestTool
 
 __MOUDLE__ = 'test_simple_i18n'  # 模块名
 __DESCRIPT__ = u'测试simple_i18n'  # 模块描述
@@ -61,8 +62,8 @@ class TestSimpleI18N(unittest.TestCase):
         """
         测试自动加载
         """
-        file_path = os.path.abspath(os.path.dirname(__file__)+'/' +
-                                    '../../test_data/simple_i18n/')
+        file_path = os.path.abspath(os.path.dirname(__file__) + '/' +
+                                    '../test_data/simple_i18n/')
         obj = SimpleI18N(trans_file_path=file_path, trans_file_prefix='test', auto_loads=True)
         self.assertTrue(TestTool.cmp_dict(
             obj.trans_dict['en'], self.dict_trans_en), '自动装载en失败')
@@ -84,8 +85,8 @@ class TestSimpleI18N(unittest.TestCase):
             self.i18n_obj.trans_dict['zh'], self.dict_trans_zh), '装载json_obj失败')
 
         # 装载文件格式
-        file_path = os.path.abspath(os.path.dirname(__file__)+'/' +
-                                    '../../test_data/simple_i18n/test_en.json')
+        file_path = os.path.abspath(os.path.dirname(__file__) + '/' +
+                                    '../test_data/simple_i18n/test_en.json')
         self.i18n_obj.load_trans_from_file(file_full_path=file_path, lang='en', append=False)
         self.assertTrue(TestTool.cmp_dict(
             self.i18n_obj.trans_dict['en'], self.dict_trans_en), '装载json_file失败')

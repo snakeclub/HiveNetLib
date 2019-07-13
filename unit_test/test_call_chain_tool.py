@@ -11,7 +11,8 @@ import os
 import sys
 import time
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.simple_log import Logger, EnumLoggerName, EnumLoggerConfigType
@@ -32,7 +33,7 @@ __PUBLISH__ = '2018.09.09'  # 发布日期
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
-                            '../../test_data/temp/call_chain_log/').replace('\\', '/')
+                            '../test_data/temp/call_chain_log/').replace('\\', '/')
 
 
 # 不带任何入参，没有返回出参的函数

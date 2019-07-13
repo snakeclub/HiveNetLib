@@ -19,7 +19,7 @@
             "class": "logging.handlers.RotatingFileHandler",
             "level": "INFO",
             "formatter": "simpleFormatter",
-            "filename": "c:/Users/hi.li/Desktop/opensource/HiveNetLib/test_data/temp/call_chain_log/log/test_case1.log",
+            "filename": "../HiveNetLib/test_data/temp/call_chain_log/log/test_case1.log",
             "maxBytes": 10485760,
             "backupCount": 1000,
             "encoding": "utf8"

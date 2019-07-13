@@ -57,7 +57,7 @@
 | 0000             | N            | 成功         |
 | 9999             | Y            | 其他         |
 
- 
+
 
 ## API（网络接口）错误码要求
 
@@ -119,7 +119,7 @@
 
 - CResult.code  :  5位数字错误码
 - CResult.msg  :  错误信息，如果使用国际化（i18n）控件，则为国际化信息的消息ID
-- CResult.error ：发生异常时的sys.exc_info()三元组对象(type, value, traceback)，便于异常时外部调用函数也可以进行详细的错误分析
+- CResult.error ：发生异常时的sys.exc_info()三元组对象(type, value, traceback)中的type,从获取到的异常中得到类型名称，它是BaseException 的子类
 - CResult.trace_str ：发生异常时的错误追踪堆栈日志（traceback.format_exc()）便于输出日志记录
 
 此外，CResult对象可以支持直接增加自定义属性，用于回传函数所需的返回实际内容，例如：
@@ -153,16 +153,17 @@ cresult_obj.net_info = [socket, id]
 
 ### 网络通讯错误编码（0400-0599）
 
-| 代码值 | 英文描述                                     | 中文描述                                | 备注                               |
-| ------ | -------------------------------------------- | --------------------------------------- | ---------------------------------- |
-| 0401   | connect to [$1:$2] failure, error info: [$3] | 连接地址[$1:$2]建立失败, 错误信息: [$3] | $1: IP地址；$2: 端口；$3: 失败信息 |
-| 0402   | connection timed out                         | 连接超时                                |                                    |
-| 0403   | receive timed out                            | 获取数据超时                            |                                    |
-| 0404   | send timed out                               | 发送数据超时                            |                                    |
-| 0405   | receive failure                              | 获取数据失败                            |                                    |
-| 0406   | send failure                                 | 发送数据失败                            |                                    |
-| 0407   | get client connection timed out              | 获取客户端连接超时                      |                                    |
-| 0599   | other network failure                        | 网络连接其他失败                        |                                    |
+| 代码值 | 英文描述                                             | 中文描述                                   | 备注                               |
+| ------ | ---------------------------------------------------- | ------------------------------------------ | ---------------------------------- |
+| 0401   | connect to [$1:$2] failure, error info: [$3]         | 连接地址[$1:$2]建立失败, 错误信息: [$3]    | $1: IP地址；$2: 端口；$3: 失败信息 |
+| 0402   | connection timed out                                 | 连接超时                                   |                                    |
+| 0403   | receive timed out                                    | 获取数据超时                               |                                    |
+| 0404   | send timed out                                       | 发送数据超时                               |                                    |
+| 0405   | receive failure                                      | 获取数据失败                               |                                    |
+| 0406   | send failure                                         | 发送数据失败                               |                                    |
+| 0407   | get client connection timed out                      | 获取客户端连接超时                         |                                    |
+| 0408   | grpc call failure,  status code: [$1], details: [$2] | grpc调用失败，状态码: [$1]，详细信息: [$2] |                                    |
+| 0599   | other network failure                                | 网络连接其他失败                           |                                    |
 
 
 
@@ -180,24 +181,35 @@ cresult_obj.net_info = [socket, id]
 
 
 ### 函数调用错误编码（1000-1399）
-| 代码值 | 英文描述                    | 中文描述           | 备注 |
-| ------ | --------------------------- | ------------------ | ---- |
-| 1001   | unsupport argument          | 不支持的参数       |      |
-| 1002   | can't find operate object   | 找不到操作对象     |      |
-| 1003   | argument consistency error  | 参数一致性检查错误 |      |
-| 1004   | parallel task force stop    | 并发任务强制中止   |      |
-| 1399   | function call other failure | 函数调用其他失败   |      |
+| 代码值 | 英文描述                                             | 中文描述                             | 备注 |
+| ------ | ---------------------------------------------------- | ------------------------------------ | ---- |
+| 1001   | unsupport argument                                   | 不支持的参数                         |      |
+| 1002   | can't find operate object                            | 找不到操作对象                       |      |
+| 1003   | argument consistency error                           | 参数一致性检查错误                   |      |
+| 1004   | parallel task force stop                             | 并发任务强制中止                     |      |
+| 1005   | execute over time                                    | 执行超时                             |      |
+| 1006   | argument [$1] isn't nullable                         | 参数[$1]不可为空                     |      |
+| 1007   | execute raise exception, type "[$1]"                 | 执行抛出异常，异常类型“[$1]”         |      |
+| 1008   | remote function execute raise exception, type "[$1]" | 远程函数执行抛出异常，异常类型“[$1]” |      |
+| 1399   | function call other failure                          | 函数调用其他失败                     |      |
 
 
 
-#### 应用服务错误编码（1400-1599）
+### 应用服务错误编码（1400-1599）
 
 | 代码值 | 英文描述                                          | 中文描述                | 备注 |
 | ------ | ------------------------------------------------- | ----------------------- | ---- |
 | 1401   | service start failure - service have been started | 服务启动失败-服务已启动 |      |
 | 1402   | service stop failure - service have been shutdown | 服务停止失败-服务已关闭 |      |
+| 1403   | service name "[$1]" is not existed                | 服务名"[$1]"不存在      |      |
 | 1599   | other application failure                         | 应用服务处理其他失败    |      |
 
 
 
-#### 
+### 业务错误编码（3000-4999）
+
+| 代码值 | 英文描述               | 中文描述     | 备注 |
+| ------ | ---------------------- | ------------ | ---- |
+| 3001   | [$1] is existed        | [$1]已存在   |      |
+| 3002   | [$1] is not existed    | [$1]不存在   |      |
+| 4999   | other business failure | 其他业务失败 |      |

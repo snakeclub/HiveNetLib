@@ -25,5 +25,13 @@
     "unsupport argument": "不支持的参数",
     "can't find operate object": "找不到操作对象",
     "argument consistency error": "参数一致性检查错误",
-    "parallel task force stop": "并发任务强制中止"
+    "parallel task force stop": "并发任务强制中止",
+    "execute over time": "执行超时",
+    "argument [$1] isn't nullable": "参数[$1]不可为空",
+    "[$1] is existed": "[$1]已存在",
+    "[$1] is not existed": "[$1]不存在",
+    "service name \"[$1]\" is not existed": "服务名\"[$1]\"不存在",
+    "execute raise exception, type \"[$1]\"": "执行抛出异常，异常类型\"[$1]\"",
+    "grpc call failure,  status code: [$1], details: [$2]": "grpc调用失败，状态码: [$1]，详细信息: [$2]",
+    "remote function execute raise exception, type \"[$1]\"": "远程函数执行抛出异常，异常类型\"[$1]\""
 }

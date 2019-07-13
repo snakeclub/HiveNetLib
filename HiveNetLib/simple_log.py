@@ -27,7 +27,9 @@ import logging.config
 import threading
 import json
 from enum import Enum
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.generic import NullObj
 from HiveNetLib.base_tools.file_tool import FileTool
 
 __MOUDLE__ = 'simple_log'  # 模块名
@@ -362,7 +364,9 @@ class Logger(object):
 
     """
 
+    #############################
     # 私有变量
+    #############################
     __file_date = "20170101"  # 日志文件的日期
     __conf_file_name = "logger.conf"  # 日志配置文件的路径/或配置字符串
     __config_type = EnumLoggerConfigType.JSON_FILE
@@ -380,6 +384,9 @@ class Logger(object):
     __file_name_format = '[FILE:%s]'  # 打印文件名信息项的格式（用实际文件名替换%s）
     __fun_name_format = '[FUN:%s]'  # 打印函数名信息项的格式（用实际文件名替换%s）
 
+    #############################
+    # 公共属性
+    #############################
     @property
     def base_logger(self):
         """
@@ -390,6 +397,23 @@ class Logger(object):
         """
         return self.__logger
 
+    #############################
+    # 静态工具
+    #############################
+    @staticmethod
+    def set_handler_log_level(handler, log_level):
+        """
+        设置指定handler的日志输出级别
+
+        @param {object} handler - 要设置的handler对象，可通过_logger.base_logger.handlers[i]获取
+        @param {EnumLogLevel} log_level - 日志级别
+
+        """
+        handler.setLevel(log_level.value)
+
+    #############################
+    # 构造函数
+    #############################
     def __init__(self, conf_file_name='logger.json', logger_name='root', logfile_path='',
                  config_type=EnumLoggerConfigType.JSON_FILE, auto_create_conf=True,
                  is_print_file_name=True, is_print_fun_name=True, is_create_logfile_by_day=True,
@@ -470,6 +494,9 @@ class Logger(object):
             del self.__logger
             self.__logger = None
 
+    #############################
+    # 内部函数
+    #############################
     @staticmethod
     def __get_date_str(dt):
         """
@@ -682,6 +709,9 @@ class Logger(object):
             finally:
                 self.__thread_lock.release()
 
+    #############################
+    # 公开方法
+    #############################
     def write_log(self, log_str='', log_level=EnumLogLevel.INFO, call_level=None):
         """
         通过日志实例输出日志内容
@@ -704,7 +734,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        _frame = Logger.__get_call_fun_frame(call_level=_call_level+1)
+        _frame = Logger.__get_call_fun_frame(call_level=_call_level + 1)
         _path_filename = ''
         _fun_name = ''
         if self.__is_print_file_name:
@@ -741,7 +771,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        self.write_log(log_level=EnumLogLevel.DEBUG, log_str=log_str, call_level=_call_level+1)
+        self.write_log(log_level=EnumLogLevel.DEBUG, log_str=log_str, call_level=_call_level + 1)
 
     def warning(self, log_str='', call_level=None):
         """
@@ -759,7 +789,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        self.write_log(log_level=EnumLogLevel.WARNING, log_str=log_str, call_level=_call_level+1)
+        self.write_log(log_level=EnumLogLevel.WARNING, log_str=log_str, call_level=_call_level + 1)
 
     def error(self, log_str='', call_level=None):
         """
@@ -777,7 +807,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        self.write_log(log_level=EnumLogLevel.ERROR, log_str=log_str, call_level=_call_level+1)
+        self.write_log(log_level=EnumLogLevel.ERROR, log_str=log_str, call_level=_call_level + 1)
 
     def critical(self, log_str='', call_level=None):
         """
@@ -795,7 +825,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        self.write_log(log_level=EnumLogLevel.CRITICAL, log_str=log_str, call_level=_call_level+1)
+        self.write_log(log_level=EnumLogLevel.CRITICAL, log_str=log_str, call_level=_call_level + 1)
 
     def info(self, log_str='', call_level=None):
         """
@@ -813,7 +843,7 @@ class Logger(object):
         _call_level = self.__call_level
         if call_level is not None:
             _call_level = call_level
-        self.write_log(log_level=EnumLogLevel.INFO, log_str=log_str, call_level=_call_level+1)
+        self.write_log(log_level=EnumLogLevel.INFO, log_str=log_str, call_level=_call_level + 1)
 
     def change_logger_name(self, logger_name):
         """
@@ -859,17 +889,6 @@ class Logger(object):
         """
         self.__logger.setLevel(log_level.value)
 
-    @staticmethod
-    def set_handler_log_level(handler, log_level):
-        """
-        设置指定handler的日志输出级别
-
-        @param {object} handler - 要设置的handler对象，可通过_logger.base_logger.handlers[i]获取
-        @param {EnumLogLevel} log_level - 日志级别
-
-        """
-        handler.setLevel(log_level.value)
-
     def set_logger_formater(self, format_str=None, is_print_file_name=None, is_print_fun_name=None):
         """
         动态设置输出日志格式
@@ -887,6 +906,45 @@ class Logger(object):
             _formater = logging.Formatter(format_str)
             for _handler in self.__logger.handlers:
                 _handler.setFormatter(_formater)
+
+
+# TODO(黎慧剑): 增加两个自定义Handler，包括写入队列（用于执行异步写本地文件），以及写入gRPC日志服务
+class handler_queueHandler(logging.Handler):
+    """
+    内存队列日志处理Handler类
+    将日志信息写入全局变量里的指定队列对象，队列对象必须支持put(object)的方法，每个传入的日志的对象信息如下：
+        queue_obj.topic_name {string} : 日志主题标识（用于使用方区分日志来源）
+        queue_obj.msg {string} : 日志内容
+    @example
+        日志配置信息如下，其中topic_name可以不传值：
+        [handler_queueHandler]
+        class=HiveNetLib.simple_log.handler_queueHandler
+        level=DEBUG
+        formatter=logstashFormatter
+        args=("queue_var_name", "topic_name")
+
+    """
+
+    def __init__(self, queue_var_name, topic_name=''):
+        logging.Handler.__init__(self)
+        # 根据队列变量名动态获取到队列对象
+        self.queue = eval(queue_var_name)
+        self.topic_name = topic_name
+
+    def emit(self, record):
+        try:
+            # 定义传入队列中的对象
+            queue_obj = NullObj()
+            queue_obj.topic_name = self.topic_name
+            queue_obj.msg = self.format(record)
+            exec('self.queue.put(queue_obj)')
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+    def close(self):
+        logging.Handler.close(self)
 
 
 if __name__ == '__main__':

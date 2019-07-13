@@ -18,9 +18,13 @@
 import sys
 import os
 import traceback
+import logging
+import inspect
+from enum import Enum
 from contextlib import contextmanager
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.simple_log import EnumLogLevel
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.base_tools.file_tool import FileTool
 
 
@@ -44,79 +48,29 @@ SINGLE_PROCESS_PID_FILE_LIST = dict()
 RUNTOOL_GLOBAL_VAR_LIST = dict()
 
 
+class EnumLogLevel(Enum):
+    """
+    日志级别
+
+    @enum {int}
+
+    """
+    DEBUG = logging.DEBUG  # 调试
+    INFO = logging.INFO  # 一般
+    WARNING = logging.WARNING  # 告警
+    ERROR = logging.ERROR  # 错误
+    CRITICAL = logging.CRITICAL  # 严重
+
+
 class RunTool(object):
     """
     运行参数处理通用类
     提供各类运行环境处理相关的常用工具函数（静态方法）
 
     """
-
-    @staticmethod
-    def get_kv_opts():
-        """
-        获取Key=Value格式的命令行输入参数
-
-        @returns {dict} - 命令行参数字典：key为参数名，value为参数值
-
-        @example
-            命令行# python ggeneric.py key1=value1 key2=value2 key3="value 3" "key 4"=value4 "key 5"="value 5"
-            input_para = RunTools.get_kv_opts()
-
-        """
-        # 建立要返回的字典
-        _dict = {}
-        # 遍历参数
-        i = 1
-        _argv_count = len(sys.argv)
-        while i < _argv_count:
-            _pair = str(sys.argv[i]).split("=")
-            _key = _pair[0]
-            _value = ""
-            if len(_pair) > 1:
-                _value = sys.argv[i][len(_key) + 1:]
-            _dict[_key] = _value
-            i = i + 1
-        return _dict
-
-    @staticmethod
-    def var_defined(name_str):
-        """
-        判断变量是否已定义
-
-        @param {string} name_str - 变量名（注意是名字字符串，不是传入变量）
-
-        @returns {bool} - 是否已定义，True-已定义，False-未定义
-
-        """
-        try:
-            type(eval(name_str))
-        except Exception as e:
-            return False
-        else:
-            return True
-
-    @staticmethod
-    def writelog_by_level(logger, log_str, log_level=EnumLogLevel.INFO):
-        """
-        根据日志级别调用日志输出,根据日志级别调用日志类的不同方法，简化日志级别的判断处理
-
-        @param {object} logger - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
-            1、标准logging的logger对象
-            2、自定义的日志类对象，但应实现warning、error的标准方法
-        @param {string} log_str - 需输出的日志内容
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 输出日志级别
-
-        """
-        if log_level == EnumLogLevel.DEBUG:
-            logger.debug(log_str)
-        elif log_level == EnumLogLevel.WARNING:
-            logger.warning(log_str)
-        elif log_level == EnumLogLevel.ERROR:
-            logger.error(log_str)
-        elif log_level == EnumLogLevel.CRITICAL:
-            logger.critical(log_str)
-        else:
-            logger.info(log_str)
+    #############################
+    # 全局变量
+    #############################
 
     @staticmethod
     def set_global_var(key, value):
@@ -167,6 +121,104 @@ class RunTool(object):
         global RUNTOOL_GLOBAL_VAR_LIST
         RUNTOOL_GLOBAL_VAR_LIST.clear()
 
+    #############################
+    # 参数/变量处理
+    #############################
+    @staticmethod
+    def get_kv_opts():
+        """
+        获取Key=Value格式的命令行输入参数
+
+        @returns {dict} - 命令行参数字典：key为参数名，value为参数值
+
+        @example
+            命令行# python ggeneric.py key1=value1 key2=value2 key3="value 3" "key 4"=value4 "key 5"="value 5"
+            input_para = RunTools.get_kv_opts()
+
+        """
+        # 建立要返回的字典
+        _dict = {}
+        # 遍历参数
+        i = 1
+        _argv_count = len(sys.argv)
+        while i < _argv_count:
+            _pair = str(sys.argv[i]).split("=")
+            _key = _pair[0]
+            _value = ""
+            if len(_pair) > 1:
+                _value = sys.argv[i][len(_key) + 1:]
+            _dict[_key] = _value
+            i = i + 1
+        return _dict
+
+    @staticmethod
+    def var_defined(name_str):
+        """
+        判断变量是否已定义
+
+        @param {string} name_str - 变量名（注意是名字字符串，不是传入变量）
+
+        @returns {bool} - 是否已定义，True-已定义，False-未定义
+
+        """
+        try:
+            type(eval(name_str))
+        except:
+            return False
+        else:
+            return True
+
+    #############################
+    # 日志处理
+    #############################
+    @staticmethod
+    def writelog_by_level(logger, log_str, log_level=EnumLogLevel.INFO):
+        """
+        根据日志级别调用日志输出,根据日志级别调用日志类的不同方法，简化日志级别的判断处理
+
+        @param {object} logger - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现warning、error的标准方法
+        @param {string} log_str - 需输出的日志内容
+        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 输出日志级别
+
+        """
+        if log_level == EnumLogLevel.DEBUG:
+            logger.debug(log_str)
+        elif log_level == EnumLogLevel.WARNING:
+            logger.warning(log_str)
+        elif log_level == EnumLogLevel.ERROR:
+            logger.error(log_str)
+        elif log_level == EnumLogLevel.CRITICAL:
+            logger.critical(log_str)
+        else:
+            logger.info(log_str)
+
+    @staticmethod
+    def set_global_logger(logger):
+        """
+        设置全局使用的logger对象
+
+        @param {object} logger - logger对象,传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现info、warning、error等标准方法
+
+        """
+        RunTool.set_global_var('CALL_CHAIN_TOOL_LOGGER', logger)
+
+    @staticmethod
+    def get_global_logger():
+        """
+        获取全局使用的logger对象
+
+        @returns {object} - 全局使用的logger对象
+
+        """
+        return RunTool.get_global_var('CALL_CHAIN_TOOL_LOGGER')
+
+    #############################
+    # 进程锁控制
+    #############################
     @staticmethod
     def single_process_get_lockfile(process_name='', base_path=''):
         """
@@ -210,7 +262,7 @@ class RunTool(object):
                 process_name=process_name, base_path=base_path)
             if os.path.exists(_lock_file) and os.path.isfile(_lock_file):
                 os.remove(_lock_file)
-        except Exception as e:
+        except:
             return
 
     @staticmethod
@@ -275,7 +327,7 @@ class RunTool(object):
             os.close(SINGLE_PROCESS_PID_FILE_LIST[_lock_file])
             os.remove(_lock_file)
             return
-        except Exception as e:
+        except:
             raise sys.exc_info()[1]
 
     @staticmethod
@@ -317,35 +369,16 @@ class RunTool(object):
                 RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
             try:
                 RunTool.single_process_exit(process_name=process_name, base_path=base_path)
-            except Exception as e:
+            except:
                 # 出现异常，写日志，同时抛出异常
                 if logger is not None:
                     _log_str = u'进程"%s"结束时释放进程锁发生异常：%s' % (process_name, traceback.format_exc())
                     RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
                 raise sys.exc_info()[1]
 
-    @staticmethod
-    def set_global_logger(logger):
-        """
-        设置全局使用的logger对象
-
-        @param {object} logger - logger对象,传入对象需满足:
-            1、标准logging的logger对象
-            2、自定义的日志类对象，但应实现info、warning、error等标准方法
-
-        """
-        RunTool.set_global_var('CALL_CHAIN_TOOL_LOGGER', logger)
-
-    @staticmethod
-    def get_global_logger():
-        """
-        获取全局使用的logger对象
-
-        @returns {object} - 全局使用的logger对象
-
-        """
-        return RunTool.get_global_var('CALL_CHAIN_TOOL_LOGGER')
-
+    #############################
+    # 对象处理
+    #############################
     @staticmethod
     def get_object_class(obj):
         """
@@ -394,7 +427,270 @@ class RunTool(object):
         @returns {string} - 返回模块名
 
         """
-        return str(obj.__module__)
+        return inspect.getmodule(obj).__name__
+
+    @staticmethod
+    def get_method_class_obj(method_object):
+        """
+        获取类方法对象的所在类实例对象
+
+        @param {method} method_object - 类方法对象
+
+        @return {object} - 类方法对象的所在类实例对象
+        """
+        return method_object.__self__
+
+    @staticmethod
+    def get_function_name(fun_object, is_with_class=True, is_with_module=False):
+        """
+        获取函数对象的定义名
+
+        @param {function} fun_object - 函数对象
+        @param {bool} is_with_class=True - 返回函数名是否含类名
+        @param {bool} is_with_module=False - 返回函数名是否含模块名
+            注意：如果该参数为True，则忽略is_with_class参数
+
+        @return {string} - 函数定义的名字
+            注意：如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
+        """
+        _name = ''
+        if is_with_module:
+            # 含模块名
+            _moudle_name = inspect.getmodule(fun_object).__name__  # 获取函数对象的所属模块
+            if _moudle_name not in ['__main__', 'builtins']:
+                _name = _moudle_name + '.' + fun_object.__qualname__
+            else:
+                _name = fun_object.__qualname__
+        elif is_with_class:
+            # 包含类名，__qualname__为限定名
+            _name = fun_object.__qualname__
+        else:
+            # 只有函数名
+            _name = fun_object.__name__
+        return _name
+
+    @staticmethod
+    def is_function_has_var_parameter(fun_object, var_positional=True, var_keyword=True):
+        """
+        检查函数是否有动态参数
+
+        @param {function} fun_object -函数对象
+        @param {bool} var_positional=True - 检查是否有类似*args的参数
+        @param {bool} var_keyword=True - 检查是否有类似类似**kwargs的参数
+
+        @return {bool} - 是否具有相应的函数
+        """
+        _has_para = False
+        if not (var_positional or var_keyword):
+            # 两个都不检查
+            return _has_para
+
+        _func_signature = inspect.signature(fun_object)
+        for k, v in _func_signature.parameters.items():
+            if (var_positional and str(v.kind) == 'VAR_POSITIONAL') or (var_keyword and str(v.kind) == 'VAR_KEYWORD'):
+                _has_para = True
+                break
+        # 返回结果
+        return _has_para
+
+    @staticmethod
+    def get_function_parameter_defines(fun_object):
+        """
+        获取函数调用参数定义信息
+
+        @param {function} fun_object - 函数对象
+
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
+            {
+                'name': para_name,  # 参数名
+                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'has_default': True/False,  # 是否有默认值
+                'default': default_value  # 如果有默认值，值为多少
+            }
+            其中type的说明如下：
+            POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
+            KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
+            VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
+            VAR_KEYWORD - key-value形式的变量参数，类似**kwargs，允许传入可变数量的kv形式参数
+        """
+        _func_signature = inspect.signature(fun_object)
+        _func_args = []
+        # 获取函数所有参数
+        for k, v in _func_signature.parameters.items():
+            # 获取函数参数后，需要判断参数类型
+            # 当kind为 POSITIONAL_OR_KEYWORD，说明在这个参数之前没有任何类似*args的参数，那这个函数可以通过参数位置或者参数关键字进行调用
+            # 这两种参数要另外做判断
+            if str(v.kind) in ('POSITIONAL_OR_KEYWORD', 'KEYWORD_ONLY'):
+                # 通过v.default可以获取到参数的默认值
+                # 如果参数没有默认值，则default的值为：class inspect_empty
+                # 所以通过v.default的__name__ 来判断是不是_empty 如果是_empty代表没有默认值
+                # 同时，因为类本身是type类的实例，所以使用isinstance判断是不是type类的实例
+                if isinstance(v.default, type) and v.default.__name__ == '_empty':
+                    _func_args.append({
+                        'name': k,  # 参数名
+                        'type': str(v.kind),  # 参数类型
+                        'has_default': False,  # 是否有默认值
+                        'default': None  # 如果有默认值，值为多少
+                    })
+                else:
+                    _func_args.append({
+                        'name': k,  # 参数名
+                        'type': str(v.kind),  # 参数类型
+                        'has_default': True,  # 是否有默认值
+                        'default': v.default  # 如果有默认值，值为多少
+                    })
+            else:
+                # kind为 VAR_POSITIONAL以及VAR_KEYWORD的情况
+                _func_args.append({
+                    'name': k,  # 参数名
+                    'type': str(v.kind),  # 参数类型
+                    'has_default': False,  # 是否有默认值
+                    'default': None  # 如果有默认值，值为多少
+                })
+        # 返回调用参数定义
+        return _func_args
+
+    @staticmethod
+    def get_current_function_object(frame_obj=None):
+        """
+        获取当前运行函数的函数对象
+
+        @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
+
+        @return {function} - 函数对象，如果获取不到函数对象，则返回None
+            注意：该方法无法获取到类的静态函数对象
+        """
+        # TODO(lihuijian): 该方法无法获取到类的静态函数对象，暂时没有找到方法解决
+        _obj = None
+        _fun_frame = frame_obj
+        if frame_obj is None:
+            _fun_frame = inspect.currentframe().f_back
+        # 根据frame获取函数对象
+        if 'self' in _fun_frame.f_locals.keys():
+            # 是类实例对象
+            _code_name = _fun_frame.f_code.co_name
+            _obj = getattr(_fun_frame.f_locals["self"].__class__, _code_name)
+        else:
+            # 静态对象
+            _fun_name = inspect.getframeinfo(_fun_frame)[2]
+            if _fun_name in _fun_frame.f_globals.keys():
+                _obj = _fun_frame.f_globals[_fun_name]
+        return _obj
+
+    @staticmethod
+    def get_current_function_name(frame_obj=None, is_with_class=True, is_with_module=False):
+        """
+        @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
+        @param {bool} is_with_class=True - 返回函数名是否含类名
+        @param {bool} is_with_module=False - 返回函数名是否含模块名
+            注意：如果该参数为True，则忽略is_with_class参数
+
+        @return {string} - 函数定义的名字
+            注意：如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
+            注意：如果函数是类的静态函数，只能返回函数名，无法返回类名
+        """
+        _fun_name = ''
+        _fun_frame = frame_obj
+        if frame_obj is None:
+            _fun_frame = inspect.currentframe().f_back
+        _fun_obj = RunTool.get_current_function_object(frame_obj=_fun_frame)
+        if _fun_obj is None:
+            # TODO(lihuijian): 静态函数，只能返回函数名，无法返回类名
+            _fun_name = inspect.getframeinfo(_fun_frame)[2]
+        else:
+            _fun_name = RunTool.get_function_name(
+                _fun_obj, is_with_class=is_with_class, is_with_module=is_with_module)
+        # 返回
+        return _fun_name
+
+    @staticmethod
+    def get_current_function_parameter_defines(frame_obj=None):
+        """
+        获取当前运行函数的函数调用参数定义信息
+
+        @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
+
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
+            {
+                'name': para_name,  # 参数名
+                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'has_default': True/False,  # 是否有默认值
+                'default': default_value  # 如果有默认值，值为多少
+            }
+            其中type的说明如下：
+            POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
+            KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
+            VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
+            VAR_KEYWORD - key-value形式的变量参数，类似**kwargs，允许传入可变数量的kv形式参数
+            注意：如果函数是类的静态函数，无法获取到对象，直接返回[]
+        """
+        _fun_frame = frame_obj
+        if frame_obj is None:
+            _fun_frame = inspect.currentframe().f_back
+        _fun_obj = RunTool.get_current_function_object(frame_obj=_fun_frame)
+        if _fun_obj is None:
+            # TODO(lihuijian): 静态函数，无法获取到对象，只能返回空对象
+            return []
+        else:
+            return RunTool.get_function_parameter_defines(_fun_obj)
+
+    @staticmethod
+    def get_current_function_parameter_values(frame_obj=None, fun_obj=None, is_simple_mode=False):
+        """
+        获取当前运行函数的函数调用参数取值信息
+
+        @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
+        @param {function} fun_obj=None - 函数对象，如不传入则通过frame获取，传入可兼容静态函数的情况
+        @param {bool} is_simple_mode=False - 是否简单模式
+
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
+            简单模式：
+            [para_name, call_value] : 注意当有*args和**kwargs的情况，也会拆开每个参数按顺序送入
+
+            非简单模式：
+            {
+                'name': para_name,  # 参数名
+                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'has_default': True/False,  # 是否有默认值
+                'default': default_value,  # 如果有默认值，值为多少
+                'value': call_value  # 函数调用的取值
+            }
+            其中type的说明如下：
+            POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
+            KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
+            VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
+            VAR_KEYWORD - key-value形式的变量参数，类似**kwargs，允许传入可变数量的kv形式参数
+            注意：如果函数是类的静态函数，且未传入函数对象，无法获取到对象，直接返回[]
+        """
+        # 获取函数参数定义
+        _fun_frame = frame_obj
+        if frame_obj is None:
+            _fun_frame = inspect.currentframe().f_back
+        _parameters = []
+        if fun_obj is not None:
+            _parameters = RunTool.get_function_parameter_defines(fun_obj)
+        else:
+            _parameters = RunTool.get_current_function_parameter_defines(frame_obj=_fun_frame)
+        # 获取函数的传入值
+        _, _, _, _values = inspect.getargvalues(_fun_frame)
+        if is_simple_mode:
+            # 简单模式
+            _func_args = []
+            for _item in _parameters:
+                if _item['type'] == 'VAR_POSITIONAL':
+                    for _var_pos in _values[_item['name']]:
+                        _func_args.append(['', _var_pos])
+                elif _item['type'] == 'VAR_KEYWORD':
+                    for _var_key in _values[_item['name']].keys():
+                        _func_args.append([_var_key, _values[_item['name']][_var_key]])
+                else:
+                    _func_args.append([_item['name'], _values[_item['name']]])
+            return _func_args
+        else:
+            # 非简单模式
+            for _item in _parameters:
+                _item['value'] = _values[_item['name']]
+            return _parameters
 
 
 if __name__ == '__main__':

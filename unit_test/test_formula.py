@@ -10,10 +10,11 @@
 import os
 import sys
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
-from formula import EnumFormulaSearchSortOrder, EnumFormulaSearchResultType, StructFormulaKeywordPara, StructFormula, FormulaTool
-from base_tools.test_tool import TestTool
-from base_tools.string_tool import StringTool
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.formula import EnumFormulaSearchSortOrder, EnumFormulaSearchResultType, StructFormulaKeywordPara, StructFormula, FormulaTool
+from HiveNetLib.base_tools.test_tool import TestTool
+from HiveNetLib.base_tools.string_tool import StringTool
 
 
 __MOUDLE__ = 'test_formula'  # 模块名

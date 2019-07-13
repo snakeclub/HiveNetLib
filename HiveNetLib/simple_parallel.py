@@ -36,7 +36,8 @@ import copy
 import re
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 import affinity
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import CResult
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.value_tool import ValueTool

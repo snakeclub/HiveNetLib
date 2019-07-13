@@ -19,7 +19,9 @@ import os
 import sys
 import copy
 from lxml import etree
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.generic import CResult
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, MsgFW
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
@@ -38,13 +40,13 @@ class MsgXML(MsgFW):
     """
 
     #############################
-    # 报文体处理函数
+    # 重载MsgFW的函数
     #############################
     @classmethod
     @property
-    def MsgType(cls):
+    def msg_type(cls):
         """
-        返回消息对象的类型（实现类应将自己类名返回）
+        消息对象的类型
 
         @property {string}
 
@@ -52,9 +54,9 @@ class MsgXML(MsgFW):
         return 'MsgXML'
 
     @classmethod
-    def load_msg(cls, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
+    def _load_msg(cls, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
         """
-        装载报文体对象（主报文）
+        装载报文对象，将传入的报文对象转换为基础处理对象（lxml的xml document对象）
 
         @param {object} obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如：
             obj_type = EnumMsgObjType.File 时，obj为文件路径
@@ -73,13 +75,13 @@ class MsgXML(MsgFW):
             add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
                 (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
 
-        @returns {object} - 报文体对象
+        @returns {object} - 报文体对象（lxml的xml document对象）
 
         @throws {UnboundLocalError} - 对应标准错误码21001，当遇到obj_type不支持时抛出
 
         """
         _msg = None
-        if obj_type == EnumMsgObjType.File or obj_type == EnumMsgObjType.String or obj_type == EnumMsgObjType.Bytes:
+        if obj_type in (EnumMsgObjType.File, EnumMsgObjType.String, EnumMsgObjType.Bytes):
             # 字符串方式及二进制
             _xmlstr = ''
             _encoding = cls._get_para_from_kwargs(
@@ -117,7 +119,7 @@ class MsgXML(MsgFW):
 
             # 处理删除命名空间前缀
             for _prefix in _remove_namespace_prefix:
-                _xmlstr = _xmlstr.replace("<"+_prefix+":", "<")
+                _xmlstr = _xmlstr.replace("<" + _prefix + ":", "<")
 
             # 处理删除命名空间
             for _attr in _remove_namespace_attr:
@@ -144,17 +146,17 @@ class MsgXML(MsgFW):
         return _msg
 
     @classmethod
-    def set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
+    def _set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
         """
-        设置主报文的内容
+        设置报文的内容
 
-        @param {object} msg - 主报文对象
+        @param {object} msg - 报文对象（lxml的xml document对象）
         @param {string} search_path - 需要设置值的搜索路径，符合xpath规范
         @param {string} value - 要设置的值
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
+        @param {string} msg_id=None - 报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {object} - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象（lxml的xml document对象）
 
         @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
@@ -169,13 +171,13 @@ class MsgXML(MsgFW):
         return _msg
 
     @classmethod
-    def get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
+    def _get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
         """
-        获取主报文的内容（注意只获取第1个取到的节点值）
+        获取报文的内容（注意只获取第1个取到的节点值）
 
-        @param {object} msg - 主报文对象
+        @param {object} msg - 主报文对象（lxml的xml document对象）
         @param {string} search_path - 需要获取值的搜索路径，符合xpath规范
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
+        @param {string} msg_id=None - 报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
         @returns {string} - 获取到的值
@@ -192,18 +194,18 @@ class MsgXML(MsgFW):
         return _get_value
 
     @classmethod
-    def append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
+    def _append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
         """
         将子报文对象添加到主报文对象中
 
-        @param {object} submsg - 子报文对象
-        @param {object} msg - 主报文对象
+        @param {object} submsg - 子报文对象（lxml的xml document对象）
+        @param {object} msg - 主报文对象（lxml的xml document对象）
         @param {string} search_path - 添加位置的搜索路径，符合xpath规范
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
-        @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
+        @param {string} submsg_id=None - 子报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
 
-        @returns {object} - 完成添加后的主报文对象
+        @returns {object} - 完成添加后的主报文对象（lxml的xml document对象）
 
         @throws {NameError} - 对应标准错误码21002，当参数路径不存在时抛出
 
@@ -217,12 +219,12 @@ class MsgXML(MsgFW):
         return _msg
 
     @classmethod
-    def msg_to_str(cls, msg, msg_id=None, **kwargs):
+    def _msg_to_str(cls, msg, msg_id=None, **kwargs):
         """
-        将主报文对象转换为字符串格式
+        将报文对象转换为字符串格式
 
-        @param {object} msg - 报文对象
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
+        @param {object} msg - 报文对象（lxml的xml document对象）
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 转换参数，包括：
             has_sign_info=False - 是否带有签字验证信息（在xml文档结尾），如果有，转换时加到字符串中
             sign_str='' - 当有签字验证信息时，验证信息字符串
@@ -263,7 +265,7 @@ class MsgXML(MsgFW):
 
         # 处理删除命名空间前缀
         for _prefix in _remove_namespace_prefix:
-            _msg_str = _msg_str.replace('<'+_prefix+':', '<')
+            _msg_str = _msg_str.replace('<' + _prefix + ':', '<')
 
         # 处理删除命名空间
         for _attr in _remove_namespace_attr:
@@ -276,36 +278,12 @@ class MsgXML(MsgFW):
         return _msg_str
 
     @classmethod
-    def str_to_msg(cls, msg_str, msg_id=None, **kwargs):
+    def _msg_to_bytes(cls, msg, msg_id=None, **kwargs):
         """
-        将字符串转换为主报文对象
+        将报文对象转换为二进制数组（用于网络通讯）
 
-        @param {string} msg_str - 字符串
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数，包括：
-            encoding='utf-8' - 装载字符编码
-            has_sign_info=False - 是否带有签字验证信息（在xml文档结尾），如果有，转换时会去除
-            sign_begin_tag='' - 当有签字验证信息时，标记验证信息开头字符串，用于删除验证信息
-            remove_namespace_prefix=() - 清除节点的命名空间前缀（目的是简化xpath），为一个数组，例如('prefix1', 'prefix2')
-            add_namespace_prefix=() - 为指定节点及子节点增加命名空间前缀，为一个二维数组，例如：
-                (('xpath1', 'prefix1'), ('xpath2', 'prefix2'))，其中xpath是符合xml的xpath规范的搜索字符串
-            remove_namespace_attr=() - 清除节点的命名空间（目的是简化xpath），为一个数组，例如('name1', 'name2')
-                实际上去除的是 xmlns="name1"
-            add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
-                (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
-
-        @returns {object} - 报文对象
-
-        """
-        return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
-
-    @classmethod
-    def msg_to_bytes(cls, msg, msg_id=None, **kwargs):
-        """
-        将主报文对象转换为二进制数组（用于网络通讯）
-
-        @param {object} msg - 报文对象
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
+        @param {object} msg - 报文对象（lxml的xml document对象）
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 转换参数，包括
             encoding='utf-8' - 字符编码
             has_sign_info=False - 是否带有签字验证信息（在xml文档结尾），如果有，转换时加到字符串中
@@ -321,35 +299,11 @@ class MsgXML(MsgFW):
         @returns {byte[]} - 二进制数组
 
         """
-        _str_ret = cls.msg_to_str(msg, msg_id=msg_id, **kwargs)
+        _str_ret = cls._msg_to_str(msg, msg_id=msg_id, **kwargs)
         _encoding = cls._get_para_from_kwargs(
             'encoding', default_value='utf-8', kwargs=kwargs)
         _msg_bytes = bytes(_str_ret, _encoding)
         return _msg_bytes
-
-    @classmethod
-    def bytes_to_msg(cls, msg_bytes, msg_id=None, **kwargs):
-        """
-        将二进制数组转换为主报文对象（解析网络通讯信息）
-
-        @param {byte[]} msg_bytes - 二进制数组
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数，包括
-            encoding='utf-8' - 装载字符编码
-            has_sign_info=False - 是否带有签字验证信息（在xml文档结尾），如果有，转换时会去除
-            sign_begin_tag='' - 当有签字验证信息时，标记验证信息开头字符串，用于删除验证信息
-            remove_namespace_prefix=() - 清除节点的命名空间前缀（目的是简化xpath），为一个数组，例如('prefix1', 'prefix2')
-            add_namespace_prefix=() - 为指定节点及子节点增加命名空间前缀，为一个二维数组，例如：
-                (('xpath1', 'prefix1'), ('xpath2', 'prefix2'))，其中xpath是符合xml的xpath规范的搜索字符串
-            remove_namespace_attr=() - 清除节点的命名空间（目的是简化xpath），为一个数组，例如('name1', 'name2')
-                实际上去除的是 xmlns="name1"
-            add_namespace_attr=() - 新增节点的命名空间，为一个二维数组，例如：
-                (('xpath1', 'name1'), ('xpath2', 'name2'))，其中xpath是符合xml的xpath规范的搜索字符串
-
-        @returns {object} - 报文对象
-
-        """
-        return cls.load_msg(msg_bytes, msg_id=msg_id, obj_type=EnumMsgObjType.Bytes, **kwargs)
 
     #############################
     # 内部处理函数
@@ -405,7 +359,7 @@ class MsgXML(MsgFW):
             if search_path is None or search_path == '':
                 _tag = _msg.tag
                 _xml = str(etree.tostring(_msg, encoding='utf-8'), 'utf-8')
-                _xml = _xml[0:len(_tag)+1] + ' xmlns="' + namespace + '"' + _xml[len(_tag)+1:]
+                _xml = _xml[0:len(_tag) + 1] + ' xmlns="' + namespace + '"' + _xml[len(_tag) + 1:]
                 _msg = etree.fromstring(bytes(_xml, "utf-8"))
             else:
                 _nodes = _msg.xpath(search_path)

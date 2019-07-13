@@ -20,7 +20,8 @@ import sys
 import copy
 import json
 import re
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.file_tool import FileTool
 

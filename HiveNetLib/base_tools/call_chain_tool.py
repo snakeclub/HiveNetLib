@@ -21,7 +21,9 @@ import uuid
 import datetime
 import traceback
 from queue import Full, Empty
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.import_tool import ImportTool
@@ -393,10 +395,15 @@ class CallChainTool(object):
                 BACK - 返回报文
                 OT - 超时
                 EX - 异常
+                STREAM-SEND - 流报文发送
+                STREAM-BACK - 流报文返回
             api_call_type为RECV的情况：
                 RECV - 接收报文
                 RET - 返回报文
                 EX - 异常
+                STREAM-RECV - 流报文接收
+                STREAM-DEAL - 流报文处理（非返回）
+                STREAM-RET - 流报文返回
         @param {string} trace_id=None - 调用链追踪ID，None代表从报文对象msg或proto_msg中获取
         @param {int} trace_level=None - 调用层级，None代表从报文对象msg或proto_msg中获取
         @param {string} call_id=None - 当前接口调用的执行ID，None代表从报文对象msg或proto_msg中获取
@@ -450,7 +457,7 @@ class CallChainTool(object):
             _log_str = _log_str + ('[%s:%s]' % (_key, CallChainTool.__get_msg_para_value(
                 _key, value=logging_head[_key], msg=msg, proto_msg=proto_msg, api_mapping=api_mapping)))
         # 按不同类型组织其他信息
-        if api_info_type == 'SEND' or api_info_type == 'RECV':
+        if api_info_type in ('SEND', 'RECV', 'STREAM-SEND', 'STREAM-RECV'):
             # 发送报文、接收报文，组织调用链日志
             _log_str = _log_str + (
                 '[TRACE-API:%s:%s:%s:%s]' % (
@@ -465,6 +472,13 @@ class CallChainTool(object):
                 )
             )
         else:
+            # 返回报文或异常情况
+            if trace_id is not None:
+                # 外部有传入trace_id相关信息，同样登记
+                _log_str = _log_str + (
+                    '[TRACE-API:%s:%s:%s:%s]' % (trace_id, call_id, parent_id, str(trace_level))
+                )
+
             # 使用时间
             _log_str = _log_str + ('[USE:%ss]' % (str(use)))
 
@@ -507,13 +521,13 @@ class CallChainTool(object):
 
     @staticmethod
     def api_call_chain_logging_nowait(log_queue, msg=None, proto_msg=None, api_mapping=dict(),
-                               api_call_type='SEND', api_info_type='SEND',
-                               trace_id=None, trace_level=None, call_id=None,
-                               parent_id=None, logging_head=dict(),
-                               use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
-                               is_print_msg=False, msg_print_kwargs=dict(),
-                               key_para=dict(), print_in_para=dict(),
-                               log_level=EnumLogLevel.INFO):
+                                      api_call_type='SEND', api_info_type='SEND',
+                                      trace_id=None, trace_level=None, call_id=None,
+                                      parent_id=None, logging_head=dict(),
+                                      use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
+                                      is_print_msg=False, msg_print_kwargs=dict(),
+                                      key_para=dict(), print_in_para=dict(),
+                                      log_level=EnumLogLevel.INFO):
         """
         记录api接口调用联日志信息-异步模式，把信息放入队列处理，快速返回结果
 

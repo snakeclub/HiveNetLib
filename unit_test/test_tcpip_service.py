@@ -11,7 +11,8 @@ import os
 import sys
 import time
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.net_service.tcpip_service import TcpIpService
 from HiveNetLib.simple_log import Logger, EnumLoggerName
 from HiveNetLib.simple_log import EnumLogLevel
@@ -21,7 +22,7 @@ from HiveNetLib.base_tools.debug_tool import DebugTool
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
-                            '../../test_data/temp/tcpip_service_log/').replace('\\', '/')
+                            '../test_data/temp/tcpip_service_log/').replace('\\', '/')
 
 
 class TestTcpIpService(unittest.TestCase):
@@ -30,10 +31,11 @@ class TestTcpIpService(unittest.TestCase):
     """
 
     # 服务端处理函数定义
-    def server_status_info_fun(self, server_status, result):
-        self.logger.write_log(
+    @classmethod
+    def server_status_info_fun(cls, server_status, result):
+        cls.logger.write_log(
             (
-                "[服务端]"+result.self_tag+"服务状态变更：" +
+                "[服务端]" + result.self_tag + "服务状态变更：" +
                 str(server_status) +
                 "   结果code：" +
                 str(result.code) +
@@ -44,8 +46,9 @@ class TestTcpIpService(unittest.TestCase):
         )
         return
 
-    def server_connect_deal_fun(self, thread_id, server_opts, net_info, self_tag):
-        self.logger.write_log(
+    @classmethod
+    def server_connect_deal_fun(cls, thread_id, server_opts, net_info, self_tag):
+        cls.logger.write_log(
             (
                 "[服务端" +
                 self_tag +
@@ -60,25 +63,25 @@ class TestTcpIpService(unittest.TestCase):
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': 4})
         if _read_result.code != '00000':
             # 获取失败
-            self.logger.write_log(("[服务端]获取客户端数据报文头失败，关闭连接："
-                                   + str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            cls.logger.write_log(("[服务端]获取客户端数据报文头失败，关闭连接："
+                                  + str(_read_result.code) + "-" + _read_result.msg), "INFO")
             TcpIpService.close_connect(net_info)
             return
 
         _next_read = int.from_bytes(_read_result.data, byteorder='big', signed=False)
-        self.logger.write_log("[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read), "INFO")
+        cls.logger.write_log("[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read), "INFO")
 
         # 获取后面的数据
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': _next_read})
         if _read_result.code != '00000':
             # 获取失败
-            self.logger.write_log(("[服务端]获取客户端数据报文体失败，关闭连接：" +
-                                   str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            cls.logger.write_log(("[服务端]获取客户端数据报文体失败，关闭连接：" +
+                                  str(_read_result.code) + "-" + _read_result.msg), "INFO")
             TcpIpService.close_connect(net_info)
             return
 
         _read_str = str(_read_result.data, "utf-8")
-        self.logger.write_log("[服务端]获取到客户端报文体数据：" + _read_str, "INFO")
+        cls.logger.write_log("[服务端]获取到客户端报文体数据：" + _read_str, "INFO")
 
         if _read_str == "servernoresponse":
             # 隔30秒不响应
@@ -92,28 +95,28 @@ class TestTcpIpService(unittest.TestCase):
         # 发送报文头
         _send_result = TcpIpService.send_data(net_info, _send_head, {})
         if _send_result.code != '00000':
-            self.logger.write_log(("[服务端]返回客户端数据报文头失败，关闭连接："
-                                   + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            cls.logger.write_log(("[服务端]返回客户端数据报文头失败，关闭连接："
+                                  + str(_send_result.code) + "-" + _send_result.msg), "INFO")
             TcpIpService.close_connect(net_info)
             return
 
-        self.logger.write_log("[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)), "INFO")
+        cls.logger.write_log("[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)), "INFO")
         _send_result = TcpIpService.send_data(net_info, _send_body, {})
 
         if _send_result.code != '00000':
-            self.logger.write_log(("[服务端]返回客户端数据报文体失败，关闭连接："
-                                   + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            cls.logger.write_log(("[服务端]返回客户端数据报文体失败，关闭连接："
+                                  + str(_send_result.code) + "-" + _send_result.msg), "INFO")
             TcpIpService.close_connect(net_info)
             return
-        self.logger.write_log("[服务端]返回客户端报文体数据：" + _ret_str, "INFO")
+        cls.logger.write_log("[服务端]返回客户端报文体数据：" + _ret_str, "INFO")
 
         # 处理完成，关闭连接
         _close_result = TcpIpService.close_connect(net_info)
         if _close_result.code != '00000':
-            self.logger.write_log(("[服务端]关闭客户端连接失败："
-                                   + str(_close_result.code) + "-" + _close_result.msg), "INFO")
+            cls.logger.write_log(("[服务端]关闭客户端连接失败："
+                                  + str(_close_result.code) + "-" + _close_result.msg), "INFO")
 
-        self.logger.write_log("[服务端]关闭客户端连接", "INFO")
+        cls.logger.write_log("[服务端]关闭客户端连接", "INFO")
 
     # 客户端发送代码
     def _send_text(self, net_info, str_data):
@@ -157,19 +160,21 @@ class TestTcpIpService(unittest.TestCase):
         self.logger.write_log("[客户端]获取到服务器端报文体数据：" + _read_str, "INFO")
         return
 
-    def setUp(self):
+    # 整个Test类的开始和结束执行
+    @classmethod
+    def setUpClass(cls):
         """
-        启动测试执行的初始化
+        启动测试类执行的初始化，只执行一次
         """
         # 初始化日志类
         DebugTool.set_debug(False)
         try:
             # 删除临时日志
             FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case*')
-        except Exception as e:
+        except:
             pass
 
-        self.logger = Logger(
+        cls.logger = Logger(
             conf_file_name=_TEMP_DIR + '/../../tcp_ip_service/test_tcp_ip_service.json',
             logger_name=EnumLoggerName.ConsoleAndFile.value,
             logfile_path=_TEMP_DIR + '/log/test_case.log',
@@ -177,31 +182,44 @@ class TestTcpIpService(unittest.TestCase):
             is_print_file_name=True,
             is_print_fun_name=True
         )
-        self.logger.set_logger_level(EnumLogLevel.DEBUG)
+        cls.logger.set_logger_level(EnumLogLevel.DEBUG)
 
         # 启动服务
-        self.server = TcpIpService(
-            logger=self.logger,
-            server_status_info_fun=self.server_status_info_fun,
-            server_connect_deal_fun=self.server_connect_deal_fun,
+        cls.server = TcpIpService(
+            logger=cls.logger,
+            server_status_info_fun=cls.server_status_info_fun,
+            server_connect_deal_fun=cls.server_connect_deal_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.DEBUG
+            log_level=EnumLogLevel.INFO
         )
         _server_opts = TcpIpService.generate_server_opts()
         _server_opts.ip = "127.0.0.1"
         _server_opts.port = 9512
-        self.server.start_server(server_opts=_server_opts)
+        cls.server.start_server(server_opts=_server_opts)
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         """
-        结束测试执行的销毁
+        结束测试类执行的销毁，只执行一次
         """
         # 关闭服务器连接
         _i = 0
         while _i < 10:
             time.sleep(1)
             _i = _i + 1
-        self.server.stop_server(is_wait=True)
+        cls.server.stop_server(is_wait=True)
+
+    def setUp(self):
+        """
+        启动测试执行的初始化，每个案例执行一次
+        """
+        pass
+
+    def tearDown(self):
+        """
+        结束测试执行的销毁，每个案例执行一次
+        """
+        pass
 
     def test_send_text(self):
         """

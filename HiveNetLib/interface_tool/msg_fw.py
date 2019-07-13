@@ -19,7 +19,9 @@ import os
 import sys
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.generic import CResult
 
 
@@ -61,20 +63,20 @@ class MsgFW(ABC):
     定义通用的接口报文需要实现的方法，便于兼容扩展各类报文处理
 
     """
-
     #############################
-    # 实例化对象内部变量
+    # 内部变量
     #############################
     _base_object = None  # 报文主体对象
     _msg_id = None  # 报文标识
 
     #############################
-    # 实例化对象相关函数
+    # 公共属性
     #############################
     @property
     def base_object(self):
         """
-        返回实例化后的消息体处理对象（可以用静态方法处理）
+        获取报文转换后的基础处理对象
+        处理对象类型由实现类定义（例如xml报文，报文将转换为lxml库的xml document对象）
 
         @property {object}
 
@@ -84,13 +86,29 @@ class MsgFW(ABC):
     @property
     def msg_id(self):
         """
-        返回实例化后的消息标识
+        获取当前报文ID（标识）
 
         @property {string}
 
         """
         return self._msg_id
 
+    @classmethod
+    @property
+    @abstractmethod
+    def msg_type(cls):
+        """
+        返回报文类型
+        （实现类需重载）
+
+        @property {string}
+
+        """
+        return 'MsgFW'
+
+    #############################
+    # 构造函数
+    #############################
     def __init__(self, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
         """
         构造函数
@@ -100,138 +118,155 @@ class MsgFW(ABC):
             obj_type = EnumMsgObjType.FileHandle 时，obj为文件句柄
             obj_type = EnumMsgObjType.String 时，obj为报文文本
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {object} obj_type=None - 报文载体对象类型
+        @param {EnumMsgObjType} obj_type=None - 报文载体对象类型
         @param {**kwargs} kwargs - 装载参数，例如：
             encoding='utf-8' - 装载字符编码
-            具体参数参考具体实现类的load_msg方法参数
+            具体参数参考具体实现类的self._load_msg方法参数
 
         """
         self._msg_id = msg_id
-        self._base_object = self.load_msg(obj, msg_id=msg_id, obj_type=obj_type, **kwargs)
+        self._base_object = self._load_msg(obj, msg_id=msg_id, obj_type=obj_type, **kwargs)
 
-    def append_submsg_by_base_object(self, submsg_obj, search_path, submsg_id=None, **kwargs):
+    #############################
+    # 公共函数
+    #############################
+    def append_submsg(self, submsg_obj, search_path, submsg_id=None, **kwargs):
         """
-        根据内部对象添加子报文信息
+        添加子报文信息
+        将子报文对象（MsgFW实例）添加到当前报文实例的指定路径中（search_path）
 
-        @param {object} submsg_obj - 子报文对象，如果是实例化对象，则应为self._base_object
-        @param {object} search_path - 添加位置的搜索路径(具体类型在实现类定义)
-        @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 添加参数（具体参考实现类的append_submsg函数定义）
-
-        """
-        self._base_object = self.append_submsg(submsg=submsg_obj, msg=self._base_object,
-                                               search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs)
-
-    def append_submsg_by_msg_object(self, submsg_obj, search_path, submsg_id=None, **kwargs):
-        """
-        根据msg实例对象添加子报文信息
-
-        @param {MsgFW} submsg_obj - 子报文实例化对象
-        @param {object} search_path - 添加位置的搜索路径(具体类型在实现类定义)
-        @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 添加参数（具体参考实现类的append_submsg函数定义）
+        @param {MsgFW} submsg_obj - 子报文对象（MsgFW类型）
+        @param {object} search_path - 添加位置的搜索路径(建议兼容xPath语法)
+        @param {string} submsg_id=None - 子报文id（用于标明该报文业务类型）
+        @param {**kwargs} kwargs - 添加参数（具体参考实现类的_append_submsg函数定义）
 
         """
-        self._base_object = self.append_submsg(submsg=submsg_obj.base_object, msg=self._base_object,
-                                               search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs)
+        self._base_object = self._append_submsg(
+            submsg=submsg_obj.base_object, msg=self._base_object,
+            search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs
+        )
+
+    def append_submsg_by_base_object(self, submsg_base_obj, search_path, submsg_id=None, **kwargs):
+        """
+        添加子报文信息
+        将子报文对象（基础处理对象，例如MsgFW.base_object）添加到当前报文实例的指定路径中
+
+        @param {object} submsg_base_obj - 子报文对象（基础处理对象，例如MsgFW.base_object）
+        @param {object} search_path - 添加位置的搜索路径(建议兼容xPath语法)
+        @param {string} submsg_id=None - 子报文id（用于标明该报文业务类型）
+        @param {**kwargs} kwargs - 添加参数（具体参考实现类的_append_submsg函数定义）
+
+        """
+        self._base_object = self._append_submsg(
+            submsg=submsg_base_obj, msg=self._base_object,
+            search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs
+        )
 
     def append_submsg_by_object(self, obj, search_path, obj_type=None, submsg_id=None, **kwargs):
         """
-        实例对象的添加子对象
+        添加子报文信息
+        将子报文对象（未转换的任意类型，例如文本或文件）添加到当前报文实例的指定路径中（search_path）
 
         @param {object} obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如(仅供参考)：
             obj_type = EnumMsgObjType.File 时，obj为文件路径
             obj_type = EnumMsgObjType.FileHandle 时，obj为文件句柄
             obj_type = EnumMsgObjType.String 时，obj为报文文本
-        @param {object} search_path - 添加位置的搜索路径(具体类型在实现类定义)
-        @param {string} obj_type=None - 报文载体对象类型
-        @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 装载及添加参数（具体参考实现类的load_msg和append_submsg的函数定义）
+        @param {object} search_path - 添加位置的搜索路径(建议兼容xPath语法)
+        @param {EnumMsgObjType} obj_type=None - 报文载体对象类型
+        @param {string} submsg_id=None - 子报文id（用于标明该报文业务类型）
+        @param {**kwargs} kwargs - 装载及添加参数（具体参考实现类的self._load_msg和self._append_submsg的函数定义）
 
         """
-        _submsg = self.load_msg(obj, msg_id=submsg_id, obj_type=obj_type, **kwargs)
-        self._base_object = self.append_submsg(submsg=_submsg, msg=self._base_object,
-                                               search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs)
+        _submsg = self._load_msg(obj, msg_id=submsg_id, obj_type=obj_type, **kwargs)
+        self._base_object = self._append_submsg(
+            submsg=_submsg, msg=self._base_object,
+            search_path=search_path, msg_id=self._msg_id, submsg_id=submsg_id, **kwargs
+        )
 
     def get_value(self, search_path, **kwargs):
         """
-        获取主报文的内容
+        获取报文的内容
 
-        @param {object} search_path - 需要获取值的索引搜索路径(具体类型在实现类定义)
+        @param {object} search_path - 需要获取值的索引搜索路径(建议兼容xPath语法)
         @param {**kwargs} kwargs - 获取参数（具体由实现类定义）
 
         @returns {object} - 获取到的值，如果处理失败需抛出指定异常
-
         """
-        return self.get_msg_value(msg=self._base_object, search_path=search_path, msg_id=self._msg_id, **kwargs)
+        return self._get_msg_value(
+            msg=self._base_object, search_path=search_path, msg_id=self._msg_id, **kwargs)
 
-    def set_value(self, search_path, value, msg_id=None, **kwargs):
+    def set_value(self, search_path, value, **kwargs):
         """
         设置主报文的内容
 
-        @param {object} search_path - 需要设置值的索引搜索路径(具体类型在实现类定义)
+        @param {object} search_path - 需要设置值的索引搜索路径(建议兼容xPath语法)
         @param {object} value - 要设置值（具体对象类型在实现类定义）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
-
-        @returns {object} - 设置值后的报文对象，如果处理失败需抛出指定异常
-
         """
-        self._base_object = self.set_msg_value(
-            msg=self._base_object, search_path=search_path, value=value, msg_id=self._msg_id, **kwargs)
+        self._base_object = self._set_msg_value(
+            msg=self._base_object, search_path=search_path,
+            value=value, msg_id=self._msg_id, **kwargs
+        )
 
     def to_str(self, **kwargs):
         """
-        将报文对象转换为字符串格式
+        将报文转换为字符串格式
 
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
         @returns {string} - 输出字符串
-
         """
-        return self.msg_to_str(msg=self._base_object, msg_id=self._msg_id, **kwargs)
+        return self._msg_to_str(msg=self._base_object, msg_id=self._msg_id, **kwargs)
 
     def to_bytes(self, **kwargs):
         """
-        将报文对象转换为二进制数组（用于网络通讯）
+        将报文转换为二进制数组（用于网络通讯）
 
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
         @returns {byte[]} - 二进制数组
-
         """
-        return self.msg_to_bytes(msg=self._base_object, msg_id=self._msg_id, **kwargs)
+        return self._msg_to_bytes(msg=self._base_object, msg_id=self._msg_id, **kwargs)
 
     #############################
-    # 报文体处理函数
+    # 需重载的内部函数
     #############################
     @classmethod
-    @property
     @abstractmethod
-    def MsgType(cls):
+    def _load_msg(cls, obj, msg_id=None, obj_type=None, **kwargs):
         """
-        返回消息对象的类型（实现类应将自己类名返回）
-
-        @property {string}
-
-        """
-        return 'MsgFW'
-
-    @classmethod
-    @abstractmethod
-    def load_msg(cls, obj, msg_id=None, obj_type=None, **kwargs):
-        """
-        装载报文体对象（主报文）
+        装载报文对象,将传入的报文对象转换为基础处理对象
 
         @param {object} obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如(仅供参考)：
             obj_type = EnumMsgObjType.File 时，obj为文件路径
             obj_type = EnumMsgObjType.FileHandle 时，obj为文件句柄
             obj_type = EnumMsgObjType.String 时，obj为报文文本
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {object} obj_type=None - 报文载体对象类型
+        @param {string} msg_id=None - 报文id（用于标明该报文业务类型）
+        @param {EnumMsgObjType} obj_type=None - 报文载体对象类型
         @param {**kwargs} kwargs - 装载参数，例如：
             encoding='utf-8' - 装载字符编码
 
-        @returns {object} - 报文对象（具体类型由实现类定义），如果处理失败需抛出指定异常
+        @returns {object} - 报文对象（具体类型由实现类定义,例如xml报文的报文对象指xml document对象），
+            如果处理失败需抛出指定异常
+
+        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
+        """
+        将子报文对象添加到主报文对象中
+
+        @param {object} submsg - 子报文对象,基础处理对象（例如MsgFW.base_object）
+        @param {object} msg - 主报文对象,基础处理对象（例如MsgFW.base_object）
+        @param {object} search_path - 添加位置的搜索路径(建议兼容xPath语法)
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
+        @param {string} submsg_id=None - 子报文id（用于标明该报文业务类型）
+        @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
+
+        @returns {object} - 完成添加后的主报文对象（例如MsgFW.base_object），如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -240,32 +275,13 @@ class MsgFW(ABC):
 
     @classmethod
     @abstractmethod
-    def set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
+    def _get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
         """
-        设置主报文的内容
+        获取报文指定路径（search_path）的内容值
 
-        @param {object} msg - 主报文对象
-        @param {object} search_path - 需要设置值的索引搜索路径(具体类型在实现类定义)
-        @param {object} value - 要设置值（具体对象类型在实现类定义）
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
-
-        @returns {object} - 设置值后的报文对象，如果处理失败需抛出指定异常
-
-        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
-
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
-        """
-        获取主报文的内容
-
-        @param {object} msg - 主报文对象
-        @param {object} search_path - 需要获取值的索引搜索路径(具体类型在实现类定义)
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
+        @param {object} msg - 主报文对象,基础处理对象（例如MsgFW.base_object）
+        @param {object} search_path - 需要获取值的索引搜索路径(建议兼容xPath语法)
+        @param {string} msg_id=None - 报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
         @returns {object} - 获取到的值，如果处理失败需抛出指定异常
@@ -277,18 +293,17 @@ class MsgFW(ABC):
 
     @classmethod
     @abstractmethod
-    def append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
+    def _set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
         """
-        将子报文对象添加到主报文对象中
+        设置报文指定路径（search_path）的内容值
 
-        @param {object} submsg - 子报文对象
-        @param {object} msg - 主报文对象
-        @param {object} search_path - 添加位置的搜索路径(具体类型在实现类定义)
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
-        @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 添加参数（具体由实现类定义）
+        @param {object} msg - 报文对象,基础处理对象（例如MsgFW.base_object）
+        @param {object} search_path - 需要设置值的索引搜索路径(建议兼容xPath语法)
+        @param {object} value - 要设置值（具体对象类型在实现类定义）
+        @param {string} msg_id=None - 报文id（用于标明该报文业务类型）
+        @param {**kwargs} kwargs - 设置参数（具体由实现类定义）
 
-        @returns {object} - 完成添加后的主报文对象，如果处理失败需抛出指定异常
+        @returns {object} - 设置值后的报文对象（例如MsgFW.base_object），如果处理失败需抛出指定异常
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -297,12 +312,12 @@ class MsgFW(ABC):
 
     @classmethod
     @abstractmethod
-    def msg_to_str(cls, msg, msg_id=None, **kwargs):
+    def _msg_to_str(cls, msg, msg_id=None, **kwargs):
         """
-        将主报文对象转换为字符串格式
+        将报文对象转换为字符串格式
 
-        @param {object} msg - 报文对象
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
+        @param {object} msg - 报文对象, 基础处理对象（例如MsgFW.base_object）
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
         @returns {string} - 输出字符串
@@ -314,49 +329,15 @@ class MsgFW(ABC):
 
     @classmethod
     @abstractmethod
-    def str_to_msg(cls, msg_str, msg_id=None, **kwargs):
+    def _msg_to_bytes(cls, msg, msg_id=None, **kwargs):
         """
-        将字符串转换为主报文对象
+        将报文对象转换为二进制数组（用于网络通讯）
 
-        @param {string} msg_str - 字符串
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
-
-        @returns {object} - 报文对象
-
-        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
-
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def msg_to_bytes(cls, msg, msg_id=None, **kwargs):
-        """
-        将主报文对象转换为二进制数组（用于网络通讯）
-
-        @param {object} msg - 报文对象
-        @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
+        @param {object} msg - 报文对象,基础处理对象（例如MsgFW.base_object）
+        @param {string} msg_id=None - 主报文id（用于标明该报文业务类型）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
         @returns {byte[]} - 二进制数组
-
-        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
-
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def bytes_to_msg(cls, msg_bytes, msg_id=None, **kwargs):
-        """
-        将二进制数组转换为主报文对象（解析网络通讯信息）
-
-        @param {byte[]} msg_bytes - 二进制数组
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
-
-        @returns {object} - 报文对象
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -383,139 +364,11 @@ class MsgFW(ABC):
             _ret = kwargs[para_name]
         return _ret
 
-
-class IntfMsgFW(ABC):
-    """
-    接口通讯信息处理框架
-    定义所有的接口信息必定有两类报文信息：协议信息（例如Http头部分的信息）和报文信息（例如具体的报文内容）
-
-    """
-    #############################
-    # 内部变量
-    #############################
-    __msg = None  # 报文信息对象
-    __proto_msg = None  # 协议信息对象
-    __proto_obj = None  # 协议通讯对象
-    __net_info = None  # 网络连接信息
-
-    #############################
-    # 访问协议对象
-    #############################
-    @property
-    def msg(self):
+    def __str__(self):
         """
-        获取报文信息对象
-
-        @property {MsgFW}
-
+        重载内部打印函数，支持str(MsgFW)的打印方式
         """
-        return self.__msg
-
-    @msg.setter
-    def msg(self, value):
-        """
-        设置报文信息对象
-
-        @param {MsgFW} value - 要设置的报文信息对象
-
-        """
-        self.__msg = value
-
-    @property
-    def proto_msg(self):
-        """
-        获取协议信息对象
-
-        @property {MsgFW}
-
-        """
-        return self.__proto_msg
-
-    @proto_msg.setter
-    def proto_msg(self, value):
-        """
-        设置协议信息对象
-
-        @param {MsgFW} value - 要设置的协议信息对象
-
-        """
-        self.__proto_msg = value
-
-    #############################
-    # 公共函数
-    #############################
-    def __init__(self, msg=None, proto_msg=None, proto_obj=None, net_info=None):
-        """
-        构造函数（如有特殊处理可以重构该函数）
-
-        @param {MsgFW} msg=None - 报文信息对象
-        @param {MsgFW} proto_msg=None - 协议信息对象
-        @param {object} proto_obj=None - 默认使用的协议通讯对象（长连接情况）
-        @param {object} net_info=None - 默认使用的网络连接信息（长连接情况）
-
-        """
-        self.__msg = msg
-        self.__proto_msg = proto_msg
-        self.__proto_obj = proto_obj
-        self.__net_info = net_info
-
-    #############################
-    # 需继承类实现的内容
-    #############################
-    @abstractmethod
-    def connect(self, **kwargs):
-        """
-        连接远端服务器
-        （对于长连接或有需要实现先连接再处理的场景使用，其他场景无需重构该函数）
-
-        @param {**kwargs} kwargs - 连接参数（具体由实现类定义）
-
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            当处理结果为成功时，通过CResult返回结果对象：
-            CResult.proto_obj {object}  - 协议通讯对象
-            CResult.net_info {object}  - 网络连接信息
-
-        """
-        _ret = CResult(code='00000')
-        _ret.proto_obj = self.__proto_obj
-        _ret.net_info = self.__net_info
-        return _ret
-
-    @abstractmethod
-    def ReadMsg(self, proto_obj=None, net_info=None, msg_id=None, read_para=dict()):
-        """
-        从网络中读取报文信息
-
-        @param {object} proto_obj=None - 协议通讯对象，如果不传则使用类默认的对象
-        @param {object} net_info=None - 网络连接信息，如果不传则使用类默认的对象
-        @param {string} msg_id=None - 报文ID
-        @param {dict} read_para=dict() - 网络读取参数，具体定义由实现类确认
-
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            注：执行成功后通过类的msg和proto_msg使用获取到的报文信息
-
-        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def SendMsg(self, proto_obj=None, net_info=None, msg_id=None, send_para=dict()):
-        """
-        向网络中发送报文信息
-
-        @param {object} proto_obj=None - 协议通讯对象，如果不传则使用类默认的对象
-        @param {object} net_info=None - 网络连接信息，如果不传则使用类默认的对象
-        @param {string} msg_id=None - 报文ID
-        @param {dict} send_para=dict() - 网络发送参数，具体定义由实现类确认
-
-        @returns {HiveNetLib.generic.CResult} - 处理结果（符合HiveNet 错误码规范）
-            注：应在发送前更新msg和proto_msg的报文信息
-
-        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
-
-        """
-        raise NotImplementedError
+        return self.to_str()
 
 
 if __name__ == '__main__':

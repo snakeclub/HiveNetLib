@@ -20,7 +20,9 @@ import sys
 from datetime import datetime
 from time import mktime
 from wsgiref.handlers import format_date_time
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, EnumMsgSRType, MsgFW
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
@@ -60,9 +62,9 @@ class MsgHTTP(MsgFW):
     #############################
     @classmethod
     @property
-    def MsgType(cls):
+    def msg_type(cls):
         """
-        返回消息对象的类型（实现类应将自己类名返回）
+        消息对象的类型
 
         @property {string}
 
@@ -70,9 +72,9 @@ class MsgHTTP(MsgFW):
         return 'MsgHTTP'
 
     @classmethod
-    def load_msg(cls, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
+    def _load_msg(cls, obj, msg_id=None, obj_type=EnumMsgObjType.String, **kwargs):
         """
-        装载报文体对象（主报文）
+        装载报文体对象，将传入的报文对象转换为基础处理对象
 
         @param {object} obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如：
             obj_type = EnumMsgObjType.File 时，obj为文件路径
@@ -189,27 +191,18 @@ class MsgHTTP(MsgFW):
         return _msg
 
     @classmethod
-    def load_submsg(cls, obj, submsg_id=None, obj_type=None, **kwargs):
+    def _set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
         """
-        装载子报文体对象（独立对象，不嵌入主报文中）
-        函数定义与load_msg一致： @see load_msg
+        设置报文的内容
 
-        """
-        return cls.load_msg(obj=obj, msg_id=submsg_id, obj_type=obj_type, **kwargs)
-
-    @classmethod
-    def set_msg_value(cls, msg, search_path, value, msg_id=None, **kwargs):
-        """
-        设置主报文的内容
-
-        @param {object} msg - 主报文对象
+        @param {object} msg - 主报文对象（基础处理对象）
         @param {object} search_path - 需要设置值的索引搜索路径，只需要给出参数名（不区分大小写）
             注意：该参数名不能修改报文请求行的值,不存在的参数名将进行新增
         @param {object} value - 要设置值，如果为None代表删除参数
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
 
-        @returns {object} - 设置值后的报文对象
+        @returns {object} - 设置值后的报文对象（基础处理对象）
 
         """
         _msg = msg
@@ -226,11 +219,11 @@ class MsgHTTP(MsgFW):
         return _msg
 
     @classmethod
-    def get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
+    def _get_msg_value(cls, msg, search_path, msg_id=None, **kwargs):
         """
-        获取主报文的内容
+        获取报文的内容
 
-        @param {object} msg - 主报文对象
+        @param {object} msg - 报文对象（基础处理对象）
         @param {object} search_path - 需要获取值的索引搜索路径,只需要给出参数名（不区分大小写）
         @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 设置参数（暂未使用）
@@ -247,13 +240,13 @@ class MsgHTTP(MsgFW):
         return _get_value
 
     @classmethod
-    def append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
+    def _append_submsg(cls, submsg, msg, search_path, msg_id=None, submsg_id=None, **kwargs):
         """
         将子报文对象添加到主报文对象中
         (进行参数数据合并，相同的参数名不覆盖)
 
-        @param {object} submsg - 子报文对象
-        @param {object} msg - 主报文对象
+        @param {object} submsg - 子报文对象（基础处理对象）
+        @param {object} msg - 主报文对象（基础处理对象）
         @param {object} search_path - 添加位置的搜索路径(参数无效))
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {string} submsg_id=None - 子报文id（用于标明该报文是什么报文）
@@ -269,11 +262,11 @@ class MsgHTTP(MsgFW):
         return _msg
 
     @classmethod
-    def msg_to_str(cls, msg, msg_id=None, **kwargs):
+    def _msg_to_str(cls, msg, msg_id=None, **kwargs):
         """
-        将主报文对象转换为字符串格式
+        将报文对象转换为字符串格式
 
-        @param {object} msg - 报文对象
+        @param {object} msg - 报文对象（基础处理对象）
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数（具体由实现类定义）
 
@@ -298,33 +291,11 @@ class MsgHTTP(MsgFW):
         return _msg_str
 
     @classmethod
-    def str_to_msg(cls, msg_str, msg_id=None, **kwargs):
-        """
-        将字符串转换为主报文对象
-
-        @param {string} msg_str - 字符串
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数，包括：
-            encoding='ascii' - 装载字符编码
-            is_with_first_line=True  - 是否包含第1行信息
-            msg_sr_type='EnumMsgSRType.Auto' - 报文收发类型，如果为Auto则信息中必须包含第1行的信息
-            ver='HTTP/1.0' - 默认的版本号
-            reqtype='GET' - 默认请求方法
-            url='' - 默认的请求地址
-            statcode='200' - 默认的响应码
-            statmsg='OK' - 默认响应消息
-
-        @returns {object} - 报文对象
-
-        """
-        return cls.load_msg(msg_str, msg_id=msg_id, obj_type=EnumMsgObjType.String, **kwargs)
-
-    @classmethod
-    def msg_to_bytes(cls, msg, msg_id=None, **kwargs):
+    def _msg_to_bytes(cls, msg, msg_id=None, **kwargs):
         """
         将主报文对象转换为二进制数组（用于网络通讯）
 
-        @param {object} msg - 报文对象
+        @param {object} msg - 报文对象（基础处理对象）
         @param {string} msg_id=None - 主报文id（用于标明该报文是什么报文）
         @param {**kwargs} kwargs - 转换参数，包括
             encoding='ascii' - 字符编码
@@ -332,33 +303,11 @@ class MsgHTTP(MsgFW):
         @returns {byte[]} - 二进制数组
 
         """
-        _msg_str = cls.msg_to_str(msg, msg_id=msg_id, **kwargs)
+        _msg_str = cls._msg_to_str(msg, msg_id=msg_id, **kwargs)
         _encoding = cls._get_para_from_kwargs(
             'encoding', default_value='ascii', kwargs=kwargs)
         _msg_bytes = bytes(_msg_str, _encoding)
         return _msg_bytes
-
-    @classmethod
-    def bytes_to_msg(cls, msg_bytes, msg_id=None, **kwargs):
-        """
-        将二进制数组转换为主报文对象（解析网络通讯信息）
-
-        @param {byte[]} msg_bytes - 二进制数组
-        @param {string} msg_id=None - 报文id（用于标明该报文是什么报文）
-        @param {**kwargs} kwargs - 转换参数，包括：
-            encoding='ascii' - 装载字符编码
-            is_with_first_line=True  - 是否包含第1行信息
-            msg_sr_type='EnumMsgSRType.Auto' - 报文收发类型，如果为Auto则信息中必须包含第1行的信息
-            ver='HTTP/1.0' - 默认的版本号
-            reqtype='GET' - 默认请求方法
-            url='' - 默认的请求地址
-            statcode='200' - 默认的响应码
-            statmsg='OK' - 默认响应消息
-
-        @returns {object} - 报文对象
-
-        """
-        return cls.load_msg(msg_bytes, msg_id=msg_id, obj_type=EnumMsgObjType.Bytes, **kwargs)
 
 
 if __name__ == '__main__':

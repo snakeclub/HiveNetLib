@@ -21,7 +21,9 @@ import platform
 import datetime
 import time
 import socket
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.net_service.net_service_fw import NetServiceFW
 from HiveNetLib.generic import NullObj, CResult
@@ -74,10 +76,10 @@ class TcpIpService(NetServiceFW):
         """
         _server_opts = NullObj()
         _server_opts.ip = ip  # 主机名或IP地址
-        _server_opts.port = 8080  # 监听端口
-        _server_opts.max_connect = 20  # 允许最大连接数
-        _server_opts.recv_timeout = 10000  # 数据接收的超时时间，单位为毫秒
-        _server_opts.send_timeout = 10000  # 数据发送的超时时间，单位为毫秒
+        _server_opts.port = port  # 监听端口
+        _server_opts.max_connect = max_connect  # 允许最大连接数
+        _server_opts.recv_timeout = recv_timeout  # 数据接收的超时时间，单位为毫秒
+        _server_opts.send_timeout = send_timeout  # 数据发送的超时时间，单位为毫秒
         return _server_opts
 
     def _start_server_without_accept(self, server_opts):
@@ -225,7 +227,7 @@ class TcpIpService(NetServiceFW):
             _rest_bytes = recv_para['recv_len']
             while _rest_bytes > 0:
                 # 检查是否超时
-                if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
+                if (datetime.datetime.now() - _result.recv_time).total_seconds() * 1000 > _overtime:
                     # 已超时
                     _result.change_code(code='20403')
                     break
@@ -279,7 +281,7 @@ class TcpIpService(NetServiceFW):
             _total_bytes = _rest_bytes
             while _rest_bytes > 0:
                 # 检查是否超时
-                if (datetime.datetime.now() - _begin_time).total_seconds()*1000 > _overtime:
+                if (datetime.datetime.now() - _begin_time).total_seconds() * 1000 > _overtime:
                     # 已超时
                     _result.change_code(code='20404')
                     break

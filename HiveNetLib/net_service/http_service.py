@@ -23,9 +23,11 @@ import time
 import copy
 import socket
 import traceback
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.simple_i18n import _, SimpleI18N
-from HiveNetLib.net_service.net_service_fw import EnumNetServerRunStatus
+from HiveNetLib.simple_server_fw import EnumServerRunStatus
 from HiveNetLib.net_service.tcpip_service import TcpIpService
 from HiveNetLib.generic import NullObj, CResult
 from HiveNetLib.simple_log import EnumLogLevel
@@ -51,7 +53,7 @@ class HttpService(TcpIpService):
         标准的info、debug、warning、error、critical五个日志方法
     @param {function} server_status_info_fun=None - 外围传入的网络服务状态变更通知函数对象，当网络服务状态发生变更时通过:
         该函数通知调用方；形式为fun(server_status, result):
-        其中server_status为服务器状态EnumNetServerRunStatus，
+        其中server_status为服务器状态EnumServerRunStatus，
         result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
     @param {function} server_connect_deal_fun=None - 外围传入的网络服务与客户端连接后对连接的处理线程函数对象，在该函数中:
         实现服务器端具体的通讯处理（如循环收报文、返回报文等）；
@@ -101,7 +103,7 @@ class HttpService(TcpIpService):
             标准的info、debug、warning、error、critical五个日志方法
         @param {function} server_status_info_fun=None - 外围传入的网络服务状态变更通知函数对象，当网络服务状态发生变更时通过:
             该函数通知调用方；形式为fun(server_status, result):
-            其中server_status为服务器状态EnumNetServerRunStatus，
+            其中server_status为服务器状态EnumServerRunStatus，
             result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
         @param {function} server_connect_deal_fun=None - 外围传入的网络服务与客户端连接后对连接的处理线程函数对象，在该函数中:
             实现服务器端具体的通讯处理（如循环收报文、返回报文等）；
@@ -182,7 +184,7 @@ class HttpService(TcpIpService):
             _last_is_ln = False  # 标记上一个字符是否回车换行
             while True:
                 # 检查是否超时
-                if (datetime.datetime.now() - _result.recv_time).total_seconds()*1000 > _overtime:
+                if (datetime.datetime.now() - _result.recv_time).total_seconds() * 1000 > _overtime:
                     # 已超时
                     _result.change_code(code='20403')
                     break
@@ -208,8 +210,7 @@ class HttpService(TcpIpService):
                     _last_is_ln = False
                     continue
             # 取完报文头数据，转换为结构对象
-            _result.data = MsgHTTP.load_msg(
-                obj=_get_line_bytes, msg_id=None, obj_type=EnumMsgObjType.Bytes)
+            _result.data = MsgHTTP(_get_line_bytes, msg_id=None, obj_type=EnumMsgObjType.Bytes)
         return _result
 
     @classmethod
@@ -236,7 +237,7 @@ class HttpService(TcpIpService):
         with ExceptionTool.ignored_cresult(
             _result
         ):
-            _get_value = MsgHTTP.get_msg_value(msg=proto_msg, search_path='Content-Length')
+            _get_value = proto_msg.get_value(search_path='Content-Length')
             if _get_value is not None:
                 _len = int(_get_value)
                 _recv_para['recv_len'] = _len
@@ -307,8 +308,8 @@ class HttpService(TcpIpService):
             _len = 0
             if data[1] is not None:
                 _len = len(data[1])
-            MsgHTTP.set_msg_value(data[0], 'Content-Length', str(_len), msg_id=None)
-            _result = TcpIpService.send_data(net_info, MsgHTTP.msg_to_bytes(data[0]), send_para)
+            data[0].set_value('Content-Length', str(_len))
+            _result = TcpIpService.send_data(net_info, data[0].to_bytes(), send_para)
             if not _result.is_success():
                 return _result
             if _len > 0:
@@ -326,10 +327,11 @@ class HttpService(TcpIpService):
         @returns {string} - 打印字符串
 
         """
-        _head_str = MsgHTTP.msg_to_str(proto_msg)
+        _head_str = proto_msg.to_str()
         # 从报文头获取字符编码
         _encoding = cls._default_data_encoding
-        _get_value = MsgHTTP.get_msg_value(proto_msg, 'Content-Type')
+        # TODO({$AUTHOR$}): 方法不对，需要调整用法
+        _get_value = proto_msg.get_value('Content-Type')
         if _get_value is not None:
             _content_type = _get_value.lower()
             _index = _content_type.rfind('charset=')
@@ -355,7 +357,7 @@ class HttpService(TcpIpService):
         """
         while True:
             # 判断是否要断开服务器
-            if self.server_run_status != EnumNetServerRunStatus.Running:
+            if self.server_run_status != EnumServerRunStatus.Running:
                 # 服务器状态不是运行，直接断开连接
                 self._logger_fun[self._log_level](
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s]%s' % (
@@ -405,8 +407,8 @@ class HttpService(TcpIpService):
                     )
                 )
                 # 组织一个异常的返回报文
-                _rproto_msg = MsgHTTP.load_msg('%s 500 Internal Server Error' % (_proto_msg.ver),
-                                               obj_type=EnumMsgObjType.String)
+                _rproto_msg = MsgHTTP('%s 500 Internal Server Error' % (_proto_msg.ver),
+                                      obj_type=EnumMsgObjType.String)
 
             # 组织回包
             if _rproto_msg is not None:

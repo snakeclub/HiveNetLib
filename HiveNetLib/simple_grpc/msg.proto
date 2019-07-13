@@ -1,0 +1,66 @@
+/* ********************************
+* Copyright 2018 黎慧剑
+*
+* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*
+* 说明：
+* 本文件用于定义simple_grpc的通用消息结构
+* 编译命令：python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. msg.proto
+* 编译完成后，修改msg_pb2_grpc.py文件，增加上库路径指定和msg_pb2对象引入
+* import sys
+* import os
+* # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+* sys.path.append(os.path.abspath(os.path.join(
+*     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+* import HiveNetLib.simple_grpc.msg_pb2 as msg__pb2
+*
+* 安装编译包方法：
+* 1、pip install grpcio-tools
+* 2、pip install googleapis-common-protos
+* 3、
+*
+* 如果安装中有报错，可能是setuptools或pip的版本过低导致，使用以下方法升级后再安装：
+* 1、pip3 list，找到setuptools的版本，例如：setuptools               28.8.0
+* 2、pip3 uninstall setuptools==28.8.0
+* 3、pip3 install  setuptools
+* 4、pip install --upgrade pip
+******************************** */
+syntax = "proto3";
+
+package simpleGRpc;
+
+service SimpleGRpcService {
+ rpc GRpcCallSimple (RpcRequest) returns (RpcResponse){};  // 简单调用
+ rpc GRpcCallClientSideStream (stream RpcRequest) returns (RpcResponse){};  // 客户端流式
+ rpc GRpcCallServerSideStream (RpcRequest) returns (stream RpcResponse){};  // 服务端流式
+ rpc GRpcCallBidirectionalStream (stream RpcRequest) returns (stream RpcResponse){};  // 双向数据流模式
+}
+
+// 请求消息结构
+message RpcRequest {
+  // 调用链相关信息
+  string trace_id = 1;  // 追踪ID
+  string parent_id = 3;  // 父调用函数的执行ID
+  int32 trace_level = 4;  // 调用层级，每CALL一个下级函数+1
+
+  // 执行远程函数信息
+  string service_name = 5;  // 要执行的服务名
+  string para_json = 6;  // 要执行的函数的入参信息，JSON格式
+  bool has_para_bytes = 7;  // 用于通知服务端所传入的参数是否有字节数组，当有字节数组时，参数值为字符格式且内容为占位字符'{$SIMPLEGRPC_BYTES$}'
+  bytes para_bytes = 8;  // 当传入参数有字节数组时，通过该字段传入数组信息
+}
+
+// 响应消息结构
+message RpcResponse {
+  string return_json = 1;  // 函数执行返回的信息，JSON格式
+  bool has_return_bytes = 2;  // 用于判断返回值是否有字节数组，当有字节数组时，参数值为字符格式且内容为占位字符'{$SIMPLEGRPC_BYTES$}'
+  bytes return_bytes = 3;  // 当返回值有字节数组时，通过该字段传入数组信息
+
+  // 执行异常会抛出的信息
+  string call_code = 4;  // 执行错误码:'00000'-成功,'11403'-服务名不存在,'21007'-执行抛出异常
+  string call_msg = 5;  //执行错误信息
+  string call_error = 6;  //如果出现异常时的错误类型
+  string call_msg_para = 7; //执行错误信息对应的参数，JSON格式，数组()
+}

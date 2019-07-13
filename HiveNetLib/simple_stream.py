@@ -22,7 +22,8 @@ import traceback
 import threading
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import NullObj
 
 
@@ -195,7 +196,7 @@ class BaseStream(ABC):
                         # 根据配置循环进行流处理
                         try:
                             _handle(_get_obj, _pos)
-                        except Exception as e:
+                        except:
                             # 先输出日志
                             _error_obj = sys.exc_info()
                             _trace_str = traceback.format_exc()
@@ -210,7 +211,7 @@ class BaseStream(ABC):
                                     self._dealer_exception_fun(stream_tag=stream_tag, stream_obj=_stream_obj,
                                                                deal_obj=_get_obj, position=_pos, dealer_handle=_handle,
                                                                error_obj=_error_obj, trace_str=_trace_str)
-                                except Exception as e2:
+                                except:
                                     if self._logger is not None:
                                         _log_str = 'call dealer_exception_fun exception(%s):\n%s' % (
                                             str(_handle),
@@ -238,7 +239,7 @@ class BaseStream(ABC):
                 if self._stream_closed_fun is not None:
                     self._stream_closed_fun(stream_tag=stream_tag, stream_obj=_stream_obj,
                                             position=_pos, closed_status=_closed_status)
-            except Exception as e:
+            except:
                 if self._logger is not None:
                     _log_str = 'call stream_closed_fun exception:\n%s' % traceback.format_exc()
                     self._logger.error(_log_str)

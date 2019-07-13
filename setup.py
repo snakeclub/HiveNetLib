@@ -30,7 +30,14 @@ DEPENDENCIES = [
     'prompt-toolkit>=2.0.0',
     'gevent>=1.2.2',
     'affinity>=0.1.0',
-    'xmltodict>=0.11.0'
+    'xmltodict>=0.11.0',
+    'grpcio>=1.21.1',
+    'grpcio-health-checking>=1.21.1'
+    'lxml',
+    'affinity',
+    'grpcio',
+    'googleapis-common-protos',
+    'jsonpath-rw'
 ]
 
 # DEPENDENCIES = []

@@ -16,9 +16,10 @@
 import os
 import sys
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
-from simple_i18n import SimpleI18N, _, set_global_i18n
-from base_tools.test_tool import TestTool
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.simple_i18n import SimpleI18N, _, set_global_i18n
+from HiveNetLib.base_tools.test_tool import TestTool
 from HiveNetLib.simple_parallel import ThreadParallelShareDict, ProcessParallelShareDict
 
 
@@ -36,13 +37,13 @@ class TestSimpleParallel(unittest.TestCase):
 
     def setUp(self):
         """
-        启动测试执行的初始化
+        启动测试案例执行的初始化（注意如果多个案例会执行多次）
         """
         pass
 
     def tearDown(self):
         """
-        结束测试执行的销毁
+        结束测试案例执行的销毁（注意如果多个案例会执行多次）
         """
         pass
 
@@ -71,7 +72,8 @@ class TestSimpleParallel(unittest.TestCase):
 
         d1 = c1('d1')
         d2 = c1('d2')
-        self.assertTrue(d1.d['key1'] == 'd-key1-d1', 'ProcessParallelShareDict class1 data error: %s' % (d1.d['key1']))
+        self.assertTrue(d1.d['key1'] == 'd-key1-d1',
+                        'ProcessParallelShareDict class1 data error: %s' % (d1.d['key1']))
         self.assertTrue(d2.d['key1'] == 'd-key1-d2', 'ProcessParallelShareDict class2 data error')
 
 

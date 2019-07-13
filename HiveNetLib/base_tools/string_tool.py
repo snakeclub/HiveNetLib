@@ -16,6 +16,7 @@
 """
 
 import copy
+import json
 from random import Random
 
 
@@ -32,7 +33,9 @@ class StringTool(object):
     提供各类字符串处理相关的常用工具函数（静态方法）
 
     """
-
+    #############################
+    # 哈希转换
+    #############################
     @staticmethod
     def bytes_to_hex(byte_array):
         """
@@ -63,6 +66,9 @@ class StringTool(object):
         """
         return bytes.fromhex(hex_str)
 
+    #############################
+    # 字符处理
+    #############################
     @staticmethod
     def fill_fix_string(deal_str, fix_len, fill_char, left=True):
         """
@@ -163,6 +169,9 @@ class StringTool(object):
             return StringTool.get_n_index(src, sub, n - 1, index + len(sub))
         return index
 
+    #############################
+    # 对象与字符串转换
+    #############################
     @staticmethod
     def format_obj_property_str(deal_obj, is_deal_subobj=False, c_level=0, max_level=10, is_same_line=False):
         """
@@ -198,7 +207,7 @@ class StringTool(object):
         if is_deal_subobj and (max_level <= 0 or (max_level > c_level)):
             # print("c_level:" + str(c_level))
             _indent_str = StringTool.fill_fix_string(
-                deal_str='', fix_len=(c_level+1) * 2, fill_char=' ', left=True)
+                deal_str='', fix_len=(c_level + 1) * 2, fill_char=' ', left=True)
             # 要打印子对象,区分类型进行处理
             if type(deal_obj) in (list, tuple):
                 # 数组和列表
@@ -254,7 +263,7 @@ class StringTool(object):
                                     c_level=c_level + 2, max_level=max_level, is_same_line=True
                                 )
                             )
-                except Exception as e:
+                except:
                     # 可能对象没有__dict__属性
                     _retstr = _retstr + str(deal_obj)
         else:
@@ -262,6 +271,68 @@ class StringTool(object):
             _retstr = _retstr + str(deal_obj)
 
         return _retstr
+
+    #############################
+    # JSON相关
+    #############################
+    @staticmethod
+    def object_to_json(obj):
+        """
+        将python对象转换为json字符串（支持所有对象的通用转换）
+
+        @param {object} obj - 要转换的json
+
+        @return {string} - 转换后的json字符串，如果是None返回''
+
+        @see 处理方式：
+            1、如果对象包含__json__方法，则直接调用对象的该方法进行转换
+            2、尝试通过json库标准方法进行转换
+            3、如果对象不支持序列化，转换会出现异常；如果对象包含__dict__，则将__dict__转换为json
+            4、如果都失败，则抛出异常
+        """
+        _json_str = None
+        if obj is None:
+            _json_str = ''
+        elif hasattr(obj, '__json__'):
+            _json_str = obj.__json__()
+        else:
+            try:
+                _json_str = json.dumps(obj)
+            except Exception as e:
+                if hasattr(obj, '__dict__'):
+                    _json_str = json.dumps(obj.__dict__)
+                raise e
+        return _json_str
+
+    @staticmethod
+    def json_to_object(json_str, class_ref=None, object_hook=None):
+        """
+        将json字符串转换为python对象（支持自定义转换）
+
+        @param {string} json_str - 要转换的json字符串
+        @param {class} class_ref=None - 类定义引用，例如generic.NullObj
+            引用的类必须实现__fromjson__的静态函数，传入json字符串，返回对象实例
+        @param {function} object_hook=None - 将json对象转换为所需实例类的函数
+            函数入参为通过json标准库转换后的json对象，出参为转换后的对象实例
+
+        @return {object} - 转换后的对象
+
+        @see 处理方式：
+            1、如果json_str为''，直接返回None
+            2、如果object_hook不为空，则通过json库标准方法进行转换，并使用object_hook将对象转换为所需的类型
+            3、如果class_ref不为None并且有__fromjson__的静态函数，则通过该函数获取对象，如果没有该函数抛出异常
+        """
+        _obj = None
+        if json_str == '':
+            pass
+        elif object_hook is not None:
+            _obj = json.loads(json_str, object_hook=object_hook)
+        elif class_ref is not None:
+            _obj = class_ref.__fromjson__(json_str)
+        else:
+            _obj = json.loads(json_str)
+
+        return _obj
 
 
 if __name__ == '__main__':
@@ -271,3 +342,5 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+    print(StringTool.object_to_json(10))
+    print(type(StringTool.json_to_object('10')))

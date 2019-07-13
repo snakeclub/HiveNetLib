@@ -35,7 +35,8 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.completion import Completer, Completion
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.simple_stream import StringStream
@@ -1287,7 +1288,7 @@ class PromptPlus(object):
                 # 用户取消输入
                 _result.code = '10100'
                 _result.msg = u'get abort single(KeyboardInterrupt)'
-                _result.error = sys.exc_info()
+                _result.error = str(sys.exc_info()[0])
                 _result.trace_str = traceback.format_exc()
                 # 执行on_abort函数
                 _print_str = self._call_on_abort(message=_message)
@@ -1295,7 +1296,7 @@ class PromptPlus(object):
                 # 用户退出处理
                 _result.code = '10101'
                 _result.msg = u'get exit single(EOFError)'
-                _result.error = sys.exc_info()
+                _result.error = str(sys.exc_info()[0])
                 _result.trace_str = traceback.format_exc()
                 # 执行on_exit函数
                 _print_str = self._call_on_exit(message=_message)

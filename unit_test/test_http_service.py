@@ -11,7 +11,8 @@ import os
 import sys
 import time
 import unittest
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.net_service.http_service import HttpService
 from HiveNetLib.simple_log import Logger, EnumLoggerName
 from HiveNetLib.simple_log import EnumLogLevel
@@ -22,7 +23,7 @@ from HiveNetLib.interface_tool.protocol_msg_http import MsgHTTP
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, EnumMsgSRType
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
-                            '../../test_data/temp/http_service_log/').replace('\\', '/')
+                            '../test_data/temp/http_service_log/').replace('\\', '/')
 
 
 class TestHttpService(unittest.TestCase):
@@ -34,7 +35,7 @@ class TestHttpService(unittest.TestCase):
     def server_status_info_fun(self, server_status, result):
         self.logger.write_log(
             (
-                "[服务端]"+result.self_tag+"服务状态变更：" +
+                "[服务端]" + result.self_tag + "服务状态变更：" +
                 str(server_status) +
                 "   结果code：" +
                 str(result.code) +
@@ -50,15 +51,15 @@ class TestHttpService(unittest.TestCase):
         self.logger.write_log(
             (
                 "[服务端][处理函数]收到服务请求报文，http报文头: \n%s\n报文体:\n%s\n" % (
-                    MsgHTTP.msg_to_str(proto_msg),
+                    proto_msg.to_str(),
                     str(msg, "utf-8")
                 )
             ),
             "INFO"
         )
         # 组织一个异常的返回报文
-        _rproto_msg = MsgHTTP.load_msg('%s 3xx Internal Server Error' % ('HTTP/1.1'),
-                                       obj_type=EnumMsgObjType.String)
+        _rproto_msg = MsgHTTP('%s 3xx Internal Server Error' % ('HTTP/1.1'),
+                              obj_type=EnumMsgObjType.String)
         return (True, _rproto_msg, bytes('Http返回报文', "utf-8"))
 
     def setUp(self):
@@ -70,7 +71,7 @@ class TestHttpService(unittest.TestCase):
         try:
             # 删除临时日志
             FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case*')
-        except Exception as e:
+        except:
             pass
 
         self.logger = Logger(
@@ -88,7 +89,7 @@ class TestHttpService(unittest.TestCase):
             logger=self.logger,
             server_status_info_fun=self.server_status_info_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.DEBUG,
+            log_level=EnumLogLevel.INFO,
             server_http_deal_fun=self.server_http_deal_fun
         )
         _server_opts = HttpService.generate_server_opts()
@@ -134,7 +135,7 @@ class TestHttpService(unittest.TestCase):
         )
 
         # 发送数据
-        _proto_msg = MsgHTTP.load_msg(
+        _proto_msg = MsgHTTP(
             'my1:my1value\r\nmy2:my2value',
             obj_type=EnumMsgObjType.String,
             **{
@@ -145,12 +146,12 @@ class TestHttpService(unittest.TestCase):
         _data = (_proto_msg, bytes('Http发送报文', 'utf-8'))
         _send_result = HttpService.send_data(_connect_result.net_info, _data)
         self.assertTrue(_send_result.code == '00000', '[客户端]发送报文失败：' +
-                '\n'.join(['%s:%s' % item for item in _send_result.__dict__.items()]))
+                        '\n'.join(['%s:%s' % item for item in _send_result.__dict__.items()]))
 
         # 获取返回信息
         _recv_result = HttpService.recv_data(_connect_result.net_info, {})
         self.assertTrue(_recv_result.code == '00000', '[客户端]获取返回报文失败：' +
-                '\n'.join(['%s:%s' % item for item in _send_result.__dict__.items()]))
+                        '\n'.join(['%s:%s' % item for item in _send_result.__dict__.items()]))
         print('获取到返回数据：' + HttpService.get_print_str(_recv_result.data[0], _recv_result.data[1]))
 
         # 关闭连接
