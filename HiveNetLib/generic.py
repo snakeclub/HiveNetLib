@@ -201,6 +201,17 @@ class CResult(NullObj):
                 self.msg = self.msg + \
                     self._i18n_obj.translate(self.i18n_msg_id, self.i18n_msg_paras)
 
+    def reset_msg_by_code(self):
+        """
+        根据错误码重置错误信息（忽略原来的错误信息，按HiveNet规范处理）
+        """
+        # 重置
+        self.i18n_msg_id = None
+        self.i18n_error_type_msg_id = None
+        self.__get_i18n_msg_id()
+        # 重新设置msg
+        self.reset_msg()
+
     def change_code(self, code='00000', msg=None, i18n_msg_paras=None):
         """
         改变错误码及错误信息

@@ -26,30 +26,23 @@ from grpc_health.v1.health import HealthServicer
 from grpc_health.v1 import health_pb2
 from grpc_health.v1 import health_pb2_grpc
 from concurrent import futures
-import time
 import json
-import copy
 import traceback
 import datetime
-import inspect
 import threading
-from enum import Enum
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2
 import HiveNetLib.simple_grpc.msg_pb2_grpc as msg_pb2_grpc
-from HiveNetLib.simple_grpc.grpc_tools import EnumCallMode, EnumStreamEndTagType, SimpleGRpcTools
+from HiveNetLib.simple_grpc.grpc_tools import EnumCallMode, SimpleGRpcTools
 from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult, NullObj
-from HiveNetLib.simple_server_fw import EnumServerRunStatus, SimpleServerFW
+from HiveNetLib.simple_server_fw import SimpleServerFW
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_i18n import _
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
 from HiveNetLib.interface_tool.msg_json import MsgJSON
-from HiveNetLib.base_tools.string_tool import StringTool
-import HiveNetLib.simple_grpc.msg_pb2
 
 
 __MOUDLE__ = 'grpc_server'  # 模块名
