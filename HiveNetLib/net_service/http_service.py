@@ -23,6 +23,7 @@ import time
 import copy
 import socket
 import traceback
+import logging
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -30,7 +31,6 @@ from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.simple_server_fw import EnumServerRunStatus
 from HiveNetLib.net_service.tcpip_service import TcpIpService
 from HiveNetLib.generic import NullObj, CResult
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, EnumMsgSRType
 from HiveNetLib.interface_tool.protocol_msg_http import MsgHTTP
@@ -64,7 +64,7 @@ class HttpService(TcpIpService):
             self_tag - 用于发起端传入自身的识别标识
         需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
     @param {string} self_tag='' - 自定义标识
-    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+    @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
     @param {string} server_name='NetService' - 服务名，记录日志使用
     @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
     @param {function} server_http_deal_fun=None - http服务数据处理函数，用于处理服务端收到的http数据:
@@ -93,7 +93,7 @@ class HttpService(TcpIpService):
     # 重构构造函数
     #############################
     def __init__(self, logger=None, server_status_info_fun=None, server_connect_deal_fun=None, self_tag='',
-                 log_level=EnumLogLevel.INFO, server_name='HttpService', is_auto_load_i18n=True,
+                 log_level=logging.INFO, server_name='HttpService', is_auto_load_i18n=True,
                  server_http_deal_fun=None, is_print_msg_log=True, default_data_encoding='utf-8'):
         """
         构造函数
@@ -114,7 +114,7 @@ class HttpService(TcpIpService):
                 self_tag - 用于发起端传入自身的识别标识
             需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
         @param {string} self_tag='' - 自定义标识
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+        @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
         @param {string} server_name='NetService' - 服务名，记录日志使用
         @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
         @param {function} server_http_deal_fun=None - http服务数据处理函数，用于处理服务端收到的http数据:
@@ -359,7 +359,8 @@ class HttpService(TcpIpService):
             # 判断是否要断开服务器
             if self.server_run_status != EnumServerRunStatus.Running:
                 # 服务器状态不是运行，直接断开连接
-                self._logger_fun[self._log_level](
+                self._logger.log(
+                    self._log_level,
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s]%s' % (
                         self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         _('close remote connection because servie shutdown')
@@ -371,7 +372,8 @@ class HttpService(TcpIpService):
             # 获取报文信息
             _result = self.recv_data(net_info, {})
             if not _result.is_success():
-                self._logger_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s: %s - %s\n%s' % (
                         self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         str(type(_result.error)), _('recv data from remote error'),
@@ -386,7 +388,8 @@ class HttpService(TcpIpService):
 
             # 写日志
             if self._is_print_msg_log:
-                self._logger_fun[self._log_level](
+                self._logger.log(
+                    self._log_level,
                     '[INF-RECV][NAME:%s][IP:%s][PORT:%s]\n%s' % (
                         self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         self.get_print_str(_proto_msg, _msg)
@@ -399,7 +402,8 @@ class HttpService(TcpIpService):
             try:
                 (_is_close, _rproto_msg, _rmsg) = self._server_http_deal_fun(net_info, _proto_msg, _msg)
             except Exception as e:
-                self._logger_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s\n%s' % (
                         self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                         str(type(e)), _('execute server_http_deal_fun error'),
@@ -414,7 +418,8 @@ class HttpService(TcpIpService):
             if _rproto_msg is not None:
                 _result = self.send_data(net_info, (_rproto_msg, _rmsg), {})
                 if not _result.is_success():
-                    self._logger_fun[EnumLogLevel.ERROR](
+                    self._logger.log(
+                        logging.ERROR,
                         '[LIS-HTTP][NAME:%s][IP:%s][PORT:%s][EX:%s]%s: %s - %s\n%s' % (
                             self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                             str(type(_result.error)), _('send data to remote error'),
@@ -425,7 +430,8 @@ class HttpService(TcpIpService):
                     return
                 # 写日志
                 if self._is_print_msg_log:
-                    self._logger_fun[self._log_level](
+                    self._logger.log(
+                        self._log_level,
                         '[INF-RET][NAME:%s][IP:%s][PORT:%s]\n%s' % (
                             self_tag, str(net_info.raddr[0]), str(net_info.raddr[1]),
                             self.get_print_str(_rproto_msg, _rmsg)

@@ -36,6 +36,7 @@ service SimpleGRpcService {
  rpc GRpcCallClientSideStream (stream RpcRequest) returns (RpcResponse){};  // 客户端流式
  rpc GRpcCallServerSideStream (RpcRequest) returns (stream RpcResponse){};  // 服务端流式
  rpc GRpcCallBidirectionalStream (stream RpcRequest) returns (stream RpcResponse){};  // 双向数据流模式
+ rpc GRpcCallHealthCheck (HealthRequest) returns (HealthResponse){}; // 健康检查
 }
 
 // 请求消息结构
@@ -63,4 +64,19 @@ message RpcResponse {
   string call_msg = 5;  //执行错误信息
   string call_error = 6;  //如果出现异常时的错误类型
   string call_msg_para = 7; //执行错误信息对应的参数，JSON格式，数组()
+}
+
+// 自定义健康检查的服务
+message HealthRequest {
+  string service = 1; // 健康监控请求
+}
+
+message HealthResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
 }

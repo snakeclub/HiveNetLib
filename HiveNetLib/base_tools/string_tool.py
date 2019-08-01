@@ -17,6 +17,8 @@
 
 import copy
 import json
+import dicttoxml
+from lxml import etree
 from random import Random
 
 
@@ -333,6 +335,122 @@ class StringTool(object):
             _obj = json.loads(json_str)
 
         return _obj
+
+    @staticmethod
+    def json_to_xml(json_str, root=False, custom_root='root', ids=False, attr_type=False,
+                    item_func=None, cdata=False):
+        """
+        将JSON字符串转换为XML字符串
+
+        @param {string} json_str - 要转换的JSON字符串
+        @param {bool} root=False - 转换后的xml是否通过root标签包含
+        @param {string} custom_root='root' - 自定义的根标签，与root参数共同使用
+        @param {bool} ids=False - 指定每个xml元素是否产生唯一id
+        @param {bool} attr_type=False - 指定每个元素是否有一个类型的标签属性，就像<item type="str">
+        @param {fuction} item_func=None - 指定生成元素名的函数，函数定义如下：
+            func(parent) {return 'item-name'}
+        @param {bool} cdata=False - 指定字符串值是否包在CDATA中
+
+        @return {string} - 转换后的XML字符串
+        """
+        if item_func is None:
+            item_func = dicttoxml.default_item_func
+        _dict = json.loads(json_str)
+        return str(
+            dicttoxml.dicttoxml(_dict, root=root, custom_root=custom_root, ids=ids, attr_type=attr_type,
+                                item_func=item_func, cdata=cdata),
+            'utf-8'
+        )
+
+    @staticmethod
+    def xml_to_dict(xml_str, item_name='item'):
+        """
+        将XML字符串转换为字典对象
+
+        @param {string} xml_str - 要转换的xml字符串
+        @param {string} item_name='item' - 标识是列表项的标签名
+
+        @return {string} - 转换后的dict字典
+        """
+        _has_xml_def = False
+        if xml_str[0:5] == "<?xml":
+            _has_xml_def = True
+        # 生成xml对象
+        _xml_doc = None
+        if _has_xml_def:
+            # 有xml定义，要转回二进制处理
+            _xml_doc = etree.fromstring(bytes(xml_str, 'utf-8'))
+        else:
+            _xml_doc = etree.fromstring(xml_str)
+        # 遍历xml节点并进行处理
+        _dict = dict()
+        _root = _xml_doc
+        while _root is not None:
+            _key, _value = StringTool._xml_node_addto_dict(_root, item_name=item_name)
+            _dict[_key] = _value
+            _root = _root.getnext()
+        return _dict
+
+    @staticmethod
+    def _xml_node_addto_dict(node, item_name='item'):
+        _key = node.tag
+        _value = None
+        _is_list = False
+        if 'type' not in node.attrib.keys() or node.attrib['type'] == 'dict':
+            # 是一个新对象，遍历所有子节点加进来
+            _value = dict()
+            for childnode in node.getchildren():
+                _child_key, _child_value = StringTool._xml_node_addto_dict(
+                    childnode, item_name=item_name)
+                # 加到字典里面
+                _value[_child_key] = _child_value
+        elif node.attrib['type'] == 'list':
+            # 是一个列表
+            _value = list()
+            _is_list = True
+        elif node.attrib['type'] == 'tuple':
+            # 是数组
+            _value = tuple()
+            _is_list = True
+        elif node.attrib['type'] == 'bool':
+            _value = (node.text == 'true')
+        elif node.attrib['type'] == 'int':
+            _value = round(float(node.text))
+        elif node.attrib['type'] == 'float':
+            _value = float(node.text)
+        else:
+            # 字符串
+            _value = node.text
+
+        # 针对列表和数组的处理
+        if _is_list:
+            for childnode in node.getchildren():
+                _child_key, _child_value = StringTool._xml_node_addto_dict(
+                    childnode, item_name=item_name)
+                if _child_key != item_name:
+                    # 非列表项，当作一个新字典看待
+                    _child_value = {_child_key: _child_value}
+                # 加入列表中
+                _value.append(_child_value)
+
+        # 返回自身的key值和Value值
+        return _key, _value
+
+    @staticmethod
+    def xml_to_json(xml_str, item_name='item'):
+        """
+        将XML字符串转换为JSON字符串
+        由于xmltodict与dicttoxml不匹配，所以自行实现相关代码
+
+        @param {string} xml_str - 要转换的xml字符串
+        @param {string} item_name='item' - 标识是列表项的标签名
+
+        @return {string} - 转换后的JSON字符串
+        """
+        _dict = StringTool.xml_to_dict(xml_str, item_name=item_name)
+
+        # 遍历并进行转换处理
+        return StringTool.object_to_json(_dict)
 
 
 if __name__ == '__main__':

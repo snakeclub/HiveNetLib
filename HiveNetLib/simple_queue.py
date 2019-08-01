@@ -30,10 +30,7 @@ from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 from queue import Full, Empty
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-from HiveNetLib.generic import CResult
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.value_tool import ValueTool
-from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'simple_queue'  # 模块名
@@ -215,7 +212,7 @@ class QueueFw(ABC):
 
         @param {object} item - 要放进队列中的对象
             注意：该对象建议是基础类型，可序列化，避免使用MQ等中间件传输后有问题
-        @param {bool} block=False - 是否阻塞，如果为True则待队列有空闲空间时放入成功才返回
+        @param {bool} block=True - 是否阻塞，如果为True则待队列有空闲空间时放入成功才返回
         @param {number} timeout=None - 阻塞超时时间，单位为秒
         @param {**kwargs} kwargs - 其他放置参数，具体参数定义参考具体实现类
 
@@ -247,7 +244,7 @@ class QueueFw(ABC):
         """
         从队列中获取对象
 
-        @param {bool} block=False - 是否阻塞，如果为True则待真正获取到数据才返回
+        @param {bool} block=True - 是否阻塞，如果为True则待真正获取到数据才返回
         @param {number} timeout=None - 阻塞超时时间，单位为秒
         @param {**kwargs} kwargs - 其他获取参数，具体参数定义参考具体实现类
 
@@ -298,6 +295,23 @@ class QueueFw(ABC):
         """
         return self.get(block=False, **kwargs)
 
+    def clear(self, **kwargs):
+        """
+        清空队列
+
+        @param {**kwargs} kwargs - 其他获取参数，具体参数定义参考具体实现类
+        """
+        with self.not_empty:
+            if not self._qsize(**kwargs):
+                # 队列本身已为空
+                return
+            # 清空队列
+            self._clear(**kwargs)
+
+            # 通知队列未满
+            self.not_full.notify()
+            return
+
     #############################
     # 内部方法 - 抽象类
     #############################
@@ -344,6 +358,18 @@ class QueueFw(ABC):
         从队列中获取对象
 
         @param {**kwargs} kwargs - 获取参数，具体参数定义参考具体实现类
+
+        @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _clear(self, **kwargs):
+        """
+        清空队列
+
+        @param {**kwargs} kwargs - 清空参数，具体参数定义参考具体实现类
 
         @throws {NotImplementedError} - 当实现类没有实现该方法时，抛出该异常
 
@@ -423,6 +449,15 @@ class MemoryQueue(QueueFw):
             return self.queue.pop()
         else:
             return heappop(self.queue).obj
+
+    def _clear(self, **kwargs):
+        """
+        清空队列
+
+        @param {**kwargs} kwargs - 清空参数，具体参数定义参考具体实现类
+
+        """
+        self.queue.clear()
 
 
 if __name__ == '__main__':

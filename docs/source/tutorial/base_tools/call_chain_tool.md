@@ -42,7 +42,7 @@ from HiveNetLib.simple_log import Logger, EnumLoggerName, EnumLoggerConfigType
 # 嵌套调用，产生调用链
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_1(a, b, **kwargs):
-    CallChainTool.get_global_logger().write_log(
+    CallChainTool.get_global_logger().log(logging.INFO,
         'runing func_case1_call_1 : a=%s, b=%s : %s' % (str(a), str(b), str(kwargs)))
     time.sleep(0.001)
     # 执行2
@@ -54,7 +54,7 @@ def func_case1_call_1(a, b, **kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_2(a, b, c, **kwargs):
-    CallChainTool.get_global_logger().write_log(
+    CallChainTool.get_global_logger().log(logging.INFO,
         'runing func_case1_call_2 : a=%s, b=%s, c=%s: %s' % (str(a), str(b), str(c), str(kwargs)))
     time.sleep(0.001)
     # 执行4
@@ -64,7 +64,7 @@ def func_case1_call_2(a, b, c, **kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_3(**kwargs):
-    CallChainTool.get_global_logger().write_log(
+    CallChainTool.get_global_logger().log(logging.INFO,
         'runing func_case1_call_3 : %s' % (str(kwargs)))
     time.sleep(0.001)
     return
@@ -72,7 +72,7 @@ def func_case1_call_3(**kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_4(a, b, c, **kwargs):
-    CallChainTool.get_global_logger().write_log(
+    CallChainTool.get_global_logger().log(logging.INFO,
         'runing func_case1_call_4 : a=%s, b=%s, c=%s: %s' % (str(a), str(b), str(c), str(kwargs)))
     time.sleep(0.001)
     return
@@ -154,7 +154,7 @@ def func(... ,trace_id='xxx', trace_level=[0], call_id='xx', parent_id='xx'):
 
 #### 特殊参数说明
 
-指定打印的日志级别：log_level=EnumLogLevel.INFO
+指定打印的日志级别：log_level=logging.INFO
 
 指定打印关键参数信息：key_para=(‘para_name’, 0, ..)，参数为一个数组，如果值为字符串，代表打印这个名字的参数值（对应函数的kwargs参数），如果为数字，代表打印第几个位置的参数（对应函数的args参数）；注意如果只有一个参数，写法必须为(0,) ，以标注这个是数组
 

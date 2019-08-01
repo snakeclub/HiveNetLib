@@ -21,13 +21,13 @@ import platform
 import datetime
 import time
 import socket
+import logging
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.net_service.net_service_fw import NetServiceFW
 from HiveNetLib.generic import NullObj, CResult
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 
 __MOUDLE__ = 'tcpip_service'  # 模块名
@@ -106,7 +106,7 @@ class TcpIpService(NetServiceFW):
             logger=self._logger,
             self_log_msg='[LIS-STARTING][NAME:%s]%s - %s error: ' % (
                 self._server_name, _('net service starting'), _('listen without accept')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # _sys_str = platform.system()
             _server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -179,7 +179,8 @@ class TcpIpService(NetServiceFW):
                 # linux 设置超时时间不同，需重新测试
                 _csocket.settimeout(server_opts.recv_timeout / 1000)
             """
-            self._logger_fun[self._log_level](
+            self._logger.log(
+                self._log_level,
                 '[LIS][NAME:%s]%s: %s - %s' % (
                     self._server_name, _('accept one client connection'), str(_addr), str(_csocket)
                 )

@@ -40,7 +40,7 @@ class ImportTool(object):
 
         @param {string} moudle_name - 要检查的模块名，形式有以下几种:
             (1)基础库的情况，例如'sys'
-            (2)子库情况，例如'simple_log.EnumLogLevel'
+            (2)子库情况，例如'simple_log.Logger'
 
         @returns {bool} - True-模块已导入，False-模块未导入
 

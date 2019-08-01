@@ -2,30 +2,10 @@
 # -*- coding: UTF-8 -*-
 
 import unittest
+import threading
+import json
 
 # 整个文件的开始和结束执行
-
-
-def yieldtest1(n):
-    i = n
-    while i > 0:
-        yield i
-        i -= 1
-
-
-def yieldtest2(n):
-    try:
-        i = n
-        while i > 0:
-            try:
-                yield i
-            finally:
-                print('yieldtest2 in!')
-            i -= 1
-    except:
-        print('yieldtest2 ex!')
-    finally:
-        print('yieldtest2 end!')
 
 
 def setUpModule():
@@ -63,8 +43,4 @@ class Test(unittest.TestCase):
 
 if __name__ == '__main__':
     # unittest.main()
-    for a in yieldtest1(5):
-        print('yieldtest1 : ' + str(a))
-
-    for a in yieldtest2(5):
-        print('yieldtest2 : ' + str(a))
+    a = json.loads('[]')

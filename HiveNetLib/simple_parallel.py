@@ -34,12 +34,12 @@ import ctypes
 import uuid
 import copy
 import re
+import logging
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 import affinity
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import CResult
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.value_tool import ValueTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.import_tool import ImportTool
@@ -262,7 +262,7 @@ class ParallelFw(ABC):
         2、自定义的日志类对象，但应实现info、warning、error等标准方法
     @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
         注：通过RunTool.set_global_logger进行设置
-    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+    @param {int} log_level=logging.INFO - 打印日志的级别
     @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
         注：对于多进程及分布式并发任务，应采取该日志模式
     @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -277,15 +277,8 @@ class ParallelFw(ABC):
                 'pname' - 并发任务名
                 'pocess_id' - 进程ID
                 'thread_id' - 线程ID
-    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-        注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-            log_fun = {
-                EnumLogLevel.INFO: self._logger.info,
-                EnumLogLevel.DEBUG: self._logger.debug,
-                EnumLogLevel.WARNING: self._logger.warning,
-                EnumLogLevel.ERROR: self._logger.error,
-                EnumLogLevel.CRITICAL: self._logger.critical
-            }
+    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger到deal_fun中
+        注意：传递通过kwargs，参数名为logger
 
     @param {**kwargs} kwargs - 初始化参数，具体参数定义参考具体实现类
 
@@ -302,7 +295,7 @@ class ParallelFw(ABC):
     _callback_fun = None
     _set_daemon = False
     _logger = None
-    _log_level = EnumLogLevel.INFO
+    _log_level = logging.INFO
     _init_kwargs = {}
 
     _is_running = False  # 任务运行状态
@@ -324,7 +317,7 @@ class ParallelFw(ABC):
     def __init__(
         self, deal_fun, run_args=None, run_kwargs=None, auto_start=False,
         pid='', pname='', lock=None, callback_fun=None, set_daemon=False,
-        logger=None, is_use_global_logger=True, log_level=EnumLogLevel.INFO,
+        logger=None, is_use_global_logger=True, log_level=logging.INFO,
         use_distributed_logger=False, distributed_logger_module_name='',
         distributed_logger_class_name='',
         distributed_logger_args=None, distributed_logger_kwargs=None,
@@ -356,7 +349,7 @@ class ParallelFw(ABC):
             2、自定义的日志类对象，但应实现info、warning、error等标准方法
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
             注：对于多进程及分布式并发任务，应采取该日志模式
         @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -371,15 +364,8 @@ class ParallelFw(ABC):
                     'pname' - 并发任务名
                     'pocess_id' - 进程ID
                     'thread_id' - 线程ID
-        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-            注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-                log_fun = {
-                    EnumLogLevel.INFO: self._logger.info,
-                    EnumLogLevel.DEBUG: self._logger.debug,
-                    EnumLogLevel.WARNING: self._logger.warning,
-                    EnumLogLevel.ERROR: self._logger.error,
-                    EnumLogLevel.CRITICAL: self._logger.critical
-                }
+        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务的logger到deal_fun中
+            注意：传递通过kwargs，参数名为logger
 
         @param {**kwargs} kwargs - 初始化参数，具体参数定义参考具体实现类
 
@@ -400,16 +386,6 @@ class ParallelFw(ABC):
         if self._logger is None and is_use_global_logger:
             # 使用全局logger
             self._logger = RunTool.get_global_logger()
-        # self._logger = None  # 如果有logger，多进程就会报错
-        self._log_fun = {}
-        if self._logger is not None:
-            self._log_fun = {
-                EnumLogLevel.INFO: self._logger.info,
-                EnumLogLevel.DEBUG: self._logger.debug,
-                EnumLogLevel.WARNING: self._logger.warning,
-                EnumLogLevel.ERROR: self._logger.error,
-                EnumLogLevel.CRITICAL: self._logger.critical
-            }
         self._log_level = log_level
         self._use_distributed_logger = use_distributed_logger
         self._distributed_logger_module_name = distributed_logger_module_name
@@ -461,7 +437,8 @@ class ParallelFw(ABC):
                 self._set_is_running(self._is_running, False)
                 # 写异常日志
                 if self._logger is not None:
-                    self._log_fun[EnumLogLevel.ERROR](
+                    self._logger.log(
+                        logging.ERROR,
                         '[USE:%ss][EX:%s]start parallel [%s:%s] error: %s' % (
                             str((datetime.datetime.now() - self._start_time).total_seconds()),
                             str(type(e)),
@@ -494,7 +471,8 @@ class ParallelFw(ABC):
 
             # 写日志
             if self._logger is not None:
-                self._log_fun[self._log_level](
+                self._logger.log(
+                    self._log_level,
                     '[USE:%ss]force stop parallel [%s:%s]' % (
                         str((datetime.datetime.now() - self._start_time).total_seconds()),
                         self._pid,
@@ -504,7 +482,8 @@ class ParallelFw(ABC):
         except Exception as e:
             # 出现异常，写日志，然后继续抛出异常
             if self._logger is not None:
-                self._log_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     '[EX:%s]force stop parallel [%s:%s] error: %s' % (
                         str(type(e)),
                         self._pid,
@@ -570,7 +549,7 @@ class ParallelFw(ABC):
             'run_kwargs': self._run_kwargs,
             'lock': self._lock,
             'callback_fun': self._callback_fun,
-            'log_fun': self._log_fun,
+            'logger': self._logger,
             'log_level': self._log_level,
             'use_distributed_logger': self._use_distributed_logger,
             'distributed_logger_module_name': self._distributed_logger_module_name,
@@ -635,19 +614,12 @@ class ParallelFw(ABC):
             如果被强制中止，返回'21004'，并登记异常信息
         @param {object} deal_fun_ret - deal_fun函数执行的返回值
         @param {dict} kwargs={} - 回调函数所需用到的所有参数，包括：
-            log_fun {dict} -  已处理好的日志数组，如果没有日志控件传None，格式如下：
-                {
-                    EnumLogLevel.INFO: _logger.info,
-                    EnumLogLevel.DEBUG: _logger.debug,
-                    EnumLogLevel.WARNING: _logger.warning,
-                    EnumLogLevel.ERROR: _logger.error,
-                    EnumLogLevel.CRITICAL: _logger.critical
-                }
+            logger {logging.Logger} -  日志对象
             callback_fun {fuction}  - 真正的回调函数
             pid {string} - 并发任务标识
             pname {string} - 并发任务标识名
             start_time {datetime} - 并发任务启动时间
-            log_level {EnumLogLevel} - 正常日志的输出级别
+            log_level {int} - 正常日志的输出级别
 
         """
         # 执行回调函数
@@ -656,8 +628,9 @@ class ParallelFw(ABC):
                 kwargs['callback_fun'](kwargs['pid'], kwargs['pname'], call_result, deal_fun_ret)
             except Exception as e:
                 # 写异常日志
-                if kwargs['log_fun'] is not None:
-                    kwargs['log_fun'][EnumLogLevel.ERROR](
+                if kwargs['logger'] is not None:
+                    kwargs['logger'].log(
+                        logging.ERROR,
                         '[EX:%s]execute parallel [%s:%s]  callback error: %s' % (
                             str(type(e)),
                             kwargs['pid'],
@@ -668,9 +641,10 @@ class ParallelFw(ABC):
 
         # 写执行日志
         _use = str((datetime.datetime.now() - kwargs['start_time']).total_seconds())
-        if kwargs['log_fun'] is not None:
+        if kwargs['logger'] is not None:
             if call_result.code[0] == '0':
-                kwargs['log_fun'][kwargs['log_level']](
+                kwargs['logger'].log(
+                    kwargs['log_level'],
                     '[USE:%ss]finish parallel [%s:%s]' % (
                         _use,
                         kwargs['pid'],
@@ -679,7 +653,8 @@ class ParallelFw(ABC):
                 )
             else:
                 # 执行异常
-                kwargs['log_fun'][EnumLogLevel.ERROR](
+                kwargs['logger'].log(
+                    logging.ERROR,
                     '[USE:%ss][EX:%s]execute parallel [%s:%s] error: %s' % (
                         _use,
                         str(type(call_result.error)),
@@ -705,14 +680,7 @@ class ParallelFw(ABC):
             run_kwargs {dict} - 执行函数可变参数
             lock {ParallelLockFw} - 并行任务处理锁
             callback_fun {fuction}  - 真正的回调函数
-            log_fun {dict} -  已处理好的日志数组，如果没有日志控件传None，格式如下：
-                {
-                    EnumLogLevel.INFO: _logger.info,
-                    EnumLogLevel.DEBUG: _logger.debug,
-                    EnumLogLevel.WARNING: _logger.warning,
-                    EnumLogLevel.ERROR: _logger.error,
-                    EnumLogLevel.CRITICAL: _logger.critical
-                }
+            logger {logging.Logger} -  日志对象
             use_distributed_logger
             distributed_logger_module_name
             distributed_logger_class_name
@@ -723,7 +691,7 @@ class ParallelFw(ABC):
 
         """
         # 日志函数
-        if kwargs['log_fun'] is None and kwargs['use_distributed_logger']:
+        if kwargs['logger'] is None and kwargs['use_distributed_logger']:
             # 修改参数
             # TODO(黎慧剑): 获取线程id的方法暂不可用，需继续研究补充
             _value_para = {
@@ -741,7 +709,7 @@ class ParallelFw(ABC):
                 _value_para
             )
 
-            kwargs['log_fun'] = cls._create_distributed_log_fun(
+            kwargs['logger'] = cls._create_distributed_log_fun(
                 kwargs['use_distributed_logger'], kwargs['distributed_logger_module_name'],
                 kwargs['distributed_logger_class_name'], _log_args,
                 _log_kwargs
@@ -749,11 +717,12 @@ class ParallelFw(ABC):
 
         # 传递日志函数到处理函数
         if kwargs['is_logger_to_deal_fun']:
-            kwargs['run_kwargs']['log_fun'] = kwargs['log_fun']
+            kwargs['run_kwargs']['logger'] = kwargs['logger']
 
         # 写启动日志
-        if kwargs['log_fun'] is not None:
-            kwargs['log_fun'][kwargs['log_level']](
+        if kwargs['logger'] is not None:
+            kwargs['logger'].log(
+                kwargs['log_level'],
                 'start parallel [%s:%s]' % (
                     kwargs['pid'],
                     kwargs['pname']
@@ -791,7 +760,7 @@ class ParallelFw(ABC):
         创建分布式日志函数数组
 
         """
-        _log_fun = None
+        _logger = None
         if (
             use_distributed_logger and
             distributed_logger_module_name != '' and
@@ -803,14 +772,7 @@ class ParallelFw(ABC):
                     distributed_logger_class_name
                 )
                 _logger = _class_obj(*distributed_logger_args, **distributed_logger_kwargs)
-                _log_fun = {
-                    EnumLogLevel.INFO: _logger.info,
-                    EnumLogLevel.DEBUG: _logger.debug,
-                    EnumLogLevel.WARNING: _logger.warning,
-                    EnumLogLevel.ERROR: _logger.error,
-                    EnumLogLevel.CRITICAL: _logger.critical
-                }
-        return _log_fun
+        return _logger
 
     #############################
     # 内部函数 - 需继承实现
@@ -914,7 +876,7 @@ class ParallelPool(object):
         2、自定义的日志类对象，但应实现info、warning、error等标准方法
     @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
         注：通过RunTool.set_global_logger进行设置
-    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+    @param {int} log_level=logging.INFO - 打印日志的级别
     @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
         注：对于多进程及分布式并发任务，应采取该日志模式
     @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -929,15 +891,8 @@ class ParallelPool(object):
                 'pname' - 并发任务名
                 'pocess_id' - 进程ID
                 'thread_id' - 线程ID
-    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-        注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-            log_fun = {
-                EnumLogLevel.INFO: self._logger.info,
-                EnumLogLevel.DEBUG: self._logger.debug,
-                EnumLogLevel.WARNING: self._logger.warning,
-                EnumLogLevel.ERROR: self._logger.error,
-                EnumLogLevel.CRITICAL: self._logger.critical
-            }
+    @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger到deal_fun中
+        注意：传递通过kwargs，参数名为logger
     @param {bool} auto_start=False - 是否自动启动并发池
     @param {bool} auto_stop=False - 是否自动关闭并发池（当任务都已全部完成处理）
     @param {QueueFw} task_queue=None - 并发池需要处理的任务队列
@@ -967,7 +922,7 @@ class ParallelPool(object):
     def __init__(
         self, deal_fun, parallel_class=None, run_args=None, run_kwargs=None,
         pname='', lock=None, callback_fun=None,
-        logger=None, is_use_global_logger=True, log_level=EnumLogLevel.INFO,
+        logger=None, is_use_global_logger=True, log_level=logging.INFO,
         use_distributed_logger=False, distributed_logger_module_name='',
         distributed_logger_class_name='',
         distributed_logger_args=None, distributed_logger_kwargs=None,
@@ -1005,7 +960,7 @@ class ParallelPool(object):
             2、自定义的日志类对象，但应实现info、warning、error等标准方法
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
             注：对于多进程及分布式并发任务，应采取该日志模式
         @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -1020,15 +975,8 @@ class ParallelPool(object):
                     'pname' - 并发任务名
                     'pocess_id' - 进程ID
                     'thread_id' - 线程ID
-        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-            注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-                log_fun = {
-                    EnumLogLevel.INFO: self._logger.info,
-                    EnumLogLevel.DEBUG: self._logger.debug,
-                    EnumLogLevel.WARNING: self._logger.warning,
-                    EnumLogLevel.ERROR: self._logger.error,
-                    EnumLogLevel.CRITICAL: self._logger.critical
-                }
+        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger到deal_fun中
+            注意：传递通过kwargs，参数名为logger
         @param {bool} auto_start=False - 是否自动启动并发池
         @param {bool} auto_stop=False - 是否自动关闭并发池（当任务都已全部完成处理）
         @param {QueueFw} task_queue=None - 并发池需要处理的任务队列
@@ -1069,14 +1017,6 @@ class ParallelPool(object):
         if self._logger is None and is_use_global_logger:
             # 使用全局logger
             self._logger = RunTool.get_global_logger()
-        if self._logger is not None:
-            self._log_fun = {
-                EnumLogLevel.INFO: self._logger.info,
-                EnumLogLevel.DEBUG: self._logger.debug,
-                EnumLogLevel.WARNING: self._logger.warning,
-                EnumLogLevel.ERROR: self._logger.error,
-                EnumLogLevel.CRITICAL: self._logger.critical
-            }
         self._log_level = log_level
         self._use_distributed_logger = use_distributed_logger
         self._distributed_logger_module_name = distributed_logger_module_name
@@ -1291,7 +1231,8 @@ class ParallelPool(object):
         if tid in self._overtime_workers.keys():
             del self._overtime_workers[tid]
         if self._logger is not None:
-            self._log_fun[self._log_level](
+            self._logger.log(
+                self._log_level,
                 'ParallelPool[%s] force kill Worker[%s: %s]' % (self._pool_id, self._pname, tid)
             )
 
@@ -1300,7 +1241,7 @@ class ParallelPool(object):
         """
         工作进程（线程）实际执行函数，循环调用self._deal_fun进行任务处理
         kwargs的参数包括：
-            log_fun
+            logger
             log_level
             pool_id
             pname
@@ -1313,8 +1254,9 @@ class ParallelPool(object):
             is_logger_to_deal_fun
 
         """
-        if kwargs['log_fun'] is not None:
-            kwargs['log_fun'][kwargs['log_level']](
+        if kwargs['logger'] is not None:
+            kwargs['logger'].log(
+                kwargs['log_level'],
                 'ParallelPool[%s] start Worker[%s: %s]' % (kwargs['pool_id'], kwargs['pname'], tid)
             )
 
@@ -1353,7 +1295,7 @@ class ParallelPool(object):
 
                 # 是否传递logger
                 if kwargs['is_logger_to_deal_fun']:
-                    kwargs['run_kwargs']['log_fun'] = kwargs['log_fun']
+                    kwargs['run_kwargs']['logger'] = kwargs['logger']
 
                 # 执行处理函数
                 if kwargs['lock'] is not None:
@@ -1375,8 +1317,9 @@ class ParallelPool(object):
                             kwargs['callback_fun'](tid, kwargs['pname'], _call_result, _deal_fun_ret)
                         except Exception as e:
                             # 写异常日志
-                            if kwargs['log_fun'] is not None:
-                                kwargs['log_fun'][EnumLogLevel.ERROR](
+                            if kwargs['logger'] is not None:
+                                kwargs['logger'].log(
+                                    logging.ERROR,
                                     '[EX:%s]ParallelPool[%s] execute Worker[%s: %s] job callback error: %s' % (
                                         str(type(e)),
                                         kwargs['pool_id'],
@@ -1388,9 +1331,10 @@ class ParallelPool(object):
 
                     # 写执行日志
                     _use = str((datetime.datetime.now() - _taskbegin).total_seconds())
-                    if kwargs['log_fun'] is not None:
+                    if kwargs['logger'] is not None:
                         if _call_result.code[0] == '0':
-                            kwargs['log_fun'][kwargs['log_level']](
+                            kwargs['logger'].log(
+                                kwargs['log_level'],
                                 '[USE:%ss]ParallelPool[%s] Worker[%s: %s] finished job' % (
                                     _use,
                                     kwargs['pool_id'],
@@ -1400,7 +1344,8 @@ class ParallelPool(object):
                             )
                         else:
                             # 执行异常
-                            kwargs['log_fun'][EnumLogLevel.ERROR](
+                            kwargs['logger'].log(
+                                logging.ERROR,
                                 '[USE:%ss][EX:%s]ParallelPool[%s] execute Worker[%s: %s] job error: %s' % (
                                     _use,
                                     str(type(_call_result.error)),
@@ -1417,8 +1362,9 @@ class ParallelPool(object):
 
             except Exception as e:
                 # 出现异常，退出线程
-                if kwargs['log_fun'] is not None:
-                    kwargs['log_fun'][EnumLogLevel.ERROR](
+                if kwargs['logger'] is not None:
+                    kwargs['logger'].log(
+                        logging.ERROR,
                         '[EX:%s]ParallelPool[%s]  Worker[%s: %s] error: %s' % (
                             str(type(e)), kwargs['pool_id'], kwargs['pname'], tid, traceback.format_exc()
                         )
@@ -1428,8 +1374,9 @@ class ParallelPool(object):
 
         # 退出任务
         worker_info['status'] = 3 # 通知外面自己已销毁
-        if kwargs['log_fun'] is not None:
-            kwargs['log_fun'][kwargs['log_level']](
+        if kwargs['logger'] is not None:
+            kwargs['logger'].log(
+                kwargs['log_level'],
                 'ParallelPool[%s] Worker[%s: %s] stoped : %s' % (kwargs['pool_id'], kwargs['pname'], tid, _ret_info)
             )
 
@@ -1483,7 +1430,8 @@ class ParallelPool(object):
         except Exception as e:
             # 记录日志
             if self._logger is not None:
-                self._log_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     '[EX:%s]ParallelPool[%s]  create Worker[%s: %s] error: %s' % (
                         str(type(e)), self._pool_id, self._pname, _tid, traceback.format_exc()
                     )
@@ -1506,7 +1454,8 @@ class ParallelPool(object):
                 if self._status == 3:
                     # 通知暂停
                     if self._logger is not None:
-                        self._log_fun[self._log_level](
+                        self._logger.log(
+                            self._log_level,
                             'ParallelPool[%s: %s] get pause cmd, waiting workers pause...' % (self._pool_id, self._pname)
                         )
                     self._workers_lock.acquire()
@@ -1527,14 +1476,16 @@ class ParallelPool(object):
                         if _all_pause:
                             self._status = 2  # 全部任务已经为暂停状态
                             if self._logger is not None:
-                                self._log_fun[self._log_level](
+                                self._logger.log(
+                                    self._log_level,
                                     'ParallelPool[%s: %s]  pause success' % (self._pool_id, self._pname)
                                 )
 
                 if self._status == 4:
                     # 通知恢复
                     if self._logger is not None:
-                        self._log_fun[self._log_level](
+                        self._logger.log(
+                            self._log_level,
                             'ParallelPool[%s: %s] get resume cmd, waiting workers resume...' % (self._pool_id, self._pname)
                         )
                     self._workers_lock.acquire()
@@ -1555,7 +1506,8 @@ class ParallelPool(object):
                         if _all_resume:
                             self._status = 1  # 全部任务已经为恢复状态
                             if self._logger is not None:
-                                self._log_fun[self._log_level](
+                                self._logger.log(
+                                    self._log_level,
                                     'ParallelPool[%s: %s]  resume success' % (
                                         self._pool_id, self._pname
                                     )
@@ -1564,7 +1516,8 @@ class ParallelPool(object):
                 if self._status == 5:
                     # 通知停止
                     if self._logger is not None:
-                        self._log_fun[self._log_level](
+                        self._logger.log(
+                            self._log_level,
                             'ParallelPool[%s: %s] get stop cmd, waiting workers stop...' % (
                                 self._pool_id, self._pname
                             )
@@ -1586,7 +1539,8 @@ class ParallelPool(object):
                         if _all_stop:
                             self._status = 0  # 全部任务已经为销毁状态
                             if self._logger is not None:
-                                self._log_fun[self._log_level](
+                                self._logger.log(
+                                    self._log_level,
                                     'ParallelPool[%s: %s]  stop success' % (self._pool_id, self._pname)
                                 )
 
@@ -1630,7 +1584,8 @@ class ParallelPool(object):
                         if self._force_kill_overtime_worker:
                             # 强制杀掉任务
                             if self._logger is not None:
-                                self._log_fun[self._log_level](
+                                self._logger.log(
+                                    self._log_level,
                                     'ParallelPool[%s] worker[%s: %s] overtime[%ss] from %s, auto force killed' % (
                                         self._pool_id, self._pname, _key, str(self._worker_overtime),
                                         str(self._workers[_key][1]['taskbegin'])
@@ -1640,7 +1595,8 @@ class ParallelPool(object):
                         else:
                             # 放入超时清单
                             if self._logger is not None:
-                                self._log_fun[self._log_level](
+                                self._logger.log(
+                                    self._log_level,
                                     'ParallelPool[%s] worker[%s: %s] overtime[%ss] from %s' % (
                                         self._pool_id, self._pname, _key, str(self._worker_overtime),
                                         str(self._workers[_key][1]['taskbegin'])
@@ -1665,7 +1621,8 @@ class ParallelPool(object):
                     if self._task_queue.qsize() == 0:
                         self._status = 5
                         if self._logger is not None:
-                            self._log_fun[self._log_level](
+                            self._logger.log(
+                                self._log_level,
                                 'ParallelPool[%s: %s] queue is empty, auto stop pool, send stop cmd' % (
                                     self._pool_id, self._pname
                                 )
@@ -1688,7 +1645,8 @@ class ParallelPool(object):
                             _create_num = self._minsize - _all_thread_num
 
                     if _create_num > 0 and self._logger is not None:
-                        self._log_fun[self._log_level](
+                        self._logger.log(
+                            self._log_level,
                             'ParallelPool[%s: %s] auto create %s worker' % (
                                 self._pool_id, self._pname, str(_create_num)
                             )
@@ -1703,7 +1661,8 @@ class ParallelPool(object):
             except Exception as e:
                 # 异常，写日志，但不退出
                 if self._logger is not None:
-                    self._log_fun[EnumLogLevel.ERROR](
+                    self._logger.log(
+                        logging.ERROR,
                         '[EX:%s]ParallelPool[%s: %s] daemon error: %s' % (
                             str(type(e)), self._pool_id, self._pname, traceback.format_exc()
                         )
@@ -1937,9 +1896,9 @@ class ThreadParallel(ParallelFw):
         if run_kwargs is not None:
             _thread_fun_kwargs['run_kwargs'] = run_kwargs
 
-        if _thread_fun_kwargs['log_fun'] is not None and self._use_distributed_logger:
+        if _thread_fun_kwargs['logger'] is not None and self._use_distributed_logger:
             # 使用独立日志
-            _thread_fun_kwargs['log_fun'] = None
+            _thread_fun_kwargs['logger'] = None
 
         self._thread = threading.Thread(
             target=self._base_parallel_thread_fun,
@@ -2007,7 +1966,8 @@ class ProcessParallel(ParallelFw):
         _last_cpu = affinity.set_process_affinity_mask(_pid, cpu_num)
         # 打印日志
         if self._logger is not None:
-            self._log_fun[self._log_level](
+            self._logger.log(
+                self._log_level,
                 'set process [%s:%s] bind cpu - [pid:%s] from %s to %s' % (
                     self._pid,
                     self._pname,
@@ -2068,7 +2028,7 @@ class ProcessParallel(ParallelFw):
             _thread_fun_kwargs['run_kwargs'] = run_kwargs
 
         # 使用独立日志
-        _thread_fun_kwargs['log_fun'] = None
+        _thread_fun_kwargs['logger'] = None
 
         self._thread = Process(
             target=self._base_parallel_thread_fun,

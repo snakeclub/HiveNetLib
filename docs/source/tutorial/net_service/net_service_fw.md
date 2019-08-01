@@ -145,7 +145,8 @@ tcpip_service服务是net_service_fw的一个tcpip协议实现，采用非阻塞
 
 ```
 	def server_status_info_fun(self, server_status, result):
-        self.logger.write_log(
+        self.logger.log(
+            logging.INFO,
             (
                 "[服务端]"+result.self_tag+"服务状态变更：" +
                 str(server_status) +
@@ -153,8 +154,7 @@ tcpip_service服务是net_service_fw的一个tcpip协议实现，采用非阻塞
                 str(result.code) +
                 "  描述：" +
                 result.msg
-            ),
-            "INFO"
+            )
         )
         return
 ```
@@ -163,40 +163,40 @@ tcpip_service服务是net_service_fw的一个tcpip协议实现，采用非阻塞
 
 ```
 	def server_connect_deal_fun(self, thread_id, server_opts, net_info, self_tag):
-        self.logger.write_log(
+        self.logger.log(
+            logging.INFO,
             (
                 "[服务端" +
                 self_tag +
                 "][" + str(thread_id) +
                 "]收到客户端连接：" +
                 StringTool.format_obj_property_str(deal_obj=net_info, is_deal_subobj=True)
-            ),
-            "INFO"
+            )
         )
 
         # 获取客户端发送的信息，先获取前4个字节
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': 4})
         if _read_result.code != '00000':
             # 获取失败
-            self.logger.write_log(("[服务端]获取客户端数据报文头失败，关闭连接："
-                                   + str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            self.logger.log(logging.INFO, ("[服务端]获取客户端数据报文头失败，关闭连接："
+                                   + str(_read_result.code) + "-" + _read_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
         _next_read = int.from_bytes(_read_result.data, byteorder='big', signed=False)
-        self.logger.write_log("[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read), "INFO")
+        self.logger.log(logging.INFO, "[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read))
 
         # 获取后面的数据
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': _next_read})
         if _read_result.code != '00000':
             # 获取失败
-            self.logger.write_log(("[服务端]获取客户端数据报文体失败，关闭连接：" +
-                                   str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            self.logger.log(logging.INFO, ("[服务端]获取客户端数据报文体失败，关闭连接：" +
+                                   str(_read_result.code) + "-" + _read_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
         _read_str = str(_read_result.data, "utf-8")
-        self.logger.write_log("[服务端]获取到客户端报文体数据：" + _read_str, "INFO")
+        self.logger.log(logging.INFO, "[服务端]获取到客户端报文体数据：" + _read_str)
 
         # 返回内容，先组包
         _ret_str = "处理成功"
@@ -206,28 +206,28 @@ tcpip_service服务是net_service_fw的一个tcpip协议实现，采用非阻塞
         # 发送报文头
         _send_result = TcpIpService.send_data(net_info, _send_head, {})
         if _send_result.code != '00000':
-            self.logger.write_log(("[服务端]返回客户端数据报文头失败，关闭连接："
-                                   + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            self.logger.log(logging.INFO, ("[服务端]返回客户端数据报文头失败，关闭连接："
+                                   + str(_send_result.code) + "-" + _send_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
-        self.logger.write_log("[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)), "INFO")
+        self.logger.log(logging.INFO, "[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)))
         _send_result = TcpIpService.send_data(net_info, _send_body, {})
 
         if _send_result.code != '00000':
-            self.logger.write_log(("[服务端]返回客户端数据报文体失败，关闭连接："
-                                   + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            self.logger.log(logging.INFO, ("[服务端]返回客户端数据报文体失败，关闭连接："
+                                   + str(_send_result.code) + "-" + _send_result.msg))
             TcpIpService.close_connect(net_info)
             return
-        self.logger.write_log("[服务端]返回客户端报文体数据：" + _ret_str, "INFO")
+        self.logger.log(logging.INFO, "[服务端]返回客户端报文体数据：" + _ret_str)
 
         # 处理完成，关闭连接
         _close_result = TcpIpService.close_connect(net_info)
         if _close_result.code != '00000':
-            self.logger.write_log(("[服务端]关闭客户端连接失败："
-                                   + str(_close_result.code) + "-" + _close_result.msg), "INFO")
+            self.logger.log(logging.INFO, ("[服务端]关闭客户端连接失败："
+                                   + str(_close_result.code) + "-" + _close_result.msg))
 
-        self.logger.write_log("[服务端]关闭客户端连接", "INFO")
+        self.logger.log(logging.INFO, "[服务端]关闭客户端连接")
 ```
 
 3、初始化服务对象
@@ -238,7 +238,7 @@ tcpip_service服务是net_service_fw的一个tcpip协议实现，采用非阻塞
             server_status_info_fun=self.server_status_info_fun,
             server_connect_deal_fun=self.server_connect_deal_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.DEBUG
+            log_level=logging.DEBUG
         )
 ```
 
@@ -286,16 +286,16 @@ http_service服务是net_service_fw的一个http协议实现，网络协议是tc
 
 ```
 	def server_status_info_fun(self, server_status, result):
-        self.logger.write_log(
+        self.logger.log(
             (
+                logging.INFO,
                 "[服务端]"+result.self_tag+"服务状态变更：" +
                 str(server_status) +
                 "   结果code：" +
                 str(result.code) +
                 "  描述：" +
                 result.msg
-            ),
-            "INFO"
+            )
         )
         return
 ```
@@ -304,14 +304,14 @@ http_service服务是net_service_fw的一个http协议实现，网络协议是tc
 
 ```
 	def server_http_deal_fun(self, net_info, proto_msg, msg):
-        self.logger.write_log(
+        self.logger.log(
             (
+                logging.INFO,
                 "[服务端][处理函数]收到服务请求报文，http报文头: \n%s\n报文体:\n%s\n" % (
                     MsgHTTP.msg_to_str(proto_msg),
                     str(msg, "utf-8")
                 )
-            ),
-            "INFO"
+            )
         )
         # 组织一个异常的返回报文
         _rproto_msg = MsgHTTP.load_msg('%s 3xx Internal Server Error' % ('HTTP/1.1'),
@@ -326,7 +326,7 @@ http_service服务是net_service_fw的一个http协议实现，网络协议是tc
             logger=self.logger,
             server_status_info_fun=self.server_status_info_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.DEBUG,
+            log_level=logging.DEBUG,
             server_http_deal_fun=self.server_http_deal_fun
         )
 ```

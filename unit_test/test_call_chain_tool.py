@@ -14,8 +14,7 @@ import unittest
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
-from HiveNetLib.simple_log import EnumLogLevel
-from HiveNetLib.simple_log import Logger, EnumLoggerName, EnumLoggerConfigType
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -39,7 +38,7 @@ _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
 # 不带任何入参，没有返回出参的函数
 @CallChainTool.methon_call_chain(is_use_global_logger=True)
 def func_case1_no_para():
-    RunTool.get_global_logger().write_log('runing func_case1_no_para')
+    RunTool.get_global_logger().log(simple_log.INFO, 'runing func_case1_no_para')
     time.sleep(0.001)
     return
 
@@ -47,7 +46,7 @@ def func_case1_no_para():
 # 不带任何入参，返回CResult出参的函数
 @CallChainTool.methon_call_chain(is_use_global_logger=True, is_print_back=True)
 def func_case1_no_para_with_cresult():
-    RunTool.get_global_logger().write_log('runing func_case1_no_para_with_cresult')
+    RunTool.get_global_logger().log(simple_log.INFO, 'runing func_case1_no_para_with_cresult')
     time.sleep(0.001)
     _ret = CResult()
     _ret.self_para = [3, 'str']
@@ -57,7 +56,7 @@ def func_case1_no_para_with_cresult():
 # 带固定入参的函数
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=(0, 1,), print_in_para=(2,), print_out_para=(1,), is_print_back=True)
 def func_case1_fix_para(a, b, c):
-    RunTool.get_global_logger().write_log('runing func_case1_fix_para(a=%s, b=%s, c=%s)' % (a, b, c))
+    RunTool.get_global_logger().log(simple_log.INFO, 'runing func_case1_fix_para(a=%s, b=%s, c=%s)' % (a, b, c))
     time.sleep(0.001)
     return
 
@@ -65,7 +64,8 @@ def func_case1_fix_para(a, b, c):
 # 标准输入模式
 @CallChainTool.methon_call_chain(is_use_global_logger=True, is_standard_def=True, key_para=(0, 1, 'k1'))
 def func_case1_standard(*args, **kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_standard : %s : %s' % (str(args), str(kwargs)))
     time.sleep(0.001)
     return
@@ -74,7 +74,8 @@ def func_case1_standard(*args, **kwargs):
 # 半标准输入模式
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=(0, 1, 'k1'))
 def func_case1_half_standard(a, b, **kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_half_standard : a=%s, b=%s : %s' % (str(a), str(b), str(kwargs)))
     time.sleep(0.001)
     return
@@ -83,7 +84,8 @@ def func_case1_half_standard(a, b, **kwargs):
 # 嵌套调用，产生调用链
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_1(a, b, **kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_call_1 : a=%s, b=%s : %s' % (str(a), str(b), str(kwargs)))
     time.sleep(0.001)
     # 执行2
@@ -95,7 +97,8 @@ def func_case1_call_1(a, b, **kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_2(a, b, c, **kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_call_2 : a=%s, b=%s, c=%s: %s' % (str(a), str(b), str(c), str(kwargs)))
     time.sleep(0.001)
     # 执行4
@@ -105,7 +108,8 @@ def func_case1_call_2(a, b, c, **kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_3(**kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_call_3 : %s' % (str(kwargs)))
     time.sleep(0.001)
     return
@@ -113,7 +117,8 @@ def func_case1_call_3(**kwargs):
 
 @CallChainTool.methon_call_chain(is_use_global_logger=True, key_para=('k1'))
 def func_case1_call_4(a, b, c, **kwargs):
-    RunTool.get_global_logger().write_log(
+    RunTool.get_global_logger().log(
+        simple_log.INFO,
         'runing func_case1_call_4 : a=%s, b=%s, c=%s: %s' % (str(a), str(b), str(c), str(kwargs)))
     time.sleep(0.001)
     return
@@ -132,17 +137,16 @@ class TestCallChainTool(unittest.TestCase):
         try:
             # 删除临时日志
             FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case1*')
-        except Exception as e:
+        except:
             pass
 
         # 初始化日志类
-        _logger = Logger(
+        _logger = simple_log.Logger(
             conf_file_name=_TEMP_DIR + '/../../call_chain_tool/test_call_chain.json',
-            logger_name=EnumLoggerName.ConsoleAndFile.value,
+            logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
+            config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
             logfile_path=_TEMP_DIR + '/log/test_case1.log',
             is_create_logfile_by_day=True,
-            is_print_file_name=True,
-            is_print_fun_name=True
         )
         # 设置为全局使用
         RunTool.set_global_logger(_logger)
@@ -229,7 +233,7 @@ class TestCallChainTool(unittest.TestCase):
                 'para1': ['msg', '/root/b', {}],
                 'para2': ['proto_msg', 'Accept-Encoding', {}]
             },
-            is_use_global_logger=True, log_level=EnumLogLevel.INFO
+            is_use_global_logger=True, log_level=simple_log.INFO
         )
 
         # 登记超时情况
@@ -243,7 +247,7 @@ class TestCallChainTool(unittest.TestCase):
                 'SEQ': None
             },
             use=0.1,
-            is_use_global_logger=True, log_level=EnumLogLevel.INFO
+            is_use_global_logger=True, log_level=simple_log.INFO
         )
 
         # 登记异常情况
@@ -257,7 +261,7 @@ class TestCallChainTool(unittest.TestCase):
                 'SEQ': None
             },
             use=0.2, error=AttributeError(), trace_str='trace_str info',
-            is_use_global_logger=True, log_level=EnumLogLevel.INFO
+            is_use_global_logger=True, log_level=simple_log.INFO
         )
 
         # 登记返回日志
@@ -273,7 +277,7 @@ class TestCallChainTool(unittest.TestCase):
             use=0.3,
             is_print_proto_msg=True,
             is_print_msg=True,
-            is_use_global_logger=True, log_level=EnumLogLevel.INFO
+            is_use_global_logger=True, log_level=simple_log.INFO
         )
 
     def test_api_nowait(self):
@@ -286,7 +290,7 @@ class TestCallChainTool(unittest.TestCase):
         # 建立日志服务并启动服务
         _log_server = CallChainTool(
             log_queue=_log_queue, logger=None, auto_start=False, max_thread_num=1, is_use_global_logger=True,
-            log_level=EnumLogLevel.INFO
+            log_level=simple_log.INFO
         )
         _log_server.start()
 
@@ -329,7 +333,7 @@ class TestCallChainTool(unittest.TestCase):
                 'para1': ['msg', '/root/b', {}],
                 'para2': ['proto_msg', 'Accept-Encoding', {}]
             },
-            log_level=EnumLogLevel.INFO
+            log_level=simple_log.INFO
         )
 
         CallChainTool.api_call_chain_logging_nowait(
@@ -343,7 +347,7 @@ class TestCallChainTool(unittest.TestCase):
                 'SEQ': None
             },
             use=0.2, error=AttributeError(), trace_str='trace_str info',
-            log_level=EnumLogLevel.INFO
+            log_level=simple_log.INFO
         )
 
         time.sleep(4)  # 等待日志写完

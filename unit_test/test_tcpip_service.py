@@ -14,8 +14,7 @@ import unittest
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.net_service.tcpip_service import TcpIpService
-from HiveNetLib.simple_log import Logger, EnumLoggerName
-from HiveNetLib.simple_log import EnumLogLevel
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.debug_tool import DebugTool
@@ -33,55 +32,51 @@ class TestTcpIpService(unittest.TestCase):
     # 服务端处理函数定义
     @classmethod
     def server_status_info_fun(cls, server_status, result):
-        cls.logger.write_log(
-            (
-                "[服务端]" + result.self_tag + "服务状态变更：" +
-                str(server_status) +
-                "   结果code：" +
-                str(result.code) +
-                "  描述：" +
-                result.msg
-            ),
-            "INFO"
+        cls.logger.log(
+            simple_log.INFO,
+            "[服务端]" + result.self_tag + "服务状态变更：" +
+            str(server_status) +
+            "   结果code：" +
+            str(result.code) +
+            "  描述：" +
+            result.msg
         )
         return
 
     @classmethod
     def server_connect_deal_fun(cls, thread_id, server_opts, net_info, self_tag):
-        cls.logger.write_log(
-            (
-                "[服务端" +
-                self_tag +
-                "][" + str(thread_id) +
-                "]收到客户端连接：" +
-                StringTool.format_obj_property_str(deal_obj=net_info, is_deal_subobj=True)
-            ),
-            "INFO"
+        cls.logger.log(
+            simple_log.INFO,
+            "[服务端" +
+            self_tag +
+            "][" + str(thread_id) +
+            "]收到客户端连接：" +
+            StringTool.format_obj_property_str(deal_obj=net_info, is_deal_subobj=True)
         )
 
         # 获取客户端发送的信息，先获取前4个字节
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': 4})
         if _read_result.code != '00000':
             # 获取失败
-            cls.logger.write_log(("[服务端]获取客户端数据报文头失败，关闭连接："
-                                  + str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            cls.logger.log(simple_log.INFO, ("[服务端]获取客户端数据报文头失败，关闭连接：" +
+                                             str(_read_result.code) + "-" + _read_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
         _next_read = int.from_bytes(_read_result.data, byteorder='big', signed=False)
-        cls.logger.write_log("[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read), "INFO")
+        cls.logger.log(simple_log.INFO, "[服务端]获取到客户端4个字节的后续数据长度：" + str(_next_read))
 
         # 获取后面的数据
         _read_result = TcpIpService.recv_data(net_info, {'recv_len': _next_read})
         if _read_result.code != '00000':
             # 获取失败
-            cls.logger.write_log(("[服务端]获取客户端数据报文体失败，关闭连接：" +
-                                  str(_read_result.code) + "-" + _read_result.msg), "INFO")
+            cls.logger.log(simple_log.INFO, ("[服务端]获取客户端数据报文体失败，关闭连接：" +
+                                             str(_read_result.code) + "-" + _read_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
         _read_str = str(_read_result.data, "utf-8")
-        cls.logger.write_log("[服务端]获取到客户端报文体数据：" + _read_str, "INFO")
+        cls.logger.log(simple_log.INFO, "[服务端]获取到客户端报文体数据：" + _read_str)
 
         if _read_str == "servernoresponse":
             # 隔30秒不响应
@@ -95,28 +90,28 @@ class TestTcpIpService(unittest.TestCase):
         # 发送报文头
         _send_result = TcpIpService.send_data(net_info, _send_head, {})
         if _send_result.code != '00000':
-            cls.logger.write_log(("[服务端]返回客户端数据报文头失败，关闭连接："
-                                  + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            cls.logger.log(simple_log.INFO, ("[服务端]返回客户端数据报文头失败，关闭连接："
+                                             + str(_send_result.code) + "-" + _send_result.msg))
             TcpIpService.close_connect(net_info)
             return
 
-        cls.logger.write_log("[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)), "INFO")
+        cls.logger.log(simple_log.INFO, "[服务端]返回客户端4个字节的后续数据长度：" + str(len(_send_body)))
         _send_result = TcpIpService.send_data(net_info, _send_body, {})
 
         if _send_result.code != '00000':
-            cls.logger.write_log(("[服务端]返回客户端数据报文体失败，关闭连接："
-                                  + str(_send_result.code) + "-" + _send_result.msg), "INFO")
+            cls.logger.log(simple_log.INFO, ("[服务端]返回客户端数据报文体失败，关闭连接："
+                                             + str(_send_result.code) + "-" + _send_result.msg))
             TcpIpService.close_connect(net_info)
             return
-        cls.logger.write_log("[服务端]返回客户端报文体数据：" + _ret_str, "INFO")
+        cls.logger.log(simple_log.INFO, "[服务端]返回客户端报文体数据：" + _ret_str)
 
         # 处理完成，关闭连接
         _close_result = TcpIpService.close_connect(net_info)
         if _close_result.code != '00000':
-            cls.logger.write_log(("[服务端]关闭客户端连接失败："
-                                  + str(_close_result.code) + "-" + _close_result.msg), "INFO")
+            cls.logger.log(simple_log.INFO, ("[服务端]关闭客户端连接失败："
+                                             + str(_close_result.code) + "-" + _close_result.msg))
 
-        cls.logger.write_log("[服务端]关闭客户端连接", "INFO")
+        cls.logger.log(simple_log.INFO, "[服务端]关闭客户端连接")
 
     # 客户端发送代码
     def _send_text(self, net_info, str_data):
@@ -127,37 +122,37 @@ class TestTcpIpService(unittest.TestCase):
         # 发送报文头
         _result = TcpIpService.send_data(net_info=net_info, data=_send_head, send_para={})
         if _result.code != '00000':
-            self.logger.write_log("[客户端]向服务器发送数据报文头失败，关闭连接：" + '\n'.join(
-                ['%s:%s' % item for item in _result.__dict__.items()]), "INFO")
+            self.logger.log(simple_log.INFO, "[客户端]向服务器发送数据报文头失败，关闭连接：" + '\n'.join(
+                ['%s:%s' % item for item in _result.__dict__.items()]))
             return
 
-        self.logger.write_log("[客户端]向服务器发送4个字节的后续数据长度：" + str(len(_send_body)), "INFO")
+        self.logger.log(simple_log.INFO, "[客户端]向服务器发送4个字节的后续数据长度：" + str(len(_send_body)))
         _result = TcpIpService.send_data(net_info, _send_body, {})
         if _result.code != '00000':
-            self.logger.write_log("[客户端]向服务器发送数据报文体失败，关闭连接：" + '\n'.join(
-                ['%s:%s' % item for item in _result.__dict__.items()]), "INFO")
+            self.logger.log(simple_log.INFO, "[客户端]向服务器发送数据报文体失败，关闭连接：" + '\n'.join(
+                ['%s:%s' % item for item in _result.__dict__.items()]))
             return
-        self.logger.write_log("[客户端]向服务器发送数据报文体数据：" + str_data, "INFO")
+        self.logger.log(simple_log.INFO, "[客户端]向服务器发送数据报文体数据：" + str_data)
 
         # 获取返回值
         _result = TcpIpService.recv_data(net_info, {'recv_len': 4})
         if not _result.is_success():
             # 获取失败
-            self.logger.write_log("[客户端]获取服务器端数据报文头失败，关闭连接：" + '\n'.join(
-                ['%s:%s' % item for item in _result.__dict__.items()]), "INFO")
+            self.logger.log(simple_log.INFO, "[客户端]获取服务器端数据报文头失败，关闭连接：" + '\n'.join(
+                ['%s:%s' % item for item in _result.__dict__.items()]))
             return
         _next_read = int.from_bytes(_result.data, byteorder='big', signed=False)
-        self.logger.write_log("[客户端]获取到服务器端4个字节的后续数据长度：" + str(_next_read),
-                              "INFO")
+        self.logger.log(simple_log.INFO, "[客户端]获取到服务器端4个字节的后续数据长度：" + str(_next_read),
+                        )
         # 获取后面的数据
         _result = TcpIpService.recv_data(net_info, {'recv_len': _next_read})
         if not _result.is_success():
             # 获取失败
-            self.filelog.write_log("[客户端]获取服务器端数据报文体失败，关闭连接：" + '\n'.join(
-                ['%s:%s' % item for item in _result.__dict__.items()]), "INFO")
+            self.filelog.log(simple_log.INFO, "[客户端]获取服务器端数据报文体失败，关闭连接：" + '\n'.join(
+                ['%s:%s' % item for item in _result.__dict__.items()]))
             return
         _read_str = str(_result.data, "utf-8")
-        self.logger.write_log("[客户端]获取到服务器端报文体数据：" + _read_str, "INFO")
+        self.logger.log(simple_log.INFO, "[客户端]获取到服务器端报文体数据：" + _read_str)
         return
 
     # 整个Test类的开始和结束执行
@@ -174,15 +169,14 @@ class TestTcpIpService(unittest.TestCase):
         except:
             pass
 
-        cls.logger = Logger(
+        cls.logger = simple_log.Logger(
             conf_file_name=_TEMP_DIR + '/../../tcp_ip_service/test_tcp_ip_service.json',
-            logger_name=EnumLoggerName.ConsoleAndFile.value,
+            logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
+            config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
             logfile_path=_TEMP_DIR + '/log/test_case.log',
             is_create_logfile_by_day=True,
-            is_print_file_name=True,
-            is_print_fun_name=True
         )
-        cls.logger.set_logger_level(EnumLogLevel.DEBUG)
+        cls.logger.setLevelWithHandler(simple_log.DEBUG)
 
         # 启动服务
         cls.server = TcpIpService(
@@ -190,7 +184,7 @@ class TestTcpIpService(unittest.TestCase):
             server_status_info_fun=cls.server_status_info_fun,
             server_connect_deal_fun=cls.server_connect_deal_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.INFO
+            log_level=simple_log.INFO
         )
         _server_opts = TcpIpService.generate_server_opts()
         _server_opts.ip = "127.0.0.1"
@@ -239,12 +233,10 @@ class TestTcpIpService(unittest.TestCase):
                          + '\n'.join(['%s:%s' % item for item in _connect_result.__dict__.items()])))
 
         # 打印连接信息
-        self.logger.write_log(
-            (
-                "[客户端]连接信息：" +
-                '\n'.join(['%s:%s' % item for item in _connect_result.net_info.__dict__.items()])
-            ),
-            "INFO"
+        self.logger.log(
+            simple_log.INFO,
+            "[客户端]连接信息：" +
+            '\n'.join(['%s:%s' % item for item in _connect_result.net_info.__dict__.items()])
         )
 
         # 发送数据

@@ -10,7 +10,7 @@
 import sys
 import os
 import time
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/' + '../..'))
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.simple_log import EnumLoggerName, Logger, EnumLoggerConfigType
 from HiveNetLib.simple_stream import StringStream
@@ -24,7 +24,7 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
 
 
 # 通用的logger
-_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console.value,
+_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console,
                  config_type=EnumLoggerConfigType.JSON_STR)
 
 

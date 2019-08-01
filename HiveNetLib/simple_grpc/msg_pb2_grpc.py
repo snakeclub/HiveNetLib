@@ -39,6 +39,11 @@ class SimpleGRpcServiceStub(object):
             request_serializer=msg__pb2.RpcRequest.SerializeToString,
             response_deserializer=msg__pb2.RpcResponse.FromString,
         )
+        self.GRpcCallHealthCheck = channel.unary_unary(
+            '/simpleGRpc.SimpleGRpcService/GRpcCallHealthCheck',
+            request_serializer=msg__pb2.HealthRequest.SerializeToString,
+            response_deserializer=msg__pb2.HealthResponse.FromString,
+        )
 
 
 class SimpleGRpcServiceServicer(object):
@@ -73,6 +78,13 @@ class SimpleGRpcServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GRpcCallHealthCheck(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SimpleGRpcServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -95,6 +107,11 @@ def add_SimpleGRpcServiceServicer_to_server(servicer, server):
             servicer.GRpcCallBidirectionalStream,
             request_deserializer=msg__pb2.RpcRequest.FromString,
             response_serializer=msg__pb2.RpcResponse.SerializeToString,
+        ),
+        'GRpcCallHealthCheck': grpc.unary_unary_rpc_method_handler(
+            servicer.GRpcCallHealthCheck,
+            request_deserializer=msg__pb2.HealthRequest.FromString,
+            response_serializer=msg__pb2.HealthResponse.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(

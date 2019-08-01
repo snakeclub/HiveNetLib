@@ -21,6 +21,7 @@ from grpc_health.v1 import health_pb2
 from grpc_health.v1 import health_pb2_grpc
 import json
 import copy
+import traceback
 from enum import Enum
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -49,15 +50,6 @@ class EnumCallMode(Enum):
     BidirectionalStream = 'BidirectionalStream'  # 双向数据流模式
 
 
-class EnumStreamEndTagType(Enum):
-    """
-    流结束标识类型
-    @enum {string}
-    """
-    Count = 'Count'  # 采用计数方式判断结束（当total=current时结束）
-    EndTag = 'EndTag'  # 判断结束标记
-
-
 class SimpleGRpcTools(object):
     """
     SimpleGRpc的工具类，封装了一些公共工具函数
@@ -67,11 +59,11 @@ class SimpleGRpcTools(object):
     #############################
     @staticmethod
     def generate_request_obj(
-        service_name, para_json='', has_para_bytes=False, para_bytes=None,
+        service_name, para_json='[]', has_para_bytes=False, para_bytes=None,
         trace_id='', parent_id='', trace_level=1
     ):
         """
-        创建rpc调用请求参数对象(Simple简单模式)
+        创建rpc调用请求参数对象
 
         @param {string} service_name - 要调用的服务名
         @param {string} para_json='' - 调用服务的参数JSON对象
@@ -96,7 +88,7 @@ class SimpleGRpcTools(object):
         call_code='', call_msg='', call_error='', call_msg_para=()
     ):
         """
-        创建rpc调用响应对象(Simple简单模式)
+        创建rpc调用响应对象
 
         @param {string} return_json='' - 函数执行返回的信息，JSON格式
         @param {bool} has_return_bytes=False - 用于判断返回值是否有字节数组，当有字节数组时，
@@ -116,37 +108,40 @@ class SimpleGRpcTools(object):
         )
 
     @staticmethod
-    def response_obj_to_cresult(resp_obj, json_para_mapping_key=None, i18n_obj=None):
+    def response_obj_to_cresult(resp_obj):
         """
-        将RpcResponse对象转换为CResult对象(仅Simple简单模式)
+        将RpcResponse对象转换为CResult对象
 
         @param {msg_pb2.RpcResponse} resp_obj - 响应对象
-        @param {string} json_para_mapping_key=None - json转换为object的参数映射关键字
-        @param {<type>} i18n_obj=None - 国际化类的实例对象，该对象需实现translate方法
 
         @return {CResult} - 返回的CResult对象，带有函数调用返回值属性：
             return_json - 返回值的json字符串
-            return_obj - 返回值对象
+            has_return_bytes - 是否有返回字节数组
+            return_bytes - 返回的字节数组
         """
         _result = CResult(
             code=resp_obj.call_code,
             msg=resp_obj.call_msg,
             error=resp_obj.call_error,
-            i18n_obj=i18n_obj,
+            i18n_obj=None,
             i18n_msg_paras=StringTool.json_to_object(resp_obj.call_msg_para)
         )
         _result.return_json = resp_obj.return_json
         _result.has_return_bytes = resp_obj.has_return_bytes
         _result.return_bytes = resp_obj.return_bytes
-        _json_para = (None, None)
-        if json_para_mapping_key is not None:
-            _json_para = SimpleGRpcTools.get_json_to_object_para_mapping(json_para_mapping_key)
-        _result.return_obj = StringTool.json_to_object(
-            _result.return_json,
-            class_ref=_json_para[0],
-            object_hook=_json_para[1]
-        )
         return _result
+
+    @staticmethod
+    def response_iterator_to_cresults(resp_iterator):
+        """
+        将RpcResponsed的iterator对象转换为CResult的iterator对象
+
+        @param {iterator} resp_iterator - 响应报文RpcResponse的iterator对象
+
+        @return {iterator} - CResult的iterator对象
+        """
+        for resp_obj in resp_iterator:
+            yield SimpleGRpcTools.response_obj_to_cresult(resp_obj)
 
     @staticmethod
     def parameters_to_json(para_list, is_support_bytes=False):
@@ -275,61 +270,29 @@ class SimpleGRpcTools(object):
         _json_to_object_para[key] = (class_ref, object_hook)
         return
 
+    @staticmethod
+    def json_to_object_by_para_mapping(json_str, json_para_mapping_key):
+        """
+        通过json_para_mapping_key获取到的转换参数，将json字符转换为对象
+
+        @param {string} json_str - 要转换的json字符
+        @param {string} json_para_mapping_key - 关键字（一般使用函数名，通过全局公共参数“SIMPLEGRPC_JSON_TO_OBJECT_PARA”获取）
+
+        @return {object} - 转换后的对象
+        """
+        _json_para = (None, None)
+        if json_para_mapping_key is not None:
+            _json_para = SimpleGRpcTools.get_json_to_object_para_mapping(json_para_mapping_key)
+
+        return StringTool.json_to_object(
+            json_str,
+            class_ref=_json_para[0],
+            object_hook=_json_para[1]
+        )
+
     #############################
     # 服务端工具
     #############################
-    @staticmethod
-    def generate_server_opts(
-        ip='', port=50051, max_workers=1, max_connect=20,
-        is_health_check=False, auto_service_when_started=True,
-        is_use_ssl=False, private_key_certificate_chain_pairs=None, root_certificates=None,
-        options=None, compression=None,
-        handlers=None, interceptors=None
-    ):
-        """
-        生成服务启动参数
-
-        @param {string} ip='' - 监听的服务器ip
-        @param {int} port=50051 - 监听的服务端口
-        @param {int} max_workers=1 - 最大工作处理线程数
-        @param {int} max_connect=20 - 允许最大连接数
-        @param {bool} is_health_check=False - 是否启用健康检查服务
-        @param {bool} auto_service_when_started=True - 是否启动后自动向外服务（健康检查为服务中状态）
-        @param {bool} is_use_ssl=False - 是否使用SSL/TLS
-        @param {list} private_key_certificate_chain_pairs=None - 证书私钥及证书链组合列表，使用SSL时必填
-            ((private_key, certificate_chain),)  :  [PEM-encoded private key, PEM-encoded certificate chain]
-             with open('server.pem', 'rb') as f:
-                private_key = f.read()  # 服务器端的私钥文件
-            with open('server.crt', 'rb') as f:
-                certificate_chain = f.read()  # 服务器端的公钥证书文件
-        @param {list} root_certificates=None - 客户端反向认证时（验证客户端证书）的客户端根证书，即客户端的公钥证书文件
-            with open('ca.crt', 'rb') as f:
-                root_certificates = f.read()
-        @param {type?} options=None - An optional list of key-value pairs (channel args in gRPC runtime) to configure the channel
-        @param {type?} compression=None - An element of grpc.compression, e.g. grpc.compression.Gzip. This compression algorithm will be used for the lifetime of the server unless overridden
-        @param {type?} handlers=None - An optional list of GenericRpcHandlers used for executing RPCs. More handlers may be added by calling add_generic_rpc_handlers any time before the server is started
-        @param {type?} interceptors=None - An optional list of ServerInterceptor objects that observe and optionally manipulate the incoming RPCs before handing them over to handlers. The interceptors are given control in the order they are specified
-
-        @returns {object} - 返回带参数属性的对象，例如对象为ret：
-           ret.ip = ''
-           ...
-        """
-        _server_opts = NullObj()
-        _server_opts.ip = ip  # 主机名或IP地址
-        _server_opts.port = port  # 监听端口
-        _server_opts.max_workers = max_workers  # 最大工作处理线程数
-        _server_opts.max_connect = max_connect
-        _server_opts.is_health_check = is_health_check
-        _server_opts.auto_service_when_started = auto_service_when_started
-        _server_opts.is_use_ssl = is_use_ssl  # 是否使用SSL/TLS
-        _server_opts.private_key_certificate_chain_pairs = private_key_certificate_chain_pairs
-        _server_opts.root_certificates = root_certificates
-        _server_opts.options = options
-        _server_opts.compression = compression
-        _server_opts.handlers = handlers
-        _server_opts.interceptors = interceptors
-        return _server_opts
-
     @staticmethod
     def get_private_key_certificate_chain_pair(key_file, crt_file):
         """
@@ -454,61 +417,133 @@ class SimpleGRpcTools(object):
         return msg_pb2_grpc.SimpleGRpcServiceStub(channel)
 
     @staticmethod
-    def grpc_call_by_stub(stub, rpc_request, call_mode=EnumCallMode.Simple):
+    def grpc_call_by_stub(stub, rpc_request, call_mode=EnumCallMode.Simple,
+                          timeout=None, metadata=None, credentials=None,
+                          wait_for_ready=None, compression=None):
         """
         基于stub对象执行远程调用
 
         @param {msg_pb2_grpc.SimpleGRpcServiceStub} stub - 已连接的stub对象
         @param {msg_pb2.RpcRequest|request_iterator} rpc_request - 请求对象或产生请求对象的迭代器（iterator），应与call_mode匹配
         @param {EnumCallMode} call_mode=EnumCallMode.Simple - 调用服务端的模式
+        @param {number} timeout=None - 超时时间，单位为秒
+        @param {object} metadata=None - Optional :term:`metadata` to be transmitted to the
+            service-side of the RPC.
+        @param {object} credentials=None - An optional CallCredentials for the RPC. Only valid for
+            secure Channel.
+        @param {object} wait_for_ready=None - This is an EXPERIMENTAL argument. An optional
+            flag to enable wait for ready mechanism
+        @param {object} compression=None - An element of grpc.compression, e.g.
+            grpc.compression.Gzip. This is an EXPERIMENTAL option.
 
-        @returns {msg_pb2.RpcResponse|response_iterator} - 响应对象或产生响应对象的迭代器（iterator），与call_mode匹配
-            注意：如果执行出现远程调用异常，则返回对象的call_code为20408，
-                且call_msg_para的第一个参数为grpc.StatusCode的name属性值
+        @returns {CResult|iterator} - 执行结果CResult或执行结果的迭代器（iterator），与call_mode匹配
+            CResult对象有以下3个属性：
+            return_json - 返回值的json字符串
+            has_return_bytes - 是否有返回字节数组
+            return_bytes - 返回的字节数组
         """
+        _is_iterator = False
         try:
+            _resp_obj = None
             if call_mode == EnumCallMode.ServerSideStream:
-                return stub.GRpcCallServerSideStream(rpc_request)
+                _is_iterator = True
+                _resp_obj = stub.GRpcCallServerSideStream(
+                    rpc_request, timeout=timeout, metadata=metadata, credentials=credentials,
+                    wait_for_ready=wait_for_ready, compression=compression
+                )
             elif call_mode == EnumCallMode.ClientSideStream:
-                return stub.GRpcCallClientSideStream(rpc_request)
+                _resp_obj = stub.GRpcCallClientSideStream(
+                    rpc_request, timeout=timeout, metadata=metadata, credentials=credentials,
+                    wait_for_ready=wait_for_ready, compression=compression
+                )
             elif call_mode == EnumCallMode.BidirectionalStream:
-                return stub.GRpcCallBidirectionalStream(rpc_request)
+                _is_iterator = True
+                _resp_obj = stub.GRpcCallBidirectionalStream(
+                    rpc_request, timeout=timeout, metadata=metadata, credentials=credentials,
+                    wait_for_ready=wait_for_ready, compression=compression
+                )
             else:
                 # 简单模式
-                return stub.GRpcCallSimple(rpc_request)
+                _resp_obj = stub.GRpcCallSimple(
+                    rpc_request, timeout=timeout, metadata=metadata, credentials=credentials,
+                    wait_for_ready=wait_for_ready, compression=compression
+                )
+
+            # 针对响应值进行处理并返回
+            if _is_iterator:
+                # 返回序列
+                return SimpleGRpcTools.response_iterator_to_cresults(_resp_obj)
+            else:
+                # 返回单个对象
+                return SimpleGRpcTools.response_obj_to_cresult(_resp_obj)
+
         except grpc._channel._Rendezvous as grpc_err:
             # 执行远程调用出现异常
-            _error_return_obj = SimpleGRpcTools.generate_response_obj(
-                call_code='20408',
-                call_msg=None,
-                call_error=str(type(grpc_err)),
-                call_msg_para=(grpc_err._state.code.name, grpc_err._state.details)
+            _code = '20408'
+            if grpc_err._state.code.value[0] == 4:
+                # 调用超时
+                _code = '30403'
+            _result = CResult(
+                code=_code,
+                error=str(type(grpc_err)),
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(grpc_err._state.code.name, grpc_err._state.details)
             )
-            if call_mode in (EnumCallMode.Simple, EnumCallMode.ClientSideStream):
-                return _error_return_obj
-            else:
-                # 返回流
-                return SimpleGRpcTools._generate_iterator_object(_error_return_obj)
+        except:
+            _error = str(sys.exc_info()[0])
+            _result = CResult(
+                code='21007',
+                error=_error,
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(_error)
+            )
+        # 异常情况的返回处理
+        _result.return_json = ''
+        _result.has_return_bytes = False
+        _result.return_bytes = b''
+        if _is_iterator:
+            return SimpleGRpcTools._generate_iterator_object(_result)
+        else:
+            return _result
 
     @staticmethod
-    def grpc_call_by_channel(channel, rpc_request, call_mode=EnumCallMode.Simple):
+    def grpc_call_by_channel(channel, rpc_request, call_mode=EnumCallMode.Simple,
+                             timeout=None, metadata=None, credentials=None,
+                             wait_for_ready=None, compression=None):
         """
         基于channel对象执行远程调用
 
         @param {grpc.Channel} channel - gRPC连接通道
         @param {msg_pb2.RpcRequest|request_iterator} rpc_request - 请求对象或产生请求对象的迭代器（iterator），应与call_mode匹配
         @param {EnumCallMode} call_mode=EnumCallMode.Simple - 调用服务端的模式
+        @param {number} timeout=None - 超时时间，单位为秒
+        @param {object} metadata=None - Optional :term:`metadata` to be transmitted to the
+            service-side of the RPC.
+        @param {object} credentials=None - An optional CallCredentials for the RPC. Only valid for
+            secure Channel.
+        @param {object} wait_for_ready=None - This is an EXPERIMENTAL argument. An optional
+            flag to enable wait for ready mechanism
+        @param {object} compression=None - An element of grpc.compression, e.g.
+            grpc.compression.Gzip. This is an EXPERIMENTAL option.
 
-        @returns {msg_pb2.RpcResponse|response_iterator} - 响应对象或产生响应对象的迭代器（iterator），与call_mode匹配
+        @returns {CResult|iterator} - 执行结果CResult或执行结果的迭代器（iterator），与call_mode匹配
+            CResult对象有以下3个属性：
+            return_json - 返回值的json字符串
+            has_return_bytes - 是否有返回字节数组
+            return_bytes - 返回的字节数组
         """
         return SimpleGRpcTools.grpc_call_by_stub(
             SimpleGRpcTools.generate_call_stub(channel),
             rpc_request,
-            call_mode=call_mode
+            call_mode=call_mode,
+            timeout=timeout, metadata=metadata, credentials=credentials,
+            wait_for_ready=wait_for_ready, compression=compression
         )
 
     @staticmethod
-    def grpc_call(connect_para, rpc_request, call_mode=EnumCallMode.Simple):
+    def grpc_call(connect_para, rpc_request, call_mode=EnumCallMode.Simple,
+                  timeout=None, metadata=None, credentials=None,
+                  wait_for_ready=None, compression=None):
         """
         执行gRPC远程调用（自动创建channel并在完成后关闭）
         注意：该调用方式不适合ServerSideStream、BidirectionalStream两种模式（自动关闭channel会导致处理失败）
@@ -516,8 +551,21 @@ class SimpleGRpcTools(object):
         @param {object} connect_para - 客户端连接参数
         @param {msg_pb2.RpcRequest|request_iterator} rpc_request - 请求对象或产生请求对象的迭代器（iterator），应与call_mode匹配
         @param {EnumCallMode} call_mode=EnumCallMode.Simple - 调用服务端的模式
+        @param {number} timeout=None - 超时时间，单位为秒
+        @param {object} metadata=None - Optional :term:`metadata` to be transmitted to the
+            service-side of the RPC.
+        @param {object} credentials=None - An optional CallCredentials for the RPC. Only valid for
+            secure Channel.
+        @param {object} wait_for_ready=None - This is an EXPERIMENTAL argument. An optional
+            flag to enable wait for ready mechanism
+        @param {object} compression=None - An element of grpc.compression, e.g.
+            grpc.compression.Gzip. This is an EXPERIMENTAL option.
 
-        @returns {msg_pb2.RpcResponse} - 响应对象
+        @returns {CResult|iterator} - 执行结果CResult或执行结果的迭代器（iterator），与call_mode匹配
+            CResult对象有以下3个属性：
+            return_json - 返回值的json字符串
+            has_return_bytes - 是否有返回字节数组
+            return_bytes - 返回的字节数组
 
         @throws {ValueError} - 当call_mode为ServerSideStream、BidirectionalStream时抛出
         """
@@ -528,9 +576,89 @@ class SimpleGRpcTools(object):
             return SimpleGRpcTools.grpc_call_by_channel(
                 channel,
                 rpc_request,
-                call_mode=call_mode
+                call_mode=call_mode,
+                timeout=timeout, metadata=metadata, credentials=credentials,
+                wait_for_ready=wait_for_ready, compression=compression
             )
 
+    #############################
+    # 自定义的健康检查
+    #############################
+    @staticmethod
+    def simple_grpc_health_check_by_stub(stub, timeout=None):
+        """
+        SimpleGRpc自定义的健康检查，访问健康检查服务
+
+        @param {msg_pb2_grpc.SimpleGRpcServiceStub} stub - 已连接的stub对象
+        @param {number} timeout=None - 超时时间，单位为秒
+
+        @returns {CResult} - 响应对象，判断成功的方法：
+            ret.status == msg_pb2.HealthResponse.SERVING
+            总共有以下几种状态
+            health_pb2.HealthResponse.UNKNOWN
+            health_pb2.HealthResponse.SERVICE_UNKNOWN
+            health_pb2.HealthResponse.NOT_SERVING
+            health_pb2.HealthResponse.SERVING
+        """
+        _result = CResult(code='00000')
+        _result.status = msg_pb2.HealthResponse.UNKNOWN
+        try:
+            _result = CResult(code='00000')
+            _resp_obj = stub.GRpcCallHealthCheck(
+                msg_pb2.HealthRequest(service=''),
+                timeout=timeout
+            )
+            _result.status = _resp_obj.status
+        except grpc._channel._Rendezvous as grpc_err:
+            # 执行远程调用出现异常
+            _code = '20408'
+            if grpc_err._state.code.value[0] == 4:
+                # 调用超时
+                _code = '30403'
+            _result = CResult(
+                code=_code,
+                error=str(type(grpc_err)),
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(grpc_err._state.code.name, grpc_err._state.details)
+            )
+            _result.status = msg_pb2.HealthResponse.UNKNOWN
+        except:
+            _error = str(sys.exc_info()[0])
+            _result = CResult(
+                code='21007',
+                error=_error,
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(_error)
+            )
+            _result.status = msg_pb2.HealthResponse.UNKNOWN
+        # 返回处理结果
+        return _result
+
+    @staticmethod
+    def simple_grpc_health_check(connect_para, timeout=None):
+        """
+        执行SimpleGRpc自定义的健康检查
+
+        @param {object} connect_para - 客户端连接参数
+        @param {number} timeout=None - 超时时间，单位为秒
+
+        @returns {CResult} - 响应对象，判断成功的方法：
+            ret.status == msg_pb2.HealthResponse.SERVING
+            总共有以下几种状态
+            health_pb2.HealthResponse.UNKNOWN
+            health_pb2.HealthResponse.SERVICE_UNKNOWN
+            health_pb2.HealthResponse.NOT_SERVING
+            health_pb2.HealthResponse.SERVING
+        """
+        with SimpleGRpcTools.generate_channel(connect_para) as channel:
+            return SimpleGRpcTools.simple_grpc_health_check_by_stub(
+                SimpleGRpcTools.generate_call_stub(channel),
+                timeout=timeout
+            )
+
+    #############################
+    # 标准grpc的健康检查
+    #############################
     @staticmethod
     def generate_health_check_stub(channel):
         """
@@ -543,36 +671,68 @@ class SimpleGRpcTools(object):
         return health_pb2_grpc.HealthStub(channel)
 
     @staticmethod
-    def health_check_by_stub(stub, servicer_name):
+    def health_check_by_stub(stub, servicer_name, timeout=None):
         """
         基于stub对象执行远程调用
 
         @param {health_pb2_grpc.HealthStub} stub - 已连接的stub对象
         @param {string} servicer_name - 要检查的服务名
+        @param {number} timeout=None - 超时时间，单位为秒
 
-        @returns {health_pb2.HealthCheckResponse.ServingStatus} - 检查结果，有以下几种状态
+        @returns {CResult} - 响应对象，判断成功的方法：
+            ret.status == msg_pb2.HealthCheckResponse.SERVING
+            总共有以下几种状态
             health_pb2.HealthCheckResponse.UNKNOWN
             health_pb2.HealthCheckResponse.SERVICE_UNKNOWN
             health_pb2.HealthCheckResponse.NOT_SERVING
             health_pb2.HealthCheckResponse.SERVING
         """
+        _result = CResult(code='00000')
+        _result.status = msg_pb2.HealthResponse.UNKNOWN
         try:
-            _request = health_pb2.HealthCheckRequest(service=servicer_name)
-            _resp = stub.Check(_request)
-            return _resp.status
+            _result = CResult(code='00000')
+            _resp_obj = stub.Check(
+                health_pb2.HealthCheckRequest(service=servicer_name),
+                timeout=timeout
+            )
+            _result.status = _resp_obj.status
+        except grpc._channel._Rendezvous as grpc_err:
+            # 执行远程调用出现异常
+            _code = '20408'
+            if grpc_err._state.code.value[0] == 4:
+                # 调用超时
+                _code = '30403'
+            _result = CResult(
+                code=_code,
+                error=str(type(grpc_err)),
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(grpc_err._state.code.name, grpc_err._state.details)
+            )
+            _result.status = health_pb2.HealthCheckResponse.UNKNOWN
         except:
-            # 出现异常
-            return health_pb2.HealthCheckResponse.UNKNOWN
+            _error = str(sys.exc_info()[0])
+            _result = CResult(
+                code='21007',
+                error=_error,
+                trace_str=traceback.format_exc(),
+                i18n_msg_paras=(_error)
+            )
+            _result.status = health_pb2.HealthCheckResponse.UNKNOWN
+        # 返回处理结果
+        return _result
 
     @staticmethod
-    def health_check(connect_para, servicer_name):
+    def health_check(connect_para, servicer_name, timeout=None):
         """
         执行健康检查
 
         @param {object} connect_para - 客户端连接参数
         @param {string} servicer_name - 要检查的服务名
+        @param {number} timeout=None - 超时时间，单位为秒
 
-        @returns {health_pb2.HealthCheckResponse.ServingStatus} - 检查结果，有以下几种状态
+        @returns {CResult} - 响应对象，判断成功的方法：
+            ret.status == msg_pb2.HealthCheckResponse.SERVING
+            总共有以下几种状态
             health_pb2.HealthCheckResponse.UNKNOWN
             health_pb2.HealthCheckResponse.SERVICE_UNKNOWN
             health_pb2.HealthCheckResponse.NOT_SERVING
@@ -581,7 +741,8 @@ class SimpleGRpcTools(object):
         with SimpleGRpcTools.generate_channel(connect_para) as channel:
             return SimpleGRpcTools.health_check_by_stub(
                 SimpleGRpcTools.generate_health_check_stub(channel),
-                servicer_name
+                servicer_name,
+                timeout=timeout
             )
 
     #############################

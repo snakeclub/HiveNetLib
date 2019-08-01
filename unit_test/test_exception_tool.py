@@ -15,8 +15,7 @@ import os
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from contextlib import contextmanager
-from HiveNetLib.simple_log import EnumLogLevel
-from HiveNetLib.simple_log import Logger, EnumLoggerName, EnumLoggerConfigType
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.exception_tool import ExceptionTool

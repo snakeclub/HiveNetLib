@@ -48,20 +48,6 @@ SINGLE_PROCESS_PID_FILE_LIST = dict()
 RUNTOOL_GLOBAL_VAR_LIST = dict()
 
 
-class EnumLogLevel(Enum):
-    """
-    日志级别
-
-    @enum {int}
-
-    """
-    DEBUG = logging.DEBUG  # 调试
-    INFO = logging.INFO  # 一般
-    WARNING = logging.WARNING  # 告警
-    ERROR = logging.ERROR  # 错误
-    CRITICAL = logging.CRITICAL  # 严重
-
-
 class RunTool(object):
     """
     运行参数处理通用类
@@ -172,7 +158,7 @@ class RunTool(object):
     # 日志处理
     #############################
     @staticmethod
-    def writelog_by_level(logger, log_str, log_level=EnumLogLevel.INFO):
+    def writelog_by_level(logger, log_str, log_level=logging.INFO):
         """
         根据日志级别调用日志输出,根据日志级别调用日志类的不同方法，简化日志级别的判断处理
 
@@ -180,16 +166,16 @@ class RunTool(object):
             1、标准logging的logger对象
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} log_str - 需输出的日志内容
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 输出日志级别
+        @param {int} log_level=logging.INFO - 输出日志级别
 
         """
-        if log_level == EnumLogLevel.DEBUG:
+        if log_level == logging.DEBUG:
             logger.debug(log_str)
-        elif log_level == EnumLogLevel.WARNING:
+        elif log_level == logging.WARNING:
             logger.warning(log_str)
-        elif log_level == EnumLogLevel.ERROR:
+        elif log_level == logging.ERROR:
             logger.error(log_str)
-        elif log_level == EnumLogLevel.CRITICAL:
+        elif log_level == logging.CRITICAL:
             logger.critical(log_str)
         else:
             logger.info(log_str)
@@ -333,7 +319,7 @@ class RunTool(object):
     @staticmethod
     @contextmanager
     def single_process_with(process_name='', base_path='', is_try_del_lockfile=False,
-                            logger=None, log_level=EnumLogLevel.WARNING, exit_code=1):
+                            logger=None, log_level=logging.WARNING, exit_code=1):
         """
         单进程控制的with简单模式,封装with模式的调用方式来实现单进程控制
 
@@ -343,7 +329,7 @@ class RunTool(object):
         @param {object} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
             1、标准logging的logger对象
             2、自定义的日志类对象，但应实现warning、error等的标准方法
-        @param {EnumLogLevel} log_level=EnumLogLevel.WARNING - 需要输出的自定义日志级别
+        @param {int} log_level=logging.WARNING - 需要输出的自定义日志级别
         @param {int} exit_code=1 - 控制获取进程锁失败退出的错误码定义
 
         @example

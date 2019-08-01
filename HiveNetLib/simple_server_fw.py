@@ -19,16 +19,14 @@ import sys
 import time
 import datetime
 import threading
+import logging
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult, NullObj
-from HiveNetLib.simple_i18n import _, SimpleI18N, get_global_i18n, init_global_i18n
+from HiveNetLib.simple_i18n import _, get_global_i18n, init_global_i18n
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
-from HiveNetLib.base_tools.string_tool import StringTool
-from HiveNetLib.base_tools.debug_tool import DebugTool
 
 
 __MOUDLE__ = 'simple_server_fw'  # 模块名
@@ -70,7 +68,7 @@ class SimpleServerFW(ABC):
     # 私有变量 - 子类可访问的变量
     #############################
 
-    _logLevel = EnumLogLevel.INFO  # 外围传入的日志级别，根据该级别打印日志，例如传DEBUG可减少日志的输出
+    _logLevel = logging.INFO  # 外围传入的日志级别，根据该级别打印日志，例如传DEBUG可减少日志的输出
     _server_name = 'Service'  # 服务名，记录日志使用
     _server_log_prefix = 'SER'  # 服务日志记录前缀，记录日志使用，例如[SER-STARTING]...
     _trans_file_path = ''  # 国际化翻译文件路径
@@ -83,7 +81,6 @@ class SimpleServerFW(ABC):
 
     # 外围传入的日志对象，服务过程中通过该函数写日志
     _logger = None
-    _logger_fun = dict()  # 记载debug、warning等方法的数组，简化日志输出代码
 
     # 外围传入的服务状态变更通知函数，函数实现的第1个参数为当前状态，第2个参数为错误信息result对象，含code和msg
     __server_status_info_fun = None
@@ -145,7 +142,7 @@ class SimpleServerFW(ABC):
         """
         获取正常日志输出级别
 
-        @property {EnumLogLevel}
+        @property {int}
 
         """
         return self._log_level
@@ -155,7 +152,7 @@ class SimpleServerFW(ABC):
         """
         设置正常日志输出级别
 
-        @property {EnumLogLevel} value - 输出日志级别
+        @property {int} value - 输出日志级别
 
         """
         self._log_level = value
@@ -203,7 +200,7 @@ class SimpleServerFW(ABC):
     #############################
 
     def __init__(self, logger=None, server_status_info_fun=None, self_tag='',
-                 log_level=EnumLogLevel.INFO, server_log_prefix='SER', server_name='Service',
+                 log_level=logging.INFO, server_log_prefix='SER', server_name='Service',
                  is_auto_load_i18n=True, trans_file_path='', trans_file_prefix='', trans_file_encoding='utf-8'):
         """
         构造函数
@@ -216,7 +213,7 @@ class SimpleServerFW(ABC):
             其中server_status为服务器状态EnumServerRunStatus，
             result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
         @param {string} self_tag='' - 自定义标识
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过:
+        @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过:
             多日志可以设置为DEBUG
         @param {string} server_log_prefix='SER' - 服务日志记录前缀，记录日志使用，例如[SER-STARTING]...
         @param {string} server_name='Service' - 服务名，记录日志使用
@@ -227,13 +224,6 @@ class SimpleServerFW(ABC):
 
         """
         self._logger = logger
-        if self._logger is not None:
-            # 直接通过字典调用写日志方法
-            self._logger_fun[EnumLogLevel.DEBUG] = self._logger.debug
-            self._logger_fun[EnumLogLevel.WARNING] = self._logger.warning
-            self._logger_fun[EnumLogLevel.ERROR] = self._logger.error
-            self._logger_fun[EnumLogLevel.CRITICAL] = self._logger.critical
-            self._logger_fun[EnumLogLevel.INFO] = self._logger.info
         self.__server_status_info_fun = server_status_info_fun
         self.__self_tag = self_tag
         self._log_level = log_level
@@ -262,7 +252,7 @@ class SimpleServerFW(ABC):
             self_log_msg='[%s-STARTING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name,
                 _('start service error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 先获取锁，拿到最准确的服务状态
             self.__server_run_status_lock.acquire()
@@ -270,13 +260,15 @@ class SimpleServerFW(ABC):
                 if self.__server_run_status != EnumServerRunStatus.Stop:
                     # 不属于停止状态，不能启动
                     _result = CResult(code='21401')  # 服务启动失败-服务已启动
-                    self._logger_fun[self._log_level](
+                    self._logger.log(
+                        self._log_level,
                         '[%s-STARTING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _result.msg))
                     return _result
 
                 # 执行启动服务的动作，通过线程方式启动，避免调用方等待
                 self.__server_begin_time = datetime.datetime.now()
-                self._logger_fun[self._log_level](
+                self._logger.log(
+                    self._log_level,
                     '[%s-STARTING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _('service starting')))
                 self._server_status_change(EnumServerRunStatus.WaitStart, _result)
                 _server_thread = threading.Thread(
@@ -313,7 +305,7 @@ class SimpleServerFW(ABC):
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             self.__server_run_status_lock.acquire()
             try:
@@ -324,18 +316,21 @@ class SimpleServerFW(ABC):
                 self.__server_stop_time = datetime.datetime.now()
                 if self.__server_run_status == EnumServerRunStatus.Running:
                     # 运行状态，处理设置等待关闭状态
-                    self._logger_fun[self._log_level](
+                    self._logger.log(
+                        self._log_level,
                         '[%s-STOPING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _('service stoping')))
                     self._server_status_change(_status, _result)
                 elif self.__server_run_status == EnumServerRunStatus.WaitStop \
                         and _status == EnumServerRunStatus.ForceStop:
-                    self._logger_fun[self._log_level](
+                    self._logger.log(
+                        self._log_level,
                         '[%s-STOPING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _('service force stoping')))
                     self._server_status_change(_status, _result)
                 else:
                     # 不属于运行状态，不能处理
                     _result = CResult(code='21402')  # 服务停止失败-服务已关闭
-                    self._logger_fun[self._log_level](
+                    self._logger.log(
+                        self._log_level,
                         '[%s-STOPING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _result.msg))
                     return _result
             finally:
@@ -374,7 +369,8 @@ class SimpleServerFW(ABC):
                 _('start service error'))
         ):
             # 统一的异常处理
-            self._logger_fun[self._log_level](
+            self._logger.log(
+                self._log_level,
                 '[%s-STARTING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _('service starting')))
 
             # 执行服务启动处理，执行通过则代表启动成功tid
@@ -382,17 +378,21 @@ class SimpleServerFW(ABC):
 
             if start_result.code != '00000':
                 # 启动失败，登记了日志，修改状态为未启动，退出
-                self._logger_fun[EnumLogLevel.ERROR]('[%s-STARTING][NAME:%s][USE:%ss]%s: %s - %s' % (
-                    self._server_log_prefix,
-                    self._server_name, str(
-                        (datetime.datetime.now() - self.__server_begin_time).total_seconds()),
-                    _('start service error'), start_result.code, start_result.msg))
+                self._logger.log(
+                    logging.ERROR,
+                    ('[%s-STARTING][NAME:%s][USE:%ss]%s: %s - %s' % (
+                        self._server_log_prefix,
+                        self._server_name, str(
+                            (datetime.datetime.now() - self.__server_begin_time).total_seconds()),
+                        _('start service error'), start_result.code, start_result.msg))
+                )
 
                 self._server_status_change(EnumServerRunStatus.Stop, start_result)
                 return
 
             # 启动成功，更新状态
-            self._logger_fun[self._log_level](
+            self._logger.log(
+                self._log_level,
                 '[%s-STARTED][NAME:%s][USE:%ss]%s' % (
                     self._server_log_prefix,
                     self._server_name,
@@ -411,7 +411,8 @@ class SimpleServerFW(ABC):
                             break
 
                         # 执行预停止处理函数，例如关闭已打开的子线程
-                        stop_predeal_result = self._stop_server_predeal_self(tid, start_result.server_info)
+                        stop_predeal_result = self._stop_server_predeal_self(
+                            tid, start_result.server_info)
                         if stop_predeal_result.code == '00000' and not stop_predeal_result.is_finished:
                             # 预处理未完成，需要循环处理
                             time.sleep(0.1)
@@ -434,7 +435,8 @@ class SimpleServerFW(ABC):
         # 线程结束就代表服务已关闭，执行结束处理函数
         self._stop_server_end_self(tid)
         self._server_status_change(EnumServerRunStatus.Stop, _result)
-        self._logger_fun[self._log_level](
+        self._logger.log(
+            self._log_level,
             '[%s-STOPED][NAME:%s][USE:%ss]%s' % (
                 self._server_log_prefix,
                 self._server_name,
@@ -484,7 +486,7 @@ class SimpleServerFW(ABC):
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service predeal error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass
@@ -505,7 +507,7 @@ class SimpleServerFW(ABC):
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service end fun error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass
@@ -532,7 +534,7 @@ class SimpleServerFW(ABC):
             logger=self._logger,
             self_log_msg='[%s][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('service run error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass

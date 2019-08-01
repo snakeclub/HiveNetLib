@@ -20,11 +20,11 @@ import sys
 import uuid
 import datetime
 import traceback
+import logging
 from queue import Full, Empty
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.import_tool import ImportTool
 from HiveNetLib.base_tools.string_tool import StringTool
@@ -51,7 +51,7 @@ class CallChainTool(object):
     # 实例化，异步接口调用链日志处理，简化接口调用链的处理
     #############################
     def __init__(self, log_queue, logger=None, auto_start=False, max_thread_num=1, is_use_global_logger=True,
-                 log_level=EnumLogLevel.INFO):
+                 log_level=logging.INFO):
         """
         构造函数，如果接口日志需要异步写（避免日志耗时），需实例化处理
 
@@ -61,7 +61,7 @@ class CallChainTool(object):
         @param {int} max_thread_num=1 - 日志处理线程数
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 本地服务打印日志的级别
+        @param {int} log_level=logging.INFO - 本地服务打印日志的级别
 
         """
         self._log_queue = log_queue
@@ -72,14 +72,7 @@ class CallChainTool(object):
         if self._logger is None and is_use_global_logger:
             # 使用全局logger
             self._logger = RunTool.get_global_logger()
-        if self._logger is not None:
-            self._log_fun = {
-                EnumLogLevel.INFO: self._logger.info,
-                EnumLogLevel.DEBUG: self._logger.debug,
-                EnumLogLevel.WARNING: self._logger.warning,
-                EnumLogLevel.ERROR: self._logger.error,
-                EnumLogLevel.CRITICAL: self._logger.critical
-            }
+
         self._log_level = log_level
 
         # 创建线程池进行处理
@@ -130,7 +123,8 @@ class CallChainTool(object):
         except Exception as e:
             # 存在其他异常，登记异常信息
             if self._logger is not None:
-                self._log_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     '[EX:%s]get call chain info from log_queue error: %s' % (
                         str(type(e)),
                         traceback.format_exc()
@@ -175,7 +169,8 @@ class CallChainTool(object):
             except Exception as e:
                 # 存在其他异常，登记异常信息
                 if self._logger is not None:
-                    self._log_fun[EnumLogLevel.ERROR](
+                    self._logger.log(
+                        logging.ERROR,
                         '[EX:%s]write call chain info error: %s' % (
                             str(type(e)),
                             traceback.format_exc()
@@ -204,7 +199,7 @@ class CallChainTool(object):
     def methon_call_chain(logger=None, trace_id=None, trace_level=None, call_id=None,
                           parent_id=None, key_para=(), print_in_para=(),
                           print_out_para=(), is_print_back=False,
-                          is_use_global_logger=True, log_level=EnumLogLevel.INFO,
+                          is_use_global_logger=True, log_level=logging.INFO,
                           is_standard_def=False):
         """
         模块方法调用链修饰符
@@ -227,7 +222,7 @@ class CallChainTool(object):
         @param {bool} is_print_back=False - 是否打印返回值信息，直接调用返回值的__str__方法
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} is_standard_def=False - 所修饰是否标准定义格式
             注：标准定义格式指入参固定为 func(*args, **kwargs)，这样修饰函数处理过程中无需判断入参格式，提升处理效率
 
@@ -322,15 +317,7 @@ class CallChainTool(object):
 
                     # 打印调用信息
                     _log_str = '[TRACE:%s]%s' % (_trace_item, str(_log_obj))
-                    # 日志函数处理, 简化处理代码
-                    _log_fun = {
-                        EnumLogLevel.INFO: _logger.info,
-                        EnumLogLevel.DEBUG: _logger.debug,
-                        EnumLogLevel.WARNING: _logger.warning,
-                        EnumLogLevel.ERROR: _logger.error,
-                        EnumLogLevel.CRITICAL: _logger.critical
-                    }
-                    _log_fun[log_level](_log_str)
+                    _logger.log(log_level, _log_str)
 
                     # 执行函数，把trace_id和trace_level放入参数中
                     kwargs['trace_id'] = _trace_id
@@ -345,7 +332,7 @@ class CallChainTool(object):
                         _use = (_end_time - _start_time).total_seconds()
                         _log_str = '[TRACE:%s][USE:%ss][EX:%s]%s' % (
                             _trace_item, str(_use), str(type(e)), traceback.format_exc())
-                        _log_fun[log_level](_log_str)
+                        _logger.log(log_level, _log_str)
                         raise e
 
                     # 执行完成
@@ -360,7 +347,7 @@ class CallChainTool(object):
                         _log_back = str(_log_obj)
                     # 打印调用信息
                     _log_str = '[TRACE:%s][USE:%ss]%s' % (_trace_item, str(_use), _log_back)
-                    _log_fun[log_level](_log_str)
+                    _logger.log(log_level, _log_str)
                     return _back
             return wrapper2
         return wrapper1
@@ -373,7 +360,7 @@ class CallChainTool(object):
                                use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
                                is_print_msg=False, msg_print_kwargs=dict(),
                                key_para=dict(), print_in_para=dict(),
-                               is_use_global_logger=True, log_level=EnumLogLevel.INFO):
+                               is_use_global_logger=True, log_level=logging.INFO):
         """
         记录api接口调用联日志信息
 
@@ -437,7 +424,7 @@ class CallChainTool(object):
                 value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
 
         """
         # 处理日志对象
@@ -509,15 +496,8 @@ class CallChainTool(object):
             if is_print_msg and msg is not None:
                 _log_str = _log_str + '\r\n' + msg.to_str(**msg_print_kwargs)
 
-        # 打印日志，日志函数处理, 简化处理代码
-        _log_fun = {
-            EnumLogLevel.INFO: _logger.info,
-            EnumLogLevel.DEBUG: _logger.debug,
-            EnumLogLevel.WARNING: _logger.warning,
-            EnumLogLevel.ERROR: _logger.error,
-            EnumLogLevel.CRITICAL: _logger.critical
-        }
-        _log_fun[log_level](_log_str)
+        # 打印日志
+        _logger.log(log_level, _log_str)
 
     @staticmethod
     def api_call_chain_logging_nowait(log_queue, msg=None, proto_msg=None, api_mapping=dict(),
@@ -527,7 +507,7 @@ class CallChainTool(object):
                                       use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
                                       is_print_msg=False, msg_print_kwargs=dict(),
                                       key_para=dict(), print_in_para=dict(),
-                                      log_level=EnumLogLevel.INFO):
+                                      log_level=logging.INFO):
         """
         记录api接口调用联日志信息-异步模式，把信息放入队列处理，快速返回结果
 
@@ -582,7 +562,7 @@ class CallChainTool(object):
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
                 value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
                 value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
 
         """
         # 将传入的信息转换为一个大dict，推入队列中（需注意要转换为基础类型）

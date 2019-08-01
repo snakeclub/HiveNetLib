@@ -121,7 +121,7 @@ server.stop_server()
             logger=self._logger,
             self_log_msg='[%s][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('service run error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass
@@ -155,7 +155,7 @@ server.stop_server()
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service predeal error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass
@@ -184,7 +184,7 @@ server.stop_server()
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service end fun error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             pass
@@ -205,7 +205,7 @@ server.stop_server()
             其中server_status为服务器状态EnumServerRunStatus，
             result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
         @param {string} self_tag='' - 自定义标识
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过:
+        @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过:
             多日志可以设置为DEBUG
         @param {string} server_log_prefix='SER' - 服务日志记录前缀，记录日志使用，例如[SER-STARTING]...
         @param {string} server_name='Service' - 服务名，记录日志使用

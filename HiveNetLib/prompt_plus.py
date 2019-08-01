@@ -863,7 +863,6 @@ class PromptPlus(object):
 
     _prompt_instance = None  # 命令输入处理对象（prompt_toolkit.shortcuts.Prompt类）
     _message = 'CMD>'  # 命令行提示符内容
-    _default = ''  # 人机交互输入的默认值，直接显示在界面上，可以进行修改后回车输入
     # 默认输入参数值，定义了一些必须有默认取值的参数，用于创建_prompt_init_para并合并实际的调用参数
     _prompt_default_para = {
         'cmd_para': dict(),
@@ -966,9 +965,9 @@ class PromptPlus(object):
         # 实例化输入类
         if self._prompt_instance is not None:
             del self._prompt_instance  # 先清除原来的对象
+        # prompt-toolkit似乎取消了default参数的支持, default=self._default'
         _init_str = ('self._prompt_instance = PromptSession('
-                     'message=self._get_color_message(self._message)'
-                     ', default=self._default')
+                     'message=self._get_color_message(self._message)')
         for _para_name in self._prompt_init_para.keys():
             if _para_name in self._prompt_para_name_list:
                 _init_str = '%s, %s=self._prompt_init_para[\'%s\']' % (
@@ -1152,7 +1151,7 @@ class PromptPlus(object):
             _exit_code = '00000'
             _message = self._message
             try:
-                _cmd_str = await self._prompt_instance.prompt(message=_message, async_=True)
+                _cmd_str = await self._prompt_instance.prompt(message=_message, default=self._default, async_=True)
             except KeyboardInterrupt:
                 # 用户取消输入
                 # 执行on_abort函数
@@ -1171,7 +1170,7 @@ class PromptPlus(object):
                 else:
                     self._prompt_init_para['logger'].info(_print_str)
 
-            if _exit_code == '10002':
+            if _exit_code == '10101':
                 # 退出获取命令处理
                 return
 
@@ -1219,7 +1218,7 @@ class PromptPlus(object):
         PromptPlus的构造函数
 
         @param {string} message='CMD>' - 命令行提示符内容
-        @param {string} default='' - 人机交互输入的默认值，直接显示在界面上，可以进行修改后回车输入
+        @param {string} default='' - string 交互输入的默认值，直接显示在界面上，可以进行修改后回车输入
         @param {kwargs} kwargs - 扩展参数，分为两部分，第一部分为类自行封装的扩展参数，
             第二部分为python-prompt-toolki的原生prompt参数(自行到到官网查找)
             第一部分扩展参数说明如下：
@@ -1335,10 +1334,11 @@ class PromptPlus(object):
         if not is_async:
             # 非异步模式，按部就班完成处理
             while True:
-                _result = self.prompt_once()
-                if _result.code == 2:
+                _result = self.prompt_once(default=self._default)
+                if _result.code == '10101':
                     # 退出获取命令处理
                     return
+
                 # 间隔一会，继续下一个处理
                 time.sleep(0.1)
         else:

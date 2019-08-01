@@ -30,12 +30,13 @@ import json
 import traceback
 import datetime
 import threading
+import logging
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 import HiveNetLib.simple_grpc.msg_pb2_grpc as msg_pb2_grpc
-from HiveNetLib.simple_grpc.grpc_tools import EnumCallMode, SimpleGRpcTools
-from HiveNetLib.simple_log import EnumLogLevel
+import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2
+from HiveNetLib.simple_grpc.grpc_tool import EnumCallMode, SimpleGRpcTools
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.simple_server_fw import SimpleServerFW
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
@@ -88,8 +89,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'S-IP': '',
+                    'S-PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'PARA_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -101,8 +104,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'RETURN_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -116,8 +119,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'S-IP': '',
+                    'S-PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'PARA_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -129,8 +134,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'RETURN_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -144,8 +149,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'S-IP': '',
+                    'S-PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'PARA_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -157,8 +164,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'RETURN_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -172,8 +179,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'S-IP': '',
+                    'S-PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'PARA_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -185,8 +194,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 'msg_class': MsgJSON,
                 'api_mapping': {},
                 'logging_head': {
-                    'IP': '',
-                    'PORT': '',
+                    'C-IP': '',
+                    'C-PORT': '',
                     'RETURN_BYTES_LEN': '',
                 },
                 'is_print_msg': True,
@@ -268,8 +277,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 key {string} - 日志头信息项名，例如'IP'
                 value {string} - 日志头信息值，None代表从报文对象msg或proto_msg中获取(从api_mapping获取定义)
                 跟当前服务相关的可选信息项包括：
-                IP : 客端的IP地址
-                PORT : 客户端的访问端口
+                C-IP : 客户端的IP地址
+                C-PORT : 客户端的连接端口
+                S-IP : 服务端绑定服务
+                S-PORT : 服务端监听端口
                 SERVICE_NAME : 访问的服务名
                 PARA_BYTES : 转换为字符串显示的参数字节数组信息
                 PARA_BYTES_LEN : 字节数组长度
@@ -506,11 +517,11 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 if _resp_logging_para['msg_class'] is not None:
                     _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
                 _api_info_type = 'RET'
-                _log_level = EnumLogLevel.INFO
+                _log_level = logging.INFO
                 if _call_result.code == '21008':
                     # 异常的情况
                     _api_info_type = 'EX'
-                    _log_level = EnumLogLevel.ERROR
+                    _log_level = logging.ERROR
                 CallChainTool.api_call_chain_logging(
                     msg=_msg, proto_msg=None, logger=self._logger,
                     api_mapping=_resp_logging_para['api_mapping'],
@@ -653,11 +664,11 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     if _resp_logging_para['msg_class'] is not None:
                         _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
                     _api_info_type = 'STREAM-RET'
-                    _log_level = EnumLogLevel.INFO
+                    _log_level = logging.INFO
                     if _call_result.code == '21008':
                         # 异常的情况
                         _api_info_type = 'EX'
-                        _log_level = EnumLogLevel.ERROR
+                        _log_level = logging.ERROR
                     elif _has_next:
                         # 还有下一个报文
                         _api_info_type = 'STREAM-DEAL'
@@ -801,7 +812,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                         key_para=_resp_logging_para['key_para'],
                         print_in_para=_resp_logging_para['print_in_para'],
                         use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                        log_level=EnumLogLevel.ERROR
+                        log_level=logging.ERROR
                     )
                 # 返回处理结果
                 yield _return_obj
@@ -847,7 +858,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                             key_para=_resp_logging_para['key_para'],
                             print_in_para=_resp_logging_para['print_in_para'],
                             use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                            log_level=EnumLogLevel.INFO
+                            log_level=logging.INFO
                         )
                     # 返回结果
                     yield _return_obj
@@ -986,7 +997,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                             key_para=_resp_logging_para['key_para'],
                             print_in_para=_resp_logging_para['print_in_para'],
                             use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                            log_level=EnumLogLevel.ERROR
+                            log_level=logging.ERROR
                         )
                     # 返回处理结果
                     yield _return_obj
@@ -1048,7 +1059,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                                 key_para=_resp_logging_para['key_para'],
                                 print_in_para=_resp_logging_para['print_in_para'],
                                 use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                                log_level=EnumLogLevel.INFO
+                                log_level=logging.INFO
                             )
                         # 返回结果
                         if _fun_obj is not None:
@@ -1071,6 +1082,19 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
         finally:
             # 正在处理报文计数-1
             self._dealing_num_addon(-1)
+
+    def GRpcCallHealthCheck(self, request, context):
+        """
+        自定义的健康检查服务
+
+        @param {msg_pb2.HealthRequest} request - 请求对象，与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {msg_pb2.HealthResponse} - 返回调用结果信息
+        """
+        return msg_pb2.HealthResponse(status=msg_pb2.HealthResponse.SERVING)
 
     #############################
     # 内部函数
@@ -1155,10 +1179,14 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _deal_obj = response
 
         for _key in _logging_head.keys():
-            if _key == 'IP':
+            if _key == 'C-IP':
                 _logging_head[_key] = str(context.peer()).split(':')[1]
-            elif _key == 'PORT':
+            elif _key == 'C-PORT':
                 _logging_head[_key] = str(context.peer()).split(':')[2]
+            elif _key == 'S-IP':
+                _logging_head[_key] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[0]
+            elif _key == 'S-PORT':
+                _logging_head[_key] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[1]
             elif _key == 'SERVICE_NAME':
                 _logging_head[_key] = request.service_name
             elif response is None:
@@ -1181,7 +1209,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                         _logging_head[_key] = str(len(_deal_obj.return_bytes))
 
         # 返回结果
-        logging_para['logging_para'] = _logging_head
+        logging_para['logging_head'] = _logging_head
 
     def _get_call_para_str(self, request, context, fun_object, paras, paras_var_name, trace_info_var_name, has_next_stream_data=None):
         """
@@ -1293,12 +1321,63 @@ class SimpleGRpcServer(SimpleServerFW):
     #############################
     # 静态函数
     #############################
+    @staticmethod
+    def generate_server_opts(
+        ip='', port=50051, max_workers=1, max_connect=20,
+        is_health_check=False, auto_service_when_started=True,
+        is_use_ssl=False, private_key_certificate_chain_pairs=None, root_certificates=None,
+        options=None, compression=None,
+        handlers=None, interceptors=None
+    ):
+        """
+        生成服务启动参数
+
+        @param {string} ip='' - 监听的服务器ip
+        @param {int} port=50051 - 监听的服务端口
+        @param {int} max_workers=1 - 最大工作处理线程数
+        @param {int} max_connect=20 - 允许最大连接数
+        @param {bool} is_health_check=False - 是否启用健康检查服务
+        @param {bool} auto_service_when_started=True - 是否启动后自动向外服务（健康检查为服务中状态）
+        @param {bool} is_use_ssl=False - 是否使用SSL/TLS
+        @param {list} private_key_certificate_chain_pairs=None - 证书私钥及证书链组合列表，使用SSL时必填
+            ((private_key, certificate_chain),)  :  [PEM-encoded private key, PEM-encoded certificate chain]
+             with open('server.pem', 'rb') as f:
+                private_key = f.read()  # 服务器端的私钥文件
+            with open('server.crt', 'rb') as f:
+                certificate_chain = f.read()  # 服务器端的公钥证书文件
+        @param {list} root_certificates=None - 客户端反向认证时（验证客户端证书）的客户端根证书，即客户端的公钥证书文件
+            with open('ca.crt', 'rb') as f:
+                root_certificates = f.read()
+        @param {type?} options=None - An optional list of key-value pairs (channel args in gRPC runtime) to configure the channel
+        @param {type?} compression=None - An element of grpc.compression, e.g. grpc.compression.Gzip. This compression algorithm will be used for the lifetime of the server unless overridden
+        @param {type?} handlers=None - An optional list of GenericRpcHandlers used for executing RPCs. More handlers may be added by calling add_generic_rpc_handlers any time before the server is started
+        @param {type?} interceptors=None - An optional list of ServerInterceptor objects that observe and optionally manipulate the incoming RPCs before handing them over to handlers. The interceptors are given control in the order they are specified
+
+        @returns {object} - 返回带参数属性的对象，例如对象为ret：
+           ret.ip = ''
+           ...
+        """
+        _server_opts = NullObj()
+        _server_opts.ip = ip  # 主机名或IP地址
+        _server_opts.port = port  # 监听端口
+        _server_opts.max_workers = max_workers  # 最大工作处理线程数
+        _server_opts.max_connect = max_connect
+        _server_opts.is_health_check = is_health_check
+        _server_opts.auto_service_when_started = auto_service_when_started
+        _server_opts.is_use_ssl = is_use_ssl  # 是否使用SSL/TLS
+        _server_opts.private_key_certificate_chain_pairs = private_key_certificate_chain_pairs
+        _server_opts.root_certificates = root_certificates
+        _server_opts.options = options
+        _server_opts.compression = compression
+        _server_opts.handlers = handlers
+        _server_opts.interceptors = interceptors
+        return _server_opts
 
     #############################
     # 公共函数
     #############################
     def __init__(self, logger=None, server_status_info_fun=None, self_tag='',
-                 log_level=EnumLogLevel.INFO, server_name='SimpleGRpcService',
+                 log_level=logging.INFO, server_name='SimpleGRpcService',
                  is_auto_load_i18n=True, trans_file_path='', trans_file_prefix='',
                  trans_file_encoding='utf-8'):
         """
@@ -1312,7 +1391,7 @@ class SimpleGRpcServer(SimpleServerFW):
             其中server_status为服务器状态EnumServerRunStatus，
             result为CResult通用执行结果对象，自定义属性self_tag为发起方识别标识
         @param {string} self_tag='' - 自定义标识
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出
+        @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出
             过多日志可以设置为DEBUG
         @param {string} server_name='NetService' - 服务名，记录日志使用
         @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
@@ -1433,7 +1512,7 @@ class SimpleGRpcServer(SimpleServerFW):
             self_log_msg='[%s-STARTING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name,
                 _('start service error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 初始化临时变量
             self._server_opts = self._temp_server_opts
@@ -1511,7 +1590,7 @@ class SimpleGRpcServer(SimpleServerFW):
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service predeal error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 停止前先将服务状态值为不可用，让其他服务不再访问
             self.set_service_status('', health_pb2.HealthCheckResponse.NOT_SERVING)
@@ -1540,7 +1619,7 @@ class SimpleGRpcServer(SimpleServerFW):
             logger=self._logger,
             self_log_msg='[%s-STOPING][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('stop service end fun error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 停止服务
             self._grpc_server.stop(0)

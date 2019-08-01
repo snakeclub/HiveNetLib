@@ -20,10 +20,40 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='simpleGRpc',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\tmsg.proto\x12\nsimpleGRpc\"\x9b\x01\n\nRpcRequest\x12\x10\n\x08trace_id\x18\x01 \x01(\t\x12\x11\n\tparent_id\x18\x03 \x01(\t\x12\x13\n\x0btrace_level\x18\x04 \x01(\x05\x12\x14\n\x0cservice_name\x18\x05 \x01(\t\x12\x11\n\tpara_json\x18\x06 \x01(\t\x12\x16\n\x0ehas_para_bytes\x18\x07 \x01(\x08\x12\x12\n\npara_bytes\x18\x08 \x01(\x0c\"\xa2\x01\n\x0bRpcResponse\x12\x13\n\x0breturn_json\x18\x01 \x01(\t\x12\x18\n\x10has_return_bytes\x18\x02 \x01(\x08\x12\x14\n\x0creturn_bytes\x18\x03 \x01(\x0c\x12\x11\n\tcall_code\x18\x04 \x01(\t\x12\x10\n\x08\x63\x61ll_msg\x18\x05 \x01(\t\x12\x12\n\ncall_error\x18\x06 \x01(\t\x12\x15\n\rcall_msg_para\x18\x07 \x01(\t2\xd0\x02\n\x11SimpleGRpcService\x12\x43\n\x0eGRpcCallSimple\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00\x12O\n\x18GRpcCallClientSideStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00(\x01\x12O\n\x18GRpcCallServerSideStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00\x30\x01\x12T\n\x1bGRpcCallBidirectionalStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00(\x01\x30\x01\x62\x06proto3')
+  serialized_pb=_b('\n\tmsg.proto\x12\nsimpleGRpc\"\x9b\x01\n\nRpcRequest\x12\x10\n\x08trace_id\x18\x01 \x01(\t\x12\x11\n\tparent_id\x18\x03 \x01(\t\x12\x13\n\x0btrace_level\x18\x04 \x01(\x05\x12\x14\n\x0cservice_name\x18\x05 \x01(\t\x12\x11\n\tpara_json\x18\x06 \x01(\t\x12\x16\n\x0ehas_para_bytes\x18\x07 \x01(\x08\x12\x12\n\npara_bytes\x18\x08 \x01(\x0c\"\xa2\x01\n\x0bRpcResponse\x12\x13\n\x0breturn_json\x18\x01 \x01(\t\x12\x18\n\x10has_return_bytes\x18\x02 \x01(\x08\x12\x14\n\x0creturn_bytes\x18\x03 \x01(\x0c\x12\x11\n\tcall_code\x18\x04 \x01(\t\x12\x10\n\x08\x63\x61ll_msg\x18\x05 \x01(\t\x12\x12\n\ncall_error\x18\x06 \x01(\t\x12\x15\n\rcall_msg_para\x18\x07 \x01(\t\" \n\rHealthRequest\x12\x0f\n\x07service\x18\x01 \x01(\t\"\x9b\x01\n\x0eHealthResponse\x12\x38\n\x06status\x18\x01 \x01(\x0e\x32(.simpleGRpc.HealthResponse.ServingStatus\"O\n\rServingStatus\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07SERVING\x10\x01\x12\x0f\n\x0bNOT_SERVING\x10\x02\x12\x13\n\x0fSERVICE_UNKNOWN\x10\x03\x32\xa0\x03\n\x11SimpleGRpcService\x12\x43\n\x0eGRpcCallSimple\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00\x12O\n\x18GRpcCallClientSideStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00(\x01\x12O\n\x18GRpcCallServerSideStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00\x30\x01\x12T\n\x1bGRpcCallBidirectionalStream\x12\x16.simpleGRpc.RpcRequest\x1a\x17.simpleGRpc.RpcResponse\"\x00(\x01\x30\x01\x12N\n\x13GRpcCallHealthCheck\x12\x19.simpleGRpc.HealthRequest\x1a\x1a.simpleGRpc.HealthResponse\"\x00\x62\x06proto3')
 )
 
 
+
+_HEALTHRESPONSE_SERVINGSTATUS = _descriptor.EnumDescriptor(
+  name='ServingStatus',
+  full_name='simpleGRpc.HealthResponse.ServingStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='UNKNOWN', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='SERVING', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='NOT_SERVING', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='SERVICE_UNKNOWN', index=3, number=3,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=459,
+  serialized_end=538,
+)
+_sym_db.RegisterEnumDescriptor(_HEALTHRESPONSE_SERVINGSTATUS)
 
 
 _RPCREQUEST = _descriptor.Descriptor(
@@ -171,8 +201,75 @@ _RPCRESPONSE = _descriptor.Descriptor(
   serialized_end=346,
 )
 
+
+_HEALTHREQUEST = _descriptor.Descriptor(
+  name='HealthRequest',
+  full_name='simpleGRpc.HealthRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='service', full_name='simpleGRpc.HealthRequest.service', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=348,
+  serialized_end=380,
+)
+
+
+_HEALTHRESPONSE = _descriptor.Descriptor(
+  name='HealthResponse',
+  full_name='simpleGRpc.HealthResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='status', full_name='simpleGRpc.HealthResponse.status', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _HEALTHRESPONSE_SERVINGSTATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=383,
+  serialized_end=538,
+)
+
+_HEALTHRESPONSE.fields_by_name['status'].enum_type = _HEALTHRESPONSE_SERVINGSTATUS
+_HEALTHRESPONSE_SERVINGSTATUS.containing_type = _HEALTHRESPONSE
 DESCRIPTOR.message_types_by_name['RpcRequest'] = _RPCREQUEST
 DESCRIPTOR.message_types_by_name['RpcResponse'] = _RPCRESPONSE
+DESCRIPTOR.message_types_by_name['HealthRequest'] = _HEALTHREQUEST
+DESCRIPTOR.message_types_by_name['HealthResponse'] = _HEALTHRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 RpcRequest = _reflection.GeneratedProtocolMessageType('RpcRequest', (_message.Message,), dict(
@@ -189,6 +286,20 @@ RpcResponse = _reflection.GeneratedProtocolMessageType('RpcResponse', (_message.
   ))
 _sym_db.RegisterMessage(RpcResponse)
 
+HealthRequest = _reflection.GeneratedProtocolMessageType('HealthRequest', (_message.Message,), dict(
+  DESCRIPTOR = _HEALTHREQUEST,
+  __module__ = 'msg_pb2'
+  # @@protoc_insertion_point(class_scope:simpleGRpc.HealthRequest)
+  ))
+_sym_db.RegisterMessage(HealthRequest)
+
+HealthResponse = _reflection.GeneratedProtocolMessageType('HealthResponse', (_message.Message,), dict(
+  DESCRIPTOR = _HEALTHRESPONSE,
+  __module__ = 'msg_pb2'
+  # @@protoc_insertion_point(class_scope:simpleGRpc.HealthResponse)
+  ))
+_sym_db.RegisterMessage(HealthResponse)
+
 
 
 _SIMPLEGRPCSERVICE = _descriptor.ServiceDescriptor(
@@ -197,8 +308,8 @@ _SIMPLEGRPCSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=349,
-  serialized_end=685,
+  serialized_start=541,
+  serialized_end=957,
   methods=[
   _descriptor.MethodDescriptor(
     name='GRpcCallSimple',
@@ -234,6 +345,15 @@ _SIMPLEGRPCSERVICE = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_RPCREQUEST,
     output_type=_RPCRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='GRpcCallHealthCheck',
+    full_name='simpleGRpc.SimpleGRpcService.GRpcCallHealthCheck',
+    index=4,
+    containing_service=None,
+    input_type=_HEALTHREQUEST,
+    output_type=_HEALTHRESPONSE,
     serialized_options=None,
   ),
 ])

@@ -4,16 +4,16 @@
 import os
 import sys
 import time
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
-from HiveNetLib.simple_log import EnumLoggerName, Logger, EnumLoggerConfigType
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.prompt_plus import PromptPlus
 
 
 #############################
 # 通用的logger
 #############################
-_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console.value,
-                 config_type=EnumLoggerConfigType.JSON_STR)
+_logger = simple_log.Logger()
 
 #############################
 # 处理函数的定义
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     #############################
     prompt1 = PromptPlus(
         message='请输入>',
-        default='help',  # 默认输入值
+        default='help',
         cmd_para=test_cmd_para,  # 命令定义参数
         default_dealfun=default_cmd_dealfun,  # 默认处理函数
         on_abort=on_abort,  # Ctrl + C 取消本次输入执行函数
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     while True:
         prompt1_result = prompt1.prompt_once(default='help')
         print('prompt1_result: %s', prompt1_result.msg)
-        if prompt1_result.code == '10002':
+        if prompt1_result.code == '10101':
             break
     # 结束提示循环
     print('prompt1 stop！')

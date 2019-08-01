@@ -83,7 +83,7 @@ resume - 恢复并行池任务处理
             2、自定义的日志类对象，但应实现info、warning、error等标准方法
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
             注：对于多进程及分布式并发任务，应采取该日志模式
         @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -98,15 +98,8 @@ resume - 恢复并行池任务处理
                     'pname' - 并发任务名
                     'pocess_id' - 进程ID
                     'thread_id' - 线程ID - 暂不支持
-        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-            注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-                log_fun = {
-                    EnumLogLevel.INFO: self._logger.info,
-                    EnumLogLevel.DEBUG: self._logger.debug,
-                    EnumLogLevel.WARNING: self._logger.warning,
-                    EnumLogLevel.ERROR: self._logger.error,
-                    EnumLogLevel.CRITICAL: self._logger.critical
-                }
+        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger到deal_fun中
+            注意：传递通过kwargs，参数名为logger
 ```
 
 该框架的几个特性说明如下：
@@ -121,15 +114,15 @@ resume - 恢复并行池任务处理
 
 ```
 # 定义主进程使用的logger
-_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console.value,
-                 config_type=EnumLoggerConfigType.JSON_STR)
+_logger = simple_log.Logger(conf_file_name=None, logger_name=simple_log.EnumLoggerName.Console,
+                 config_type=simple_log.EnumLoggerConfigType.JSON_STR)
 
 
 # 定义并发任务的logger创建参数
 _logger_kwargs = {
     'conf_file_name': None,
-    'logger_name': EnumLoggerName.Console.value,
-    'config_type': EnumLoggerConfigType.JSON_STR
+    'logger_name': simple_log.EnumLoggerName.Console,
+    'config_type': simple_log.EnumLoggerConfigType.JSON_STR
 }
 
 # 定义并发任务处理函数
@@ -199,7 +192,7 @@ _t1.force_stop()
             2、自定义的日志类对象，但应实现info、warning、error等标准方法
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
             注：通过RunTool.set_global_logger进行设置
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 打印日志的级别
+        @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} use_distributed_logger=False - 是否使用分布式logger，如果是，则每个分布任务自行创建独立logger记录日志
             注：对于多进程及分布式并发任务，应采取该日志模式
         @param {string} distributed_logger_module_name='' - 分布式日志类模块名
@@ -214,15 +207,8 @@ _t1.force_stop()
                     'pname' - 并发任务名
                     'pocess_id' - 进程ID
                     'thread_id' - 线程ID
-        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger的log_fun到deal_fun中
-            注意：传递通过kwargs，参数名为log_fun，传递的是log_fun（dict），不是logger本身，格式如下：
-                log_fun = {
-                    EnumLogLevel.INFO: self._logger.info,
-                    EnumLogLevel.DEBUG: self._logger.debug,
-                    EnumLogLevel.WARNING: self._logger.warning,
-                    EnumLogLevel.ERROR: self._logger.error,
-                    EnumLogLevel.CRITICAL: self._logger.critical
-                }
+        @param {bool} is_logger_to_deal_fun=False - 是否传递并发任务logger到deal_fun中
+            注意：传递通过kwargs，参数名为logger
         @param {bool} auto_start=False - 是否自动启动并发池
         @param {bool} auto_stop=False - 是否自动关闭并发池（当任务都已全部完成处理）
         @param {QueueFw} task_queue=None - 并发池需要处理的任务队列

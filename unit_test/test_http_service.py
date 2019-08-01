@@ -14,8 +14,7 @@ import unittest
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.net_service.http_service import HttpService
-from HiveNetLib.simple_log import Logger, EnumLoggerName
-from HiveNetLib.simple_log import EnumLogLevel
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.debug_tool import DebugTool
@@ -33,29 +32,25 @@ class TestHttpService(unittest.TestCase):
 
     # 服务端处理函数定义
     def server_status_info_fun(self, server_status, result):
-        self.logger.write_log(
-            (
-                "[服务端]" + result.self_tag + "服务状态变更：" +
-                str(server_status) +
-                "   结果code：" +
-                str(result.code) +
-                "  描述：" +
-                result.msg
-            ),
-            "INFO"
+        self.logger.log(
+            simple_log.INFO,
+            "[服务端]" + result.self_tag + "服务状态变更：" +
+            str(server_status) +
+            "   结果code：" +
+            str(result.code) +
+            "  描述：" +
+            result.msg
         )
         return
 
     # 报文处理函数
     def server_http_deal_fun(self, net_info, proto_msg, msg):
-        self.logger.write_log(
-            (
-                "[服务端][处理函数]收到服务请求报文，http报文头: \n%s\n报文体:\n%s\n" % (
-                    proto_msg.to_str(),
-                    str(msg, "utf-8")
-                )
-            ),
-            "INFO"
+        self.logger.log(
+            simple_log.INFO,
+            "[服务端][处理函数]收到服务请求报文，http报文头: \n%s\n报文体:\n%s\n" % (
+                proto_msg.to_str(),
+                str(msg, "utf-8")
+            )
         )
         # 组织一个异常的返回报文
         _rproto_msg = MsgHTTP('%s 3xx Internal Server Error' % ('HTTP/1.1'),
@@ -74,22 +69,21 @@ class TestHttpService(unittest.TestCase):
         except:
             pass
 
-        self.logger = Logger(
+        self.logger = simple_log.Logger(
             conf_file_name=_TEMP_DIR + '/../../tcp_ip_service/test_http_service.json',
-            logger_name=EnumLoggerName.ConsoleAndFile.value,
+            logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
+            config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
             logfile_path=_TEMP_DIR + '/log/test_case.log',
-            is_create_logfile_by_day=True,
-            is_print_file_name=True,
-            is_print_fun_name=True
+            is_create_logfile_by_day=True
         )
-        self.logger.set_logger_level(EnumLogLevel.DEBUG)
+        self.logger.setLevelWithHandler(simple_log.DEBUG)
 
         # 启动服务
         self.server = HttpService(
             logger=self.logger,
             server_status_info_fun=self.server_status_info_fun,
             self_tag='UnitTest',
-            log_level=EnumLogLevel.INFO,
+            log_level=simple_log.INFO,
             server_http_deal_fun=self.server_http_deal_fun
         )
         _server_opts = HttpService.generate_server_opts()
@@ -126,12 +120,10 @@ class TestHttpService(unittest.TestCase):
                          + '\n'.join(['%s:%s' % item for item in _connect_result.__dict__.items()])))
 
         # 打印连接信息
-        self.logger.write_log(
-            (
-                "[客户端]连接信息：" +
-                '\n'.join(['%s:%s' % item for item in _connect_result.net_info.__dict__.items()])
-            ),
-            "INFO"
+        self.logger.log(
+            simple_log.INFO,
+            "[客户端]连接信息：" +
+            '\n'.join(['%s:%s' % item for item in _connect_result.net_info.__dict__.items()])
         )
 
         # 发送数据

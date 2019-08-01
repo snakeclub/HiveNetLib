@@ -21,11 +21,11 @@ import copy
 import time
 import datetime
 import threading
+import logging
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.simple_server_fw import EnumServerRunStatus, SimpleServerFW
 from HiveNetLib.simple_i18n import _, SimpleI18N, get_global_i18n, init_global_i18n
@@ -62,7 +62,7 @@ class NetServiceFW(SimpleServerFW):
             self_tag - 用于发起端传入自身的识别标识
         需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
     @param {string} self_tag='' - 自定义标识
-    @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+    @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
     @param {string} server_name='NetService' - 服务名，记录日志使用
     @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
 
@@ -196,7 +196,7 @@ class NetServiceFW(SimpleServerFW):
             logger=self._logger,
             self_log_msg='[%s][NAME:%s]%s: ' % (self._server_log_prefix, self._server_name, _(
                 'net service connect deal threading error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             self.__server_connect_deal_fun(thread_id, server_opts, net_info, self.self_tag)
         # 结束处理
@@ -225,7 +225,7 @@ class NetServiceFW(SimpleServerFW):
     #############################
 
     def __init__(self, logger=None, server_status_info_fun=None, server_connect_deal_fun=None, self_tag='',
-                 log_level=EnumLogLevel.INFO, server_name='NetService',
+                 log_level=logging.INFO, server_name='NetService',
                  is_auto_load_i18n=True, trans_file_path='', trans_file_prefix='', trans_file_encoding='utf-8'):
         """
         构造函数
@@ -246,7 +246,7 @@ class NetServiceFW(SimpleServerFW):
                 self_tag - 用于发起端传入自身的识别标识
             需注意实现上应在每次循环时查询服务器关闭状态，如果判断到服务器已关闭，应结束处理.
         @param {string} self_tag='' - 自定义标识
-        @param {EnumLogLevel} log_level=EnumLogLevel.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
+        @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出过多日志可以设置为DEBUG
         @param {string} server_name='NetService' - 服务名，记录日志使用
         @param {bool} is_auto_load_i18n=True - 是否自动加载i18n字典，如果继承类有自己的字典，可以重载__init__函数实现装载
         @param {string} trans_file_path='' - 要加载的i18n字典文件路径，如果填空代表程序运行的当前路径
@@ -302,7 +302,9 @@ class NetServiceFW(SimpleServerFW):
         _result.server_info = NullObj()
         with ExceptionTool.ignored_cresult(_result):
             # 可在该部分实现自定义逻辑
-            self._logger_fun[self._log_level]('[%s-STARTING][NAME:%s]%s:\n%s' % (
+            self._logger.log(
+                self._log_level,
+                '[%s-STARTING][NAME:%s]%s:\n%s' % (
                 self._server_log_prefix,
                 self._server_name,
                 _('net start parameter'),
@@ -368,7 +370,7 @@ class NetServiceFW(SimpleServerFW):
             logger=self._logger,
             self_log_msg='[%s][NAME:%s]%s: ' % (
                 self._server_log_prefix, self._server_name, _('service run error')),
-            force_log_level=EnumLogLevel.ERROR
+            force_log_level=logging.ERROR
         ):
             # 可在该部分实现自定义逻辑
             # 监听下一个连接请求
@@ -387,7 +389,8 @@ class NetServiceFW(SimpleServerFW):
                 _new_thread.start()
             elif _accept_result.code != '20407':
                 # 不是超时的其他获取错误，打印信息
-                self._logger_fun[EnumLogLevel.ERROR](
+                self._logger.log(
+                    logging.ERROR,
                     "[%s][NAME:%s][EX:%s]%s: %s\n%s" % (
                         self._server_log_prefix,
                         self._server_name, str(type(_accept_result.error)),

@@ -19,11 +19,11 @@ import os
 import sys
 import copy
 import traceback
+import logging
 from contextlib import contextmanager
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-from HiveNetLib.simple_log import EnumLogLevel
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.run_tool import RunTool
 
@@ -56,7 +56,7 @@ class ExceptionTool(object):
             1、标准logging的logger对象
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
-        @param {EnumLogLevel} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出
+        @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
 
         @example
             with ignored((ZeroDivisionError, ValueError), logger, '执行XX出现异常'):
@@ -68,7 +68,7 @@ class ExceptionTool(object):
             yield
         except expect as ex:
             # 匹配到指定异常，输出日志
-            _log_level = EnumLogLevel.WARNING
+            _log_level = logging.WARNING
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), self_log_msg),
@@ -76,7 +76,7 @@ class ExceptionTool(object):
             pass
         except Exception as e:
             # 其他异常，输出日志并抛出异常
-            _log_level = EnumLogLevel.ERROR
+            _log_level = logging.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
@@ -97,7 +97,7 @@ class ExceptionTool(object):
             1、标准logging的logger对象
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
-        @param {EnumLogLevel} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出
+        @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
 
         @example
             with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'):
@@ -109,7 +109,7 @@ class ExceptionTool(object):
             yield
         except unexpect as ue:
             # 匹配到指定异常，输出日志并抛出异常
-            _log_level = EnumLogLevel.ERROR
+            _log_level = logging.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ue)), self_log_msg),
@@ -117,7 +117,7 @@ class ExceptionTool(object):
             raise sys.exc_info()[1]
         except Exception as e:
             # 其他异常，输出日志并忽略
-            _log_level = EnumLogLevel.WARNING
+            _log_level = logging.WARNING
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
@@ -148,7 +148,7 @@ class ExceptionTool(object):
             1、标准logging的logger对象
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
-        @param {EnumLogLevel} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出
+        @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
         @param {object} i18n_obj=None - 国际化类的实例对象，该对象需实现translate方法
 
         @example
@@ -175,7 +175,7 @@ class ExceptionTool(object):
         except expect as ex:
             # 匹配到指定异常，输出日志
             if not expect_no_log:
-                _log_level = EnumLogLevel.WARNING
+                _log_level = logging.WARNING
                 if force_log_level is not None:
                     _log_level = force_log_level
                 ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), self_log_msg),
@@ -204,7 +204,7 @@ class ExceptionTool(object):
                 result_obj.error = str(_error[0])
                 result_obj.trace_str = _trace_str
 
-            _log_level = EnumLogLevel.ERROR
+            _log_level = logging.ERROR
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
@@ -212,7 +212,7 @@ class ExceptionTool(object):
 
     # 内部函数定义
     @staticmethod
-    def __print_log(logger=None, self_log_msg='', trace_str='', log_level=EnumLogLevel.WARNING):
+    def __print_log(logger=None, self_log_msg='', trace_str='', log_level=logging.WARNING):
         """
         内部进行日志输出处理， 调用日志对象进行日志输出处理
 
@@ -221,7 +221,7 @@ class ExceptionTool(object):
             2、自定义的日志类对象，但应实现warning、error等的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
         @param {string} trace_str='' - 错误追踪堆栈日志，异常时的traceback.format_exc()
-        @param {EnumLogLevel} log_level=EnumLogLevel.WARNING - 需要输出的自定义日志级别
+        @param {int} log_level=logging.WARNING - 需要输出的自定义日志级别
 
         """
         if logger is not None:

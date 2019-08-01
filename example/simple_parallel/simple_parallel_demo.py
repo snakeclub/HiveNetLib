@@ -11,21 +11,21 @@ import sys
 import os
 import time
 import multiprocessing
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../..'))
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/' + '../..'))
 from HiveNetLib.simple_log import EnumLoggerName, Logger, EnumLoggerConfigType
 from HiveNetLib.simple_parallel import ThreadParallel, ProcessParallel, ProcessParallelShareDict, ProcessParallelLock, ParallelPool
 from HiveNetLib.base_tools.import_tool import ImportTool
 
 
 # 通用的logger
-_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console.value,
+_logger = Logger(conf_file_name=None, logger_name=EnumLoggerName.Console,
                  config_type=EnumLoggerConfigType.JSON_STR)
 
 
 # 通用的logger创建参数
 _logger_kwargs = {
     'conf_file_name': None,
-    'logger_name': EnumLoggerName.Console.value,
+    'logger_name': EnumLoggerName.Console,
     'config_type': EnumLoggerConfigType.JSON_STR
 }
 
@@ -223,7 +223,8 @@ def demo5():
     print('demo5 create parallel pool\n')
     _pool = ParallelPool(
         deal_fun=_deal_fun_demo5,
-        parallel_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallel'),
+        parallel_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallel'),
         run_args=(_task_queue, 'demo5-a'), run_kwargs={'p1': 'demo5-p1'},
         pname='demo5', callback_fun=demo_callback,
         logger=_logger,
@@ -233,8 +234,10 @@ def demo5():
         auto_start=False, auto_stop=True, task_queue=_task_queue, get_task_num_fun=None, get_task_num_fun_args=None,
         maxsize=10, minsize=0, worker_release_time=10, worker_overtime=0,
         force_kill_overtime_worker=False, replace_overtime_worker=False, daemon_thread_time=0.01,
-        sharedict_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelShareDict'),
-        parallel_lock_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelLock')
+        sharedict_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallelShareDict'),
+        parallel_lock_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallelLock')
     )
 
     print('demo5 start parallel pool\n')
@@ -260,7 +263,8 @@ def demo6():
     print('demo6 create parallel pool\n')
     _pool = ParallelPool(
         deal_fun=_deal_fun_demo5,
-        parallel_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallel'),
+        parallel_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallel'),
         run_args=(_task_queue, 'demo6-a'), run_kwargs={'p1': 'demo6-p1'},
         pname='demo6', callback_fun=demo_callback,
         logger=_logger,
@@ -270,8 +274,10 @@ def demo6():
         auto_start=False, auto_stop=False, task_queue=_task_queue, get_task_num_fun=None, get_task_num_fun_args=None,
         maxsize=10, minsize=5, worker_release_time=3, worker_overtime=0,
         force_kill_overtime_worker=False, replace_overtime_worker=False, daemon_thread_time=0.01,
-        sharedict_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelShareDict'),
-        parallel_lock_class=getattr(ImportTool.import_module('HiveNetLib.simple_parallel'), 'ProcessParallelLock')
+        sharedict_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallelShareDict'),
+        parallel_lock_class=getattr(ImportTool.import_module(
+            'HiveNetLib.simple_parallel'), 'ProcessParallelLock')
     )
 
     print('demo6 start parallel pool\n')
@@ -361,4 +367,3 @@ if __name__ == '__main__':
     # demo5()
     # demo6()
     demo7()
-

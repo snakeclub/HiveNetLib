@@ -20,13 +20,13 @@ from grpc_health.v1 import health_pb2
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import NullObj
-from HiveNetLib.simple_log import Logger, EnumLogLevel, EnumLoggerName
+import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.debug_tool import DebugTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_grpc.grpc_server import SimpleGRpcServer, SimpleGRpcServicer
-from HiveNetLib.simple_grpc.grpc_tools import SimpleGRpcTools, EnumCallMode
+from HiveNetLib.simple_grpc.grpc_tool import SimpleGRpcTools, EnumCallMode
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
@@ -101,13 +101,12 @@ def client_simple_call_para(a, b, *args, c=10, d={'d1': 'd1value'}, **kwargs):
     )
     # 发送请求
     _connect_para = SimpleGRpcTools.generate_connect_para(
-        ip='127.0.0.1', port=50051
+        conn_str='127.0.0.1:50051'
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_call_para',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_call_para'
     )
     return _cresult
 
@@ -134,11 +133,10 @@ def client_simple_call_no_para_no_return():
     _connect_para = SimpleGRpcTools.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_call_no_para_no_return',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_call_no_para_no_return'
     )
     return _cresult
 
@@ -168,11 +166,10 @@ def client_simple_call_return(obj):
     _connect_para = SimpleGRpcTools.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_call_return',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_call_return'
     )
     return _cresult
 
@@ -202,13 +199,24 @@ def client_simple_throw_excepiton():
     _connect_para = SimpleGRpcTools.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_throw_excepiton',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_throw_excepiton'
     )
     return _cresult
+
+
+#############################
+# 测试超时情况
+#############################
+def service_simple_overtime():
+    """
+    测试简单调用，超时
+    """
+    # 5秒后返回
+    time.sleep(5)
+    return True
 
 
 #############################
@@ -265,11 +273,10 @@ def client_simple_call_para_double_tsl(a, b, *args, c=10, d={'d1': 'd1value'}, *
         private_key=_client_private_key,
         certificate_chain=_client_certificate_chain
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_call_para',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_call_para'
     )
     return _cresult
 
@@ -292,11 +299,10 @@ def client_simple_call_para_server_tsl(a, b, *args, c=10, d={'d1': 'd1value'}, *
         ip='localhost', port=50053, is_use_ssl=True,
         root_certificates=_root_certificates
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='client_simple_call_para',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'client_simple_call_para'
     )
     return _cresult
 
@@ -348,12 +354,12 @@ def client_side_stream_call():
     _connect_para = SimpleGRpcTools.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    _resp_obj = SimpleGRpcTools.grpc_call(
-        _connect_para, client_side_stream_generator(), call_mode=EnumCallMode.ClientSideStream)
-    _cresult = SimpleGRpcTools.response_obj_to_cresult(
-        _resp_obj,
-        json_para_mapping_key='service_client_side_stream',
-        i18n_obj=None
+    _cresult = SimpleGRpcTools.grpc_call(
+        _connect_para, client_side_stream_generator(), call_mode=EnumCallMode.ClientSideStream
+    )
+    _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
+        _cresult.return_json,
+        'service_client_side_stream'
     )
     return _cresult
 
@@ -388,14 +394,9 @@ def server_side_stream_call(a, b, *args, **kwargs):
         ip='127.0.0.1', port=50051
     )
     with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _resp_iterator = SimpleGRpcTools.grpc_call_by_channel(
+        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
             channel, _req_obj, call_mode=EnumCallMode.ServerSideStream)
-        for _resp_obj in _resp_iterator:
-            _cresult = SimpleGRpcTools.response_obj_to_cresult(
-                _resp_obj,
-                json_para_mapping_key='service_server_side_stream',
-                i18n_obj=None
-            )
+        for _cresult in _cresult_iterator:
             if not _cresult.is_success():
                 return False
     return True
@@ -472,15 +473,10 @@ def server_bidirectional_stream_call_one_by_one():
     with SimpleGRpcTools.generate_channel(_connect_para) as channel:
         # # 注意队列一定要先传入一个值
         TEMP_QUEUE.put(None)
-        _resp_iterator = SimpleGRpcTools.grpc_call_by_channel(
+        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
             channel, bidirectional_stream_one_by_one_generator(),
             call_mode=EnumCallMode.BidirectionalStream)
-        for _resp_obj in _resp_iterator:
-            _cresult = SimpleGRpcTools.response_obj_to_cresult(
-                _resp_obj,
-                json_para_mapping_key='service_bidirectional_stream',
-                i18n_obj=None
-            )
+        for _cresult in _cresult_iterator:
             # 放入队列
             s = _cresult.return_json
             TEMP_QUEUE.put(s)
@@ -510,15 +506,10 @@ def server_bidirectional_stream_call_one_by_n():
         ip='127.0.0.1', port=50051
     )
     with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _resp_iterator = SimpleGRpcTools.grpc_call_by_channel(
+        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
             channel, bidirectional_stream_one_by_n_generator(),
             call_mode=EnumCallMode.BidirectionalStream)
-        for _resp_obj in _resp_iterator:
-            _cresult = SimpleGRpcTools.response_obj_to_cresult(
-                _resp_obj,
-                json_para_mapping_key='service_bidirectional_stream',
-                i18n_obj=None
-            )
+        for _cresult in _cresult_iterator:
             # 打印
             print('bidirectional_stream_one_by_n client get: ' + _cresult.return_json)
             if not _cresult.is_success():
@@ -549,15 +540,10 @@ def server_bidirectional_stream_call_n_by_one():
         ip='127.0.0.1', port=50051
     )
     with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _resp_iterator = SimpleGRpcTools.grpc_call_by_channel(
+        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
             channel, bidirectional_stream_n_by_one_generator(),
             call_mode=EnumCallMode.BidirectionalStream)
-        for _resp_obj in _resp_iterator:
-            _cresult = SimpleGRpcTools.response_obj_to_cresult(
-                _resp_obj,
-                json_para_mapping_key='service_bidirectional_stream',
-                i18n_obj=None
-            )
+        for _cresult in _cresult_iterator:
             # 打印
             print('bidirectional_stream_n_by_one client get: ' + _cresult.return_json)
             if not _cresult.is_success():
@@ -583,15 +569,14 @@ class TestSimpleGRpc(unittest.TestCase):
         except:
             pass
 
-        cls.logger = Logger(
+        cls.logger = simple_log.Logger(
             conf_file_name=_TEMP_DIR + '/../../simple_grpc/test_simple_grpc.json',
-            logger_name=EnumLoggerName.ConsoleAndFile.value,
+            logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
+            config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
             logfile_path=_TEMP_DIR + '/log/test_case.log',
             is_create_logfile_by_day=True,
-            is_print_file_name=True,
-            is_print_fun_name=True
         )
-        cls.logger.set_logger_level(EnumLogLevel.DEBUG)
+        cls.logger.setLevelWithHandler(simple_log.DEBUG)
 
         # 设置json转换对象的参数映射
 
@@ -607,6 +592,8 @@ class TestSimpleGRpc(unittest.TestCase):
         cls.servicer_simple_call.add_service(
             EnumCallMode.Simple, 'service_simple_throw_excepiton', service_simple_throw_excepiton)
         cls.servicer_simple_call.add_service(
+            EnumCallMode.Simple, 'service_simple_overtime', service_simple_overtime)
+        cls.servicer_simple_call.add_service(
             EnumCallMode.ClientSideStream, 'service_client_side_stream', service_client_side_stream)
         cls.servicer_simple_call.add_service(
             EnumCallMode.ServerSideStream, 'service_server_side_stream', service_server_side_stream)
@@ -614,7 +601,7 @@ class TestSimpleGRpc(unittest.TestCase):
             EnumCallMode.BidirectionalStream, 'service_bidirectional_stream', service_bidirectional_stream)
 
         # 初始化并启动服务，简单服务，无SSL，无服务发现
-        cls.server_no_ssl_no_zoo_opts = SimpleGRpcTools.generate_server_opts(
+        cls.server_no_ssl_no_zoo_opts = SimpleGRpcServer.generate_server_opts(
             ip='127.0.0.1',
             port=50051,
             max_workers=10,
@@ -623,7 +610,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_no_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerNoSslNoZoo',
-            logger=cls.logger, log_level=EnumLogLevel.INFO)
+            logger=cls.logger, log_level=simple_log.INFO)
 
         cls.server_no_ssl_no_zoo.start_server(
             server_opts=cls.server_no_ssl_no_zoo_opts, servicer_list={
@@ -639,7 +626,7 @@ class TestSimpleGRpc(unittest.TestCase):
             # 根证书
             _root_certificates = f.read()
 
-        cls.server_double_ssl_no_zoo_opts = SimpleGRpcTools.generate_server_opts(
+        cls.server_double_ssl_no_zoo_opts = SimpleGRpcServer.generate_server_opts(
             ip='localhost',
             port=50052,
             max_workers=10,
@@ -650,7 +637,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_double_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerDoubleSslNoZoo',
-            logger=cls.logger, log_level=EnumLogLevel.INFO)
+            logger=cls.logger, log_level=simple_log.INFO)
         cls.server_double_ssl_no_zoo.start_server(
             server_opts=cls.server_double_ssl_no_zoo_opts, servicer_list={
                 'servicer_simple_call': cls.servicer_simple_call
@@ -658,7 +645,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
 
         # 初始化并启动服务，简单服务，无服务发现，TSL单向认证模式（仅验证服务端证书）
-        cls.server_server_ssl_no_zoo_opts = SimpleGRpcTools.generate_server_opts(
+        cls.server_server_ssl_no_zoo_opts = SimpleGRpcServer.generate_server_opts(
             ip='localhost',
             port=50053,
             max_workers=10,
@@ -669,7 +656,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_server_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerServerSslNoZoo',
-            logger=cls.logger, log_level=EnumLogLevel.INFO)
+            logger=cls.logger, log_level=simple_log.INFO)
         cls.server_server_ssl_no_zoo.start_server(
             server_opts=cls.server_server_ssl_no_zoo_opts,
             servicer_list={
@@ -906,15 +893,15 @@ class TestSimpleGRpc(unittest.TestCase):
             ip='127.0.0.1', port=50051
         )
         print("测试服务健康状态 - 服务中")
-        _status = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
-        self.assertTrue(_status == health_pb2.HealthCheckResponse.SERVING,
+        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.SERVING,
                         '测试服务健康状态失败 - 服务中')
 
         print("测试服务健康状态 - 停止服务")
         self.server_no_ssl_no_zoo.set_service_status('servicer_simple_call',
                                                      health_pb2.HealthCheckResponse.NOT_SERVING)
-        _status = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
-        self.assertTrue(_status == health_pb2.HealthCheckResponse.NOT_SERVING,
+        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.NOT_SERVING,
                         '测试服务健康状态失败 - 停止服务')
 
         # 恢复服务
@@ -925,8 +912,8 @@ class TestSimpleGRpc(unittest.TestCase):
         _connect_para = SimpleGRpcTools.generate_connect_para(
             ip='127.0.0.2', port=50051
         )
-        _status = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
-        self.assertTrue(_status == health_pb2.HealthCheckResponse.UNKNOWN,
+        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.UNKNOWN,
                         '测试服务健康状态失败 - 服务不存在')
 
     def test_error(self):
@@ -941,14 +928,9 @@ class TestSimpleGRpc(unittest.TestCase):
         _connect_para = SimpleGRpcTools.generate_connect_para(
             ip='127.0.0.1', port=60051
         )
-        _resp_obj = SimpleGRpcTools.grpc_call(
+        _cresult = SimpleGRpcTools.grpc_call(
             _connect_para,
-            SimpleGRpcTools.generate_request_obj('test', '')
-        )
-        _cresult = SimpleGRpcTools.response_obj_to_cresult(
-            _resp_obj,
-            json_para_mapping_key='',
-            i18n_obj=None
+            SimpleGRpcTools.generate_request_obj('test')
         )
         self.assertTrue(
             _cresult.code == '20408' and grpc.StatusCode.UNAVAILABLE.name == _cresult.i18n_msg_paras[0],
@@ -959,18 +941,27 @@ class TestSimpleGRpc(unittest.TestCase):
         _connect_para = SimpleGRpcTools.generate_connect_para(
             ip='127.0.0.1', port=50051
         )
-        _resp_obj = SimpleGRpcTools.grpc_call(
+        _cresult = SimpleGRpcTools.grpc_call(
             _connect_para,
             SimpleGRpcTools.generate_request_obj('test', '')
-        )
-        _cresult = SimpleGRpcTools.response_obj_to_cresult(
-            _resp_obj,
-            json_para_mapping_key='',
-            i18n_obj=None
         )
         self.assertTrue(
             _cresult.code == '11403',
             '测试错误信息失败 - 服务名不存在 '
+        )
+
+        print("测试错误信息 - 超时")
+        _connect_para = SimpleGRpcTools.generate_connect_para(
+            ip='127.0.0.1', port=50051
+        )
+        _cresult = SimpleGRpcTools.grpc_call(
+            _connect_para,
+            SimpleGRpcTools.generate_request_obj('service_simple_overtime'),
+            timeout=0.1
+        )
+        self.assertTrue(
+            _cresult.code == '30403',
+            '测试错误信息失败 - 超时'
         )
 
 
