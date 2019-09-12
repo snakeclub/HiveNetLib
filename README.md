@@ -1,19 +1,12 @@
 # HiveNetLib
-HiveNet depend on this base library
+HiveNetLib 是一个方便开发人员调用的，集合一些常用开发功能的开发Python库，包括网络编程（tcpip、http）、日志、命令行交互、公式计算等。
+
+HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功能，提高开发效率，关注具体功能逻辑而非具体技术实现。
+
+同时该库为开源项目HiveNet依赖的基础库。
 
 
 
-## 源码方式打包及安装
+GitHub：https://github.com/snakeclub/HiveNetLib/
 
-打包：python setup.py sdist
-
-安装：python setup.py install
-
-
-
-## wheel方式打包及安装
-
-打包：python setup.py bdist_wheel
-
-安装：pip install XXX-1.0-py2.py3-none-any.whl
-
+介绍：[HiveNetLib tutorial](docs/source/tutorial/catalog.md)

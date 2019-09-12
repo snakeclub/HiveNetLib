@@ -20,7 +20,15 @@ HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功
 
 4、执行安装命令：python setup.py install
 
+- 安装包打包（2种方式）
 
+1、python安装包方式：python setup.py sdist
+
+安装：python setup.py install
+
+2、python setup.py bdist_wheel
+
+安装：pip install HiveNetLib-0.6.0-py3-none-any.whl
 
 - 文档生成
 
