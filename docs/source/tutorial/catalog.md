@@ -20,6 +20,8 @@ HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功
 
 4、执行安装命令：python setup.py install
 
+PIPY安装：pip install HiveNetLib
+
 - 安装包打包（2种方式）
 
 1、python安装包方式：python setup.py sdist
