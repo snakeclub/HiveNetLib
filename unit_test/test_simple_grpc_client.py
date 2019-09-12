@@ -2,9 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-测试simple_grpc
-@module test_simple_grpc
-@file test_simple_grpc.py
+测试simple_grpc的异步日志
+@module test_simple_grpc_asyn_log
+@file test_simple_grpc_asyn_log.py
 """
 
 import os
@@ -27,6 +27,8 @@ from HiveNetLib.base_tools.debug_tool import DebugTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_grpc.grpc_server import SimpleGRpcServer, SimpleGRpcServicer
 from HiveNetLib.simple_grpc.grpc_tool import SimpleGRpcTools, EnumCallMode
+from HiveNetLib.base_tools.call_chain_tool import CallChainTool
+from HiveNetLib.simple_grpc.grpc_client import SimpleGRpcConnection
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
@@ -34,11 +36,11 @@ _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
 
 
 TEST_FLAG = {
-    'test_simple_tool_call': False,
-    'test_simple_tool_call_tsl': False,
-    'test_stream': False,
+    'test_simple_tool_call': True,
+    'test_simple_tool_call_tsl': True,
+    'test_stream': True,
     'test_health_check': True,
-    'test_error': False
+    'test_error': True
 }
 
 TEMP_QUEUE = queue.Queue()
@@ -99,11 +101,14 @@ def client_simple_call_para(a, b, *args, c=10, d={'d1': 'd1value'}, **kwargs):
         service_name='service_simple_call_para', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    # 发送请求
-    _connect_para = SimpleGRpcTools.generate_connect_para(
-        conn_str='127.0.0.1:50051'
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
+        conn_str='127.0.0.1:50051', servicer_name='servicer_simple_call',
+        test_on_connect=True, test_use_health_check=False
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_call_para'
@@ -129,11 +134,13 @@ def client_simple_call_no_para_no_return():
         service_name='service_simple_call_no_para_no_return', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    # 发送请求
-    _connect_para = SimpleGRpcTools.generate_connect_para(
-        ip='127.0.0.1', port=50051
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
+        conn_str='127.0.0.1:50051'
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_call_no_para_no_return'
@@ -162,11 +169,13 @@ def client_simple_call_return(obj):
         service_name='service_simple_call_return', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    # 发送请求
-    _connect_para = SimpleGRpcTools.generate_connect_para(
-        ip='127.0.0.1', port=50051
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
+        conn_str='127.0.0.1:50051'
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_call_return'
@@ -195,11 +204,13 @@ def client_simple_throw_excepiton():
         service_name='service_simple_throw_excepiton', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    # 发送请求
-    _connect_para = SimpleGRpcTools.generate_connect_para(
-        ip='127.0.0.1', port=50051
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
+        conn_str='127.0.0.1:50051'
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_throw_excepiton'
@@ -267,13 +278,18 @@ def client_simple_call_para_double_tsl(a, b, *args, c=10, d={'d1': 'd1value'}, *
         _client_certificate_chain = f.read()
     with open(_TEMP_DIR + '/../../simple_grpc/server.crt', 'rb') as f:
         _root_certificates = f.read()
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='localhost', port=50052, is_use_ssl=True,
         root_certificates=_root_certificates,
         private_key=_client_private_key,
         certificate_chain=_client_certificate_chain
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
+
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_call_para'
@@ -295,11 +311,16 @@ def client_simple_call_para_server_tsl(a, b, *args, c=10, d={'d1': 'd1value'}, *
     # 发送请求
     with open(_TEMP_DIR + '/../../simple_grpc/server.crt', 'rb') as f:
         _root_certificates = f.read()
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='localhost', port=50053, is_use_ssl=True,
         root_certificates=_root_certificates
     )
-    _cresult = SimpleGRpcTools.grpc_call(_connect_para, _req_obj)
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(_req_obj)
+    _connection.close()
+
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'client_simple_call_para'
@@ -350,13 +371,15 @@ def client_side_stream_call():
     """
     客户端流模式，真正调用服务端的函数
     """
-    # 发送请求
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    _cresult = SimpleGRpcTools.grpc_call(
-        _connect_para, client_side_stream_generator(), call_mode=EnumCallMode.ClientSideStream
-    )
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult = _connection.call(client_side_stream_generator(),
+                                call_mode=EnumCallMode.ClientSideStream)
+    _connection.close()
+
     _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
         _cresult.return_json,
         'service_client_side_stream'
@@ -390,16 +413,22 @@ def server_side_stream_call(a, b, *args, **kwargs):
         service_name='service_server_side_stream', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
-            channel, _req_obj, call_mode=EnumCallMode.ServerSideStream)
-        for _cresult in _cresult_iterator:
-            if not _cresult.is_success():
-                return False
-    return True
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult_iterator = _connection.call(_req_obj,
+                                         call_mode=EnumCallMode.ServerSideStream)
+    _ret = True
+    for _cresult in _cresult_iterator:
+        if not _cresult.is_success():
+            _ret = False
+
+    _connection.close()
+
+    return _ret
 
 
 def service_bidirectional_stream(a, b, *args, **kwargs):
@@ -465,23 +494,24 @@ def server_bidirectional_stream_call_one_by_one():
     """
     # 清空队列
     TEMP_QUEUE.queue.clear()
+    TEMP_QUEUE.put(None)
 
     # 处理
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        # # 注意队列一定要先传入一个值
-        TEMP_QUEUE.put(None)
-        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
-            channel, bidirectional_stream_one_by_one_generator(),
-            call_mode=EnumCallMode.BidirectionalStream)
-        for _cresult in _cresult_iterator:
-            # 放入队列
-            s = _cresult.return_json
-            TEMP_QUEUE.put(s)
-            if not _cresult.is_success():
-                return False
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult_iterator = _connection.call(
+        bidirectional_stream_one_by_one_generator(),
+        call_mode=EnumCallMode.BidirectionalStream)
+    for _cresult in _cresult_iterator:
+        # 放入队列
+        s = _cresult.return_json
+        TEMP_QUEUE.put(s)
+        if not _cresult.is_success():
+            return False
+
+    _connection.close()
     return True
 
 
@@ -501,20 +531,24 @@ def server_bidirectional_stream_call_one_by_n():
     """
     双向流模式，客户端处理，一个请求对应多个响应的情况
     """
-    # 处理
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
-            channel, bidirectional_stream_one_by_n_generator(),
-            call_mode=EnumCallMode.BidirectionalStream)
-        for _cresult in _cresult_iterator:
-            # 打印
-            print('bidirectional_stream_one_by_n client get: ' + _cresult.return_json)
-            if not _cresult.is_success():
-                return False
-    return True
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult_iterator = _connection.call(
+        bidirectional_stream_one_by_n_generator(),
+        call_mode=EnumCallMode.BidirectionalStream)
+
+    _ret = True
+    for _cresult in _cresult_iterator:
+        # 打印
+        print('bidirectional_stream_one_by_n client get: ' + _cresult.return_json)
+        if not _cresult.is_success():
+            _ret = False
+
+    _connection.close()
+    return _ret
 
 
 def bidirectional_stream_n_by_one_generator():
@@ -535,20 +569,23 @@ def server_bidirectional_stream_call_n_by_one():
     """
     双向流模式，客户端处理，多个请求对应一个响应的情况
     """
-    # 处理
-    _connect_para = SimpleGRpcTools.generate_connect_para(
+    # 发送请求, 默认使用全局的日志对象
+    _connect_para = SimpleGRpcConnection.generate_connect_para(
         ip='127.0.0.1', port=50051
     )
-    with SimpleGRpcTools.generate_channel(_connect_para) as channel:
-        _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
-            channel, bidirectional_stream_n_by_one_generator(),
-            call_mode=EnumCallMode.BidirectionalStream)
-        for _cresult in _cresult_iterator:
-            # 打印
-            print('bidirectional_stream_n_by_one client get: ' + _cresult.return_json)
-            if not _cresult.is_success():
-                return False
-    return True
+    _connection = SimpleGRpcConnection(_connect_para)
+    _cresult_iterator = _connection.call(bidirectional_stream_n_by_one_generator(),
+                                         call_mode=EnumCallMode.BidirectionalStream)
+
+    _ret = True
+    for _cresult in _cresult_iterator:
+        # 打印
+        print('bidirectional_stream_n_by_one client get: ' + _cresult.return_json)
+        if not _cresult.is_success():
+            _ret = False
+
+    _connection.close()
+    return _ret
 
 
 class TestSimpleGRpc(unittest.TestCase):
@@ -565,7 +602,7 @@ class TestSimpleGRpc(unittest.TestCase):
         DebugTool.set_debug(False)
         try:
             # 删除临时日志
-            FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case*')
+            FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case_client*')
         except:
             pass
 
@@ -573,15 +610,30 @@ class TestSimpleGRpc(unittest.TestCase):
             conf_file_name=_TEMP_DIR + '/../../simple_grpc/test_simple_grpc.json',
             logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
             config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
-            logfile_path=_TEMP_DIR + '/log/test_case.log',
+            logfile_path=_TEMP_DIR + '/log/test_case_client.log',
             is_create_logfile_by_day=True,
         )
         cls.logger.setLevelWithHandler(simple_log.DEBUG)
 
         # 设置json转换对象的参数映射
 
+        # 日志处理函数
+        def _asyn_logging_fun(levelno, topic_name, msg):
+            print('haha client:%s, %s, %s' % (str(levelno), topic_name, msg))
+
+        # 异步日志
+        cls._asyn_logger = CallChainTool.create_call_chain_logger(
+            logger=cls.logger,
+            asyn_logging=False,
+            asyn_logging_fun=_asyn_logging_fun,
+            asyn_deal_msg_fun=SimpleGRpcTools.api_call_chain_asyn_deal_msg_fun
+        )
+        RunTool.set_global_logger(cls._asyn_logger)
+
         # 服务端处理类，可以多个服务公用
-        cls.servicer_simple_call = SimpleGRpcServicer(logger=cls.logger)
+        cls.servicer_simple_call = SimpleGRpcServicer(
+            logger=None, is_use_global_logger=False
+        )
         cls.servicer_simple_call.add_service(
             EnumCallMode.Simple, 'service_simple_call_para', service_simple_call_para)
         cls.servicer_simple_call.add_service(
@@ -609,7 +661,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_no_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerNoSslNoZoo',
-            logger=cls.logger, log_level=simple_log.INFO)
+            logger=cls._asyn_logger, log_level=simple_log.INFO)
 
         cls.server_no_ssl_no_zoo.start_server(
             server_opts=cls.server_no_ssl_no_zoo_opts, servicer_list={
@@ -636,7 +688,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_double_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerDoubleSslNoZoo',
-            logger=cls.logger, log_level=simple_log.INFO)
+            logger=cls._asyn_logger, log_level=simple_log.INFO)
         cls.server_double_ssl_no_zoo.start_server(
             server_opts=cls.server_double_ssl_no_zoo_opts, servicer_list={
                 'servicer_simple_call': cls.servicer_simple_call
@@ -655,7 +707,7 @@ class TestSimpleGRpc(unittest.TestCase):
         )
         cls.server_server_ssl_no_zoo = SimpleGRpcServer(
             server_name='ServerServerSslNoZoo',
-            logger=cls.logger, log_level=simple_log.INFO)
+            logger=cls._asyn_logger, log_level=simple_log.INFO)
         cls.server_server_ssl_no_zoo.start_server(
             server_opts=cls.server_server_ssl_no_zoo_opts,
             servicer_list={
@@ -673,6 +725,14 @@ class TestSimpleGRpc(unittest.TestCase):
         cls.server_no_ssl_no_zoo.stop_server()
         cls.server_double_ssl_no_zoo.stop_server()
         cls.server_server_ssl_no_zoo.stop_server()
+
+        # 启动写日志任务
+        CallChainTool.start_call_chain_asyn_logging(cls._asyn_logger)
+
+        # 等待日志记录完成
+        time.sleep(10)
+
+        CallChainTool.stop_call_chain_asyn_logging(cls._asyn_logger)
 
     def setUp(self):
         """
@@ -888,18 +948,22 @@ class TestSimpleGRpc(unittest.TestCase):
             return
 
         print("测试服务健康状态")
-        _connect_para = SimpleGRpcTools.generate_connect_para(
-            ip='127.0.0.1', port=50051
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
+            ip='127.0.0.1', port=50051, servicer_name='servicer_simple_call', test_use_health_check=True
         )
+        _connection = SimpleGRpcConnection(_connect_para)
+
         print("测试服务健康状态 - 服务中")
-        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        _resp_obj = _connection.test()
+        # _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
         self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.SERVING,
                         '测试服务健康状态失败 - 服务中')
 
         print("测试服务健康状态 - 停止服务")
         self.server_no_ssl_no_zoo.set_service_status('servicer_simple_call',
                                                      health_pb2.HealthCheckResponse.NOT_SERVING)
-        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        _resp_obj = _connection.test()
+        # _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
         self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.NOT_SERVING,
                         '测试服务健康状态失败 - 停止服务')
 
@@ -907,11 +971,15 @@ class TestSimpleGRpc(unittest.TestCase):
         self.server_no_ssl_no_zoo.set_service_status('servicer_simple_call',
                                                      health_pb2.HealthCheckResponse.SERVING)
 
+        _connection.close()
+
         print("测试服务健康状态 - 服务不存在")
-        _connect_para = SimpleGRpcTools.generate_connect_para(
-            ip='127.0.0.2', port=50051
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
+            ip='127.0.0.2', port=50051, servicer_name='servicer_simple_call'
         )
-        _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
+        _connection = SimpleGRpcConnection(_connect_para)
+        _resp_obj = _connection.test()
+        # _resp_obj = SimpleGRpcTools.health_check(_connect_para, 'servicer_simple_call')
         self.assertTrue(_resp_obj.status == health_pb2.HealthCheckResponse.UNKNOWN,
                         '测试服务健康状态失败 - 服务不存在')
 
@@ -924,40 +992,36 @@ class TestSimpleGRpc(unittest.TestCase):
 
         print("测试错误信息")
         print("测试错误信息 - 连接失败")
-        _connect_para = SimpleGRpcTools.generate_connect_para(
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
             ip='127.0.0.1', port=60051
         )
-        _cresult = SimpleGRpcTools.grpc_call(
-            _connect_para,
-            SimpleGRpcTools.generate_request_obj('test')
-        )
+        _connection = SimpleGRpcConnection(_connect_para)
+        _cresult = _connection.call(SimpleGRpcTools.generate_request_obj('test'))
+        _connection.close()
         self.assertTrue(
             _cresult.code == '20408' and grpc.StatusCode.UNAVAILABLE.name == _cresult.i18n_msg_paras[0],
             '测试错误信息失败 - 连接失败 '
         )
 
         print("测试错误信息 - 服务名不存在")
-        _connect_para = SimpleGRpcTools.generate_connect_para(
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
             ip='127.0.0.1', port=50051
         )
-        _cresult = SimpleGRpcTools.grpc_call(
-            _connect_para,
-            SimpleGRpcTools.generate_request_obj('test', '')
-        )
+        _connection = SimpleGRpcConnection(_connect_para)
+        _cresult = _connection.call(SimpleGRpcTools.generate_request_obj('test', ''))
+        _connection.close()
         self.assertTrue(
             _cresult.code == '11403',
             '测试错误信息失败 - 服务名不存在 '
         )
 
         print("测试错误信息 - 超时")
-        _connect_para = SimpleGRpcTools.generate_connect_para(
-            ip='127.0.0.1', port=50051
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
+            ip='127.0.0.1', port=50051, timeout=0.1
         )
-        _cresult = SimpleGRpcTools.grpc_call(
-            _connect_para,
-            SimpleGRpcTools.generate_request_obj('service_simple_overtime'),
-            timeout=0.1
-        )
+        _connection = SimpleGRpcConnection(_connect_para)
+        _cresult = _connection.call(SimpleGRpcTools.generate_request_obj('service_simple_overtime'))
+        _connection.close()
         self.assertTrue(
             _cresult.code == '30403',
             '测试错误信息失败 - 超时'

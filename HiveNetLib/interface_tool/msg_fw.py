@@ -66,8 +66,8 @@ class MsgFW(ABC):
     #############################
     # 内部变量
     #############################
-    _base_object = None  # 报文主体对象
     _msg_id = None  # 报文标识
+    _base_object = None  # 报文主体对象
 
     #############################
     # 公共属性
@@ -124,7 +124,11 @@ class MsgFW(ABC):
             具体参数参考具体实现类的self._load_msg方法参数
 
         """
-        self._msg_id = msg_id
+        #############################
+        # 内部变量
+        #############################
+        self._msg_id = msg_id  # 报文标识
+        # 报文主体对象
         self._base_object = self._load_msg(obj, msg_id=msg_id, obj_type=obj_type, **kwargs)
 
     #############################

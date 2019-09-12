@@ -162,7 +162,6 @@ class TestCallChainTool(unittest.TestCase):
         测试静态方法方法
         """
         # 不带任何入参的对象
-        return
         print('\n不带参数调用')
         func_case1_no_para()
         print('\n\n不带参数有返回结果')
@@ -279,79 +278,6 @@ class TestCallChainTool(unittest.TestCase):
             is_print_msg=True,
             is_use_global_logger=True, log_level=simple_log.INFO
         )
-
-    def test_api_nowait(self):
-        """
-        aip接口日志异步模式
-        """
-        # 日志队列
-        _log_queue = MemoryQueue()
-
-        # 建立日志服务并启动服务
-        _log_server = CallChainTool(
-            log_queue=_log_queue, logger=None, auto_start=False, max_thread_num=1, is_use_global_logger=True,
-            log_level=simple_log.INFO
-        )
-        _log_server.start()
-
-        # 执行日志记录
-        _msg = MsgXML(
-            '<root><seq>nowait_seq_00000001</seq><traceid>trace_id_00000000001</traceid><a>av1</a><b>bv1</b><c><c1>c1v1</c1><c2>c2v2</c2></c></root>',
-            msg_id='id'
-        )
-
-        # 抛到日志队列
-        CallChainTool.api_call_chain_logging_nowait(
-            log_queue=_log_queue,
-            msg=_msg, proto_msg=None,
-            api_mapping={
-                'trace_id': ['msg', '/root/traceid', {}],
-                'call_id': ['proto_msg', 'Call-Id', {}],
-                'SEQ': ['msg', '/root/seq', {}]
-            },
-            api_call_type='SEND', api_info_type='SEND',
-            trace_id=None,  # 不指定可以从报文中获取
-            trace_level=1,
-            call_id=None,  # 不指定可以从报文中获取
-            parent_id='parent_id_demo1',
-            logging_head={
-                'IP': '127.0.0.1',
-                'PORT': '8080',
-                'SYS': 'SQL',
-                'SEQ': None  # 从api_mapping中获取，注意key要一致
-            },
-            use=0, error=None, trace_str='',
-            is_print_proto_msg=True,
-            proto_msg_print_kwargs=dict(),
-            is_print_msg=True, msg_print_kwargs=dict(),
-            key_para={
-                'Key1': ['msg', '/root/a', {}],
-                'Key2': ['msg', '/root/c/c2', {}],
-                'Key3': ['proto_msg', 'Accept', {}]
-            },
-            print_in_para={
-                'para1': ['msg', '/root/b', {}],
-                'para2': ['proto_msg', 'Accept-Encoding', {}]
-            },
-            log_level=simple_log.INFO
-        )
-
-        CallChainTool.api_call_chain_logging_nowait(
-            log_queue=_log_queue,
-            msg=_msg, proto_msg=None,
-            api_mapping={
-                'SEQ': ['msg', '/root/seq', {}]
-            },
-            api_call_type='SEND', api_info_type='EX',
-            logging_head={
-                'SEQ': None
-            },
-            use=0.2, error=AttributeError(), trace_str='trace_str info',
-            log_level=simple_log.INFO
-        )
-
-        time.sleep(4)  # 等待日志写完
-        _log_server.stop()
 
 
 if __name__ == '__main__':

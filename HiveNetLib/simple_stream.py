@@ -81,10 +81,10 @@ class BaseStream(ABC):
     _logger = None  # 日志处理类
     _dealer_exception_fun = None  # 流处理异常时执行的通知函数
     _stream_closed_fun = None  # 流处理结束的通知函数
-    _dealer_handles = dict()  # 处理流数据的处理函数句柄字典，key为函数句柄，value统一为None
-    _stream_list = dict()  # 正在处理的流对象列表，key为stream_tag，value为stream_obj
-    _stream_list_tag = dict()  # 正在处理的流对象对应的处理标记，key为stream_tag，value为(_stop_tag, _pause_tag):
-    _stream_list_lock = threading.RLock()  # 流处理对象列表更新锁
+    _dealer_handles = None  # 处理流数据的处理函数句柄字典，key为函数句柄，value统一为None
+    _stream_list = None  # 正在处理的流对象列表，key为stream_tag，value为stream_obj
+    _stream_list_tag = None  # 正在处理的流对象对应的处理标记，key为stream_tag，value为(_stop_tag, _pause_tag):
+    _stream_list_lock = None  # 流处理对象列表更新锁
     _force_stop_tag = False  # 强制关闭所有流处理的标记
 
     #############################
@@ -139,6 +139,12 @@ class BaseStream(ABC):
             closed_status : EnumStreamClosedStatus 关闭状态
 
         """
+        self._dealer_handles = dict()  # 处理流数据的处理函数句柄字典，key为函数句柄，value统一为None
+        self._stream_list = dict()  # 正在处理的流对象列表，key为stream_tag，value为stream_obj
+        # 正在处理的流对象对应的处理标记，key为stream_tag，value为(_stop_tag, _pause_tag):
+        self._stream_list_tag = dict()
+        self._stream_list_lock = threading.RLock()  # 流处理对象列表更新锁
+
         self._back_forward = back_forward
         self._keep_wait_data = keep_wait_data
         self._stop_by_excepiton = stop_by_excepiton

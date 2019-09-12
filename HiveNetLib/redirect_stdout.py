@@ -181,9 +181,9 @@ class RedirectOutput(object):
 
     _original_stdout = None  # 登记初始的输出对象，用户关闭重定向时恢复对象
     _original_stdout_write_type = None  # 对原始的stdout的输出处理方式
-    _write_lock = threading.RLock()  # 进行输出信息处理的线程锁，支持多线程
+    _write_lock = None  # 进行输出信息处理的线程锁，支持多线程
     _is_asyn = False  # 是否通过后台线程执行（快速返回）
-    _output_handlers = list()  # 重定向输出句柄清单
+    _output_handlers = None  # 重定向输出句柄清单
     _wait_write_end_when_asyn = False  # 异步模式关闭重定向时是否等待全部对象写完
     _is_started = False  # 标记是否启动了重定向处理
     _buffer = None  # 输出对象数据缓存队列，FIFO队列
@@ -209,6 +209,10 @@ class RedirectOutput(object):
         @param {bool} wait_write_end_when_asyn=False - 异步模式关闭重定向时是否等待全部对象写完
 
         """
+        # 初始化变量
+        self._write_lock = threading.RLock()  # 进行输出信息处理的线程锁，支持多线程
+        self._output_handlers = list()  # 重定向输出句柄清单
+        # 赋值
         self._buffer = ''
         if original_stdout is None:
             self._original_stdout = sys.stdout

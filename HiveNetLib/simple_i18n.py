@@ -89,7 +89,7 @@ def init_global_i18n():
         set_global_i18n(_i18n_obj)
 
     # 装载所需的配置信息, 错误码
-    _base_path = os.path.abspath(os.path.dirname(__file__)+'/')
+    _base_path = os.path.abspath(os.path.dirname(__file__) + '/')
     _error_code_path = os.path.realpath(_base_path + '/hivenet_error_code/')
     _i18n_obj.load_trans_from_dir(
         trans_file_path=_error_code_path,
@@ -109,7 +109,7 @@ class SimpleI18N(object):
     # 变量
     #############################
     lang = 'en'  # 默认语言
-    __trans_dict = dict()  # 语言信息字典
+    __trans_dict = None  # 语言信息字典
 
     @property
     def trans_dict(self):
@@ -147,6 +147,7 @@ class SimpleI18N(object):
         @param {bool} auto_loads=False - 是否自动加载语言信息文件
 
         """
+        self.__trans_dict = dict()
         self.lang = lang
         if auto_loads and trans_file_path is not None:
             # 加载语言信息文件
@@ -246,7 +247,7 @@ class SimpleI18N(object):
         # 替换占位符
         i = 1  # 记录是第几个
         for para in replace_para:
-            s = re.sub(r'\$'+str(i), str(para), s)
+            s = re.sub(r'\$' + str(i), str(para), s)
             i = i + 1
         # 处理完成
         return s

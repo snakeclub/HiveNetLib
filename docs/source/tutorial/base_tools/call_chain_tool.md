@@ -6,6 +6,20 @@ call_chain_tool是用于产生调用链日志（包括接口调用、函数调�
 
 ## CallChainTool工具类
 
+### 生成trace_id（追踪ID）
+
+可以通过调用链工具的generate_trace_id方法生成全局唯一的trace_id（追踪ID），该方法默认通过uuid来生成唯一的ID，同时如果使用HiveNetLib.IdPool模式可以生成更个性化的唯一ID，函数的定义如下：
+
+```
+@param {HiveNetLib.IdPool} idpool=None - 获取id的资源池，如果传入None代表直接通过uuid生成id
+@param {number} get_id_overtime=0 - 超时时间，单位为秒，如果需要一直不超时送入0
+@param {kwargs}  - id的资源池的get_id传入参数
+
+@returns {string} - trace_id
+```
+
+
+
 ### 方法调用链标准应用
 
 #### 第1步：定义日志类
@@ -163,3 +177,219 @@ def func(... ,trace_id='xxx', trace_level=[0], call_id='xx', parent_id='xx'):
 在函数执行后，指定打印出参（例如参数中有引用类型的情况，可能值会被改变）：print_out_para=(‘para_name’, 0, ..)，格式与key_para一致
 
 函数执行后，是否打印返回对象（调用对象的\_\_str\_\_方法）:is_print_back=True
+
+
+
+### 接口调用链标准应用
+
+#### 方法1：直接记录接口调用链日志
+
+可以直接调用api_call_chain_logging方法记录接口的日志（满足HiveNet日志规范），接口日志打印的设计原理如下：
+
+1、要打印的报文对象，包括接口报文（具体的业务报文，例如http协议的主体部分）和协议报文（协议相关的报文信息，例如http协议的协议头报文），必须是interface_tool.MsgFW的继承类实现；
+
+2、通过api_mapping提供字段的映射关系字典，将接口信息项（自定义的名字或接口设计字段名）对应到msg或proto_msg中的搜索路径，供日志打印获取相应的值；
+
+3、通过logging_head定义日志头要打印信息字典（在日志前面，用[]包裹的信息），可以支持两种情况：如果传入的value非None，则直接按传入的值打印；如果传入的value为None，则通过api_mapping字典找到key对应搜索路径，从报文中获取相应值进行打印；
+
+4、key_para和print_in_para定义要打印为JSON格式的重要信息，打印出来的JSON格式为“{‘key’: {'字段名': '字段值', '字段名': '字段值', ... }, 'para': {'字段名': '字段值', '字段名': '字段值', ...}}”
+
+方法的入参具体说明如下：
+
+```
+		@param {interface_tool.MsgFW} msg - 接口报文对象
+        @param {interface_tool.MsgFW} proto_msg=None - 协议报文信息对象
+        @param {object} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现info、warning、error等标准方法
+        @param {dict} api_mapping=dict() - 接口信息映射字典，用于从接口中获取指定的信息项，格式如下：
+            key {string} - 输入信息项名（与入参名一致）
+            value {list}- 映射信息，为三项的数组:
+                value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数
+        @param {string} api_call_type='SEND' - 接口调用类型，SEND - 发送报文，RECV - 接收报文
+        @param {string} api_info_type='SEND' - 接口信息类型，区分两类：
+            api_call_type为SEND的情况：
+                SEND - 发送报文
+                BACK - 返回报文
+                OT - 超时
+                EX - 异常
+                STREAM-SEND - 流报文发送
+                STREAM-BACK - 流报文返回
+            api_call_type为RECV的情况：
+                RECV - 接收报文
+                RET - 返回报文
+                EX - 异常
+                STREAM-RECV - 流报文接收
+                STREAM-DEAL - 流报文处理（非返回）
+                STREAM-RET - 流报文返回
+        @param {string} trace_id=None - 调用链追踪ID，None代表从报文对象msg或proto_msg中获取
+        @param {int} trace_level=None - 调用层级，None代表从报文对象msg或proto_msg中获取
+        @param {string} call_id=None - 当前接口调用的执行ID，None代表从报文对象msg或proto_msg中获取
+        @param {string} parent_id=None - 上一接口的执行ID，None代表从报文对象msg或proto_msg中获取
+        @param {dict} logging_head=dict() - 日志头信息项，用于满足日志规范，格式如下：
+            key {string} - 日志头信息项名，例如'IP'
+            value {string} - 日志头信息值，None代表从报文对象msg或proto_msg中获取
+            按照日志规范，发送报文和接收报文的日志头包括：
+                IP : 发送IP地址/发起方IP地址
+                PORT : 接收方服务端口
+                SYS : 目标系统标识/发起方系统标识
+                SEQ : 报文流水号
+        @param {number} use=0 - 接口执行耗时，api_info_type为非SEND和RECV时需传入
+        @param {object} error=None - 异常对象，api_info_type为EX时需传入
+        @param {string} trace_str='' - 异常堆栈信息，api_info_type为EX时需传入
+        @param {bool} is_print_proto_msg=False - 是否打印协议报文信息对象
+        @param {dict} proto_msg_print_kwargs=dict() - 协议报文信息对象打印参数（MsgFW转换为字符串的参数）
+        @param {bool} is_print_msg=False - 是否打印接口报文对象
+        @param {dict} msg_print_kwargs=dict() - 报文信息对象打印参数（MsgFW转换为字符串的参数
+        @param {dict} key_para=dict() - 打印业务层面唯一标识业务的接口参数列表，格式如下：
+            key {string} - 打印信息项名
+            value {list}- 映射信息，为三项的数组:
+                value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
+        @param {dict} print_in_para=dict() - 定义需要打印的接口信息，格式如下：
+            key {string} - 打印信息项名
+            value {list}- 映射信息，为三项的数组:
+                value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
+        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+            注：通过RunTool.set_global_logger进行设置
+        @param {int} log_level=logging.INFO - 打印日志的级别
+        @param {int} call_fun_level=0 - 登记日志时需要记录的实际函数所处层级，
+            从当前执行函数开始，如果需要记录当前函数则传0；记录父函数则传1，记录父父函数则传2...
+```
+
+注：如果想自己进行打印，可以通过api_call_chain_log_str方法直接生成日志打印项，再自行打印输出。
+
+#### 方法2：异步记录接口调用链日志
+
+对于远程记录日志，以及需要降低日志记录对处理性能影响的情况，可以通过异步记录日志的方式进行接口调用链日志的记录，具体处理步骤如下：
+
+**1、定义进行日志信息msg生成的函数**
+
+该函数负责根据日志的record信息，生成想要打印的日志内容（msg部分，不包括日志定义的输出格式部分），record对象存储了执行日志输出函数的所有信息，包括extra字典中传入的各类参数。
+
+以下示例从record获取到输出日志时存入的info_dict字典，从字典中获取相应打印信息，调用api_call_chain_log_str生成日志内容msg并返回；对于找不到info_dict属性的情况，认为是正常的日志处理，直接原样返回record.msg：
+
+```
+	def api_call_chain_asyn_deal_msg_fun(topic_name, record):
+        """
+        将日志record对象中的日志内容部分处理为msg并返回（dict_info字典）
+
+        @param {string} topic_name - 日志主题
+        @param {object} record - 日志信息对象
+
+        @return {string} - 处理后的msg
+        """
+        if hasattr(record, 'info_dict'):
+            # 获取信息字典，进行格式化处理
+            info_dict = record.info_dict
+            _msg = None
+            _logging_para = SimpleGRpcTools._get_logging_para_value(info_dict)
+            if _logging_para['msg_class'] is not None:
+                _msg = _logging_para['msg_class'](info_dict['para_json'])
+            # 返回内容
+            return CallChainTool.api_call_chain_log_str(
+                msg=_msg, proto_msg=None,
+                api_mapping=_logging_para['api_mapping'],
+                api_call_type=info_dict['api_call_type'], 
+                api_info_type=info_dict['api_info_type'],
+                trace_id=info_dict['trace_id'], trace_level=info_dict['trace_level'],
+                call_id=info_dict['call_id'], parent_id=info_dict['parent_id'],
+                logging_head=_logging_para['logging_head'],
+                is_print_msg=_logging_para['is_print_msg'],
+                msg_print_kwargs=_logging_para['msg_print_kwargs'],
+                key_para=_logging_para['key_para'],
+                print_in_para=_logging_para['print_in_para'],
+                use=info_dict['use'], error=info_dict['error'], 
+                trace_str=info_dict['trace_str']
+            )
+        else:
+            # 直接原样返回即可
+            return record.msg
+```
+
+
+
+**2、定义最终需要进行日志输出的日志对象**
+
+所定义的日志对象将负责进行最终日志的输出处理，这个日志对象可以定义为一般的文件记录日志，或者远程调用日志，或则队列日志等，以支持各种形式的日志处理：
+
+```
+		# 创建一个最终进行日志处理的日志对象
+       logger = simple_log.Logger(
+            conf_file_name=_TEMP_DIR + '/../../simple_grpc/test_simple_grpc.json',
+            logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
+            config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
+            logfile_path=_TEMP_DIR + '/log/test_case_asyn.log',
+            is_create_logfile_by_day=True
+        )
+        logger.setLevelWithHandler(simple_log.DEBUG)
+```
+
+注意：通过异步日志处理，会将logger日志对象的输出格式变更为'%(message)s'，因此需要注意这个日志对象不要和其他日志处理共用。
+
+
+
+**3、通过create_call_chain_logger方法生成一个异步日志Logger对象**
+
+有几个参数需要注意：
+
+- 如果需要自己处理日志的输出，可以传入asyn_logging_fun函数，这时候就不会使用logger进行日志输出
+- asyn_deal_msg_fun需要指定进行特殊的日志内容（msg）的生成函数
+- asyn_formater指定了最终日志输出的格式，如果传空会默认从logger中获取原始格式
+
+另外这个函数也支持返回非异步的日志对象，指定asyn_logging为False就可以按正常同步日志的模式处理
+
+```
+        # 利用已有的日志对象创建异步日志（后续将通过该日志对象进行真正的日志记录）
+        _asyn_logger = CallChainTool.create_call_chain_logger(
+            logger=logger, is_use_global_logger=False,
+            asyn_logging=True, asyn_log_config_level=logging.DEBUG,
+            topic_name='', asyn_logging_fun=None, 
+            asyn_deal_msg_fun=api_call_chain_asyn_deal_msg_fun, 
+            asyn_formater=None
+        )
+```
+
+
+
+**4、启动日志异步处理线程**
+
+通过start_call_chain_asyn_logging启动异步日志的后台处理：
+
+```
+		# 启动写日志任务
+        CallChainTool.start_call_chain_asyn_logging(_asyn_logger)
+```
+
+
+
+**5、进行日志内容的输出处理**
+
+通过call_chain_asyn_log执行日志的输出：
+
+```
+            # 使用了异步日志
+            CallChainTool.call_chain_asyn_log(
+                logger, _info_dict['log_level'], '',
+                extra={
+                    'info_dict': _info_dict,
+                    'callFunLevel': _info_dict['call_fun_level']
+                }
+            )
+```
+
+
+
+**6、可以暂停日志异步处理线程（暂停日志的输出）**
+
+通过stop_call_chain_asyn_logging暂停日志异步处理线程：
+
+```
+CallChainTool.stop_call_chain_asyn_logging(_asyn_logger)
+```
+

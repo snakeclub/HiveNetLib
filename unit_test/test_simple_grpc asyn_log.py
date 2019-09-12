@@ -2,9 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-测试simple_grpc
-@module test_simple_grpc
-@file test_simple_grpc.py
+测试simple_grpc的异步日志
+@module test_simple_grpc_asyn_log
+@file test_simple_grpc_asyn_log.py
 """
 
 import os
@@ -27,6 +27,7 @@ from HiveNetLib.base_tools.debug_tool import DebugTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_grpc.grpc_server import SimpleGRpcServer, SimpleGRpcServicer
 from HiveNetLib.simple_grpc.grpc_tool import SimpleGRpcTools, EnumCallMode
+from HiveNetLib.base_tools.call_chain_tool import CallChainTool
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
@@ -34,11 +35,11 @@ _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
 
 
 TEST_FLAG = {
-    'test_simple_tool_call': False,
-    'test_simple_tool_call_tsl': False,
-    'test_stream': False,
+    'test_simple_tool_call': True,
+    'test_simple_tool_call_tsl': True,
+    'test_stream': True,
     'test_health_check': True,
-    'test_error': False
+    'test_error': True
 }
 
 TEMP_QUEUE = queue.Queue()
@@ -573,15 +574,29 @@ class TestSimpleGRpc(unittest.TestCase):
             conf_file_name=_TEMP_DIR + '/../../simple_grpc/test_simple_grpc.json',
             logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
             config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
-            logfile_path=_TEMP_DIR + '/log/test_case.log',
+            logfile_path=_TEMP_DIR + '/log/test_case_asyn.log',
             is_create_logfile_by_day=True,
         )
         cls.logger.setLevelWithHandler(simple_log.DEBUG)
 
         # 设置json转换对象的参数映射
 
+        # 日志处理函数
+        def _asyn_logging_fun(levelno, topic_name, msg):
+            print('haha:%s, %s, %s' % (str(levelno), topic_name, msg))
+
+        # 异步日志
+        cls._asyn_logger = CallChainTool.create_call_chain_logger(
+            logger=cls.logger,
+            asyn_logging=True,
+            asyn_logging_fun=_asyn_logging_fun,
+            asyn_deal_msg_fun=SimpleGRpcTools.api_call_chain_asyn_deal_msg_fun
+        )
+
         # 服务端处理类，可以多个服务公用
-        cls.servicer_simple_call = SimpleGRpcServicer(logger=cls.logger)
+        cls.servicer_simple_call = SimpleGRpcServicer(
+            logger=cls._asyn_logger
+        )
         cls.servicer_simple_call.add_service(
             EnumCallMode.Simple, 'service_simple_call_para', service_simple_call_para)
         cls.servicer_simple_call.add_service(
@@ -673,6 +688,14 @@ class TestSimpleGRpc(unittest.TestCase):
         cls.server_no_ssl_no_zoo.stop_server()
         cls.server_double_ssl_no_zoo.stop_server()
         cls.server_server_ssl_no_zoo.stop_server()
+
+        # 启动写日志任务
+        CallChainTool.start_call_chain_asyn_logging(cls._asyn_logger)
+
+        # 等待日志记录完成
+        time.sleep(10)
+
+        CallChainTool.stop_call_chain_asyn_logging(cls._asyn_logger)
 
     def setUp(self):
         """

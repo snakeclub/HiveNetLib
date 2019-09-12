@@ -37,7 +37,8 @@ DEPENDENCIES = [
     'affinity',
     'grpcio',
     'googleapis-common-protos',
-    'jsonpath-rw'
+    'jsonpath-rw',
+    'netifaces>=0.10.9'
 ]
 
 # DEPENDENCIES = []

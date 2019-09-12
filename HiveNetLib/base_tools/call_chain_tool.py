@@ -21,6 +21,8 @@ import uuid
 import datetime
 import traceback
 import logging
+import inspect
+import copy
 from queue import Full, Empty
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -32,6 +34,7 @@ from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.simple_parallel import ThreadParallel, ParallelPool
 from HiveNetLib.interface_tool.msg_xml import MsgXML
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType
+from HiveNetLib.simple_log import QueueHandler, Logger
 
 
 __MOUDLE__ = 'call_chain_tool'  # 模块名
@@ -46,161 +49,36 @@ class CallChainTool(object):
     调用链工具类
 
     """
-
-    #############################
-    # 实例化，异步接口调用链日志处理，简化接口调用链的处理
-    #############################
-    def __init__(self, log_queue, logger=None, auto_start=False, max_thread_num=1, is_use_global_logger=True,
-                 log_level=logging.INFO):
-        """
-        构造函数，如果接口日志需要异步写（避免日志耗时），需实例化处理
-
-        @param {QueueFw} log_queue - 需要放置日志的队列对象
-        @param {object} logger=None - 日志对象
-        @param {bool} auto_start=False - 是否自动启动日志记录处理
-        @param {int} max_thread_num=1 - 日志处理线程数
-        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
-            注：通过RunTool.set_global_logger进行设置
-        @param {int} log_level=logging.INFO - 本地服务打印日志的级别
-
-        """
-        self._log_queue = log_queue
-        self._max_thread_num = max_thread_num
-        if max_thread_num < 1:
-            self._max_thread_num = 1
-        self._logger = logger
-        if self._logger is None and is_use_global_logger:
-            # 使用全局logger
-            self._logger = RunTool.get_global_logger()
-
-        self._log_level = log_level
-
-        # 创建线程池进行处理
-        self._pool = ParallelPool(
-            deal_fun=self._api_chall_chain_logging_threadfun,
-            pname='CallChainTool_Logger_ThreadPool',
-            logger=self._logger,
-            auto_start=auto_start,
-            task_queue=self._log_queue,
-            maxsize=self._max_thread_num, minsize=1, worker_release_time=60, worker_overtime=60,
-            force_kill_overtime_worker=False, replace_overtime_worker=True, daemon_thread_time=0.1
-        )
-
-    def start(self):
-        """
-        启动后台日志处理
-
-        """
-        self._pool.start()
-
-    def stop(self, overtime=0, force=False):
-        """
-        停止后台日志处理
-
-        @param {number} overtime=0 - 等待超时时间，单位为秒，超过时间抛出异常
-        @param {bool} force_stop=False - 是否强制关闭日志处理，直接中止所有任务
-
-        @throws {CallOverTime} - 等待超时时抛出异常
-
-        """
-        self._pool.stop(overtime=overtime, force=force)
-
-    #############################
-    # 异步接口调用链日志处理 - 内部函数
-    #############################
-    def _api_chall_chain_logging_threadfun(self):
-        """
-        异步接口调用链日志的处理函数，从队列中获取任务信息并最终写入logger
-
-        """
-        # 从队列中获取接口登记任务
-        _task = None
-        try:
-            _task = self._log_queue.get(block=False)
-        except Empty:
-            # 获取不到队列信息
-            return None
-        except Exception as e:
-            # 存在其他异常，登记异常信息
-            if self._logger is not None:
-                self._logger.log(
-                    logging.ERROR,
-                    '[EX:%s]get call chain info from log_queue error: %s' % (
-                        str(type(e)),
-                        traceback.format_exc()
-                    )
-                )
-            return False
-
-        # 执行日志登记处理
-        if self._logger is not None:
-            try:
-                # 处理msg的格式转换
-                _msg = _task['msg']
-                if _msg is not None:
-                    _class = getattr(
-                        ImportTool.import_module(_task['msg_moudle_name']),
-                        _task['msg_class_name']
-                    )
-                    _msg = _class(_task['msg'], msg_id=_task['msg_msg_id'])
-                    # _msg = _class.str_to_msg(_task['msg'], msg_id=_task['msg_msg_id'])
-
-                _proto_msg = _task['proto_msg']
-                if _proto_msg is not None:
-                    _class = getattr(
-                        ImportTool.import_module(_task['proto_msg_moudle_name']),
-                        _task['proto_msg_class_name']
-                    )
-                    _proto_msg = _class(_task['proto_msg'], msg_id=_task['proto_msg_msg_id'])
-                    # _proto_msg = _class.str_to_msg(_task['proto_msg'], msg_id=_task['proto_msg_msg_id'])
-
-                self.api_call_chain_logging(
-                    msg=_msg, proto_msg=_proto_msg, logger=self._logger, api_mapping=_task['api_mapping'],
-                    api_call_type=_task['api_call_type'], api_info_type=_task['api_info_type'],
-                    trace_id=_task['trace_id'], trace_level=_task['trace_level'], call_id=_task['call_id'],
-                    parent_id=_task['parent_id'], logging_head=_task['logging_head'],
-                    use=_task['use'], error=_task['error'], trace_str=_task['trace_str'],
-                    is_print_proto_msg=_task['is_print_proto_msg'],
-                    proto_msg_print_kwargs=_task['proto_msg_print_kwargs'],
-                    is_print_msg=_task['is_print_msg'], msg_print_kwargs=_task['msg_print_kwargs'],
-                    key_para=_task['key_para'], print_in_para=_task['print_in_para'],
-                    is_use_global_logger=False, log_level=_task['log_level']
-                )
-            except Exception as e:
-                # 存在其他异常，登记异常信息
-                if self._logger is not None:
-                    self._logger.log(
-                        logging.ERROR,
-                        '[EX:%s]write call chain info error: %s' % (
-                            str(type(e)),
-                            traceback.format_exc()
-                        )
-                    )
-                return False
-            # 处理完成
-            return True
-
     #############################
     # 静态方法
     #############################
 
     @staticmethod
-    def generate_trace_id():
+    def generate_trace_id(idpool=None, get_id_overtime=0, **kwargs):
         """
         生成全局唯一的trace_id
-        注：目前使用uuid1的方法
+
+        @param {HiveNetLib.IdPool} idpool=None - 获取id的资源池，如果传入None代表直接通过uuid生成id
+        @param {number} get_id_overtime=0 - 超时时间，单位为秒，如果需要一直不超时送入0
+        @param {kwargs}  - id的资源池的get_id传入参数
 
         @returns {string} - trace_id
 
         """
-        return str(uuid.uuid1()).replace('-', '')  # 不带-更容易查找日志
+        _id = None
+        if idpool is None:
+            _id = str(uuid.uuid1()).replace('-', '')  # 不带-更容易查找日志
+        else:
+            _id = idpool.get_id(overtime=get_id_overtime, **kwargs)
+        return _id
 
     @staticmethod
     def methon_call_chain(logger=None, trace_id=None, trace_level=None, call_id=None,
                           parent_id=None, key_para=(), print_in_para=(),
                           print_out_para=(), is_print_back=False,
                           is_use_global_logger=True, log_level=logging.INFO,
-                          is_standard_def=False):
+                          is_standard_def=False, idpool=None, get_id_overtime=0,
+                          **kwargs):
         """
         模块方法调用链修饰符
 
@@ -225,6 +103,14 @@ class CallChainTool(object):
         @param {int} log_level=logging.INFO - 打印日志的级别
         @param {bool} is_standard_def=False - 所修饰是否标准定义格式
             注：标准定义格式指入参固定为 func(*args, **kwargs)，这样修饰函数处理过程中无需判断入参格式，提升处理效率
+        @param {HiveNetLib.IdPool} idpool=None - 获取id的资源池，如果传入None代表直接通过uuid生成id
+        @param {number} get_id_overtime=0 - 超时时间，单位为秒，如果需要一直不超时送入0
+        @param {kwargs}  - 动态参数，已定义的参数如下：
+            trace_id - 当前函数参数传入的trace_id
+            trace_level - 当前函数参数传入的trace_level
+            parent_id - 当前函数参数传入的parent_id
+            call_id - 当前函数参数传入的call_id
+            id的资源池的get_id传入参数
 
         @returns {object} - 返回所修饰函数的返回值
 
@@ -256,9 +142,12 @@ class CallChainTool(object):
                     _start_time = datetime.datetime.now()
                     _call_id = call_id
                     if _call_id is None:
-                        _call_id = CallChainTool.generate_trace_id()  # 生成执行ID
-                    _file_path, _file_name = os.path.split(sys._getframe().f_code.co_filename)
-                    _fun_name = str(func.__name__)
+                        _call_id = CallChainTool.generate_trace_id(
+                            idpool=idpool, get_id_overtime=get_id_overtime, **kwargs)  # 生成执行ID
+                    # 获取日志函数名及文件名
+                    _call_fun_level = 1  # 日志对应的输出函数名调整为methon_call_chain
+                    _file_path, _file_name = os.path.split(inspect.getabsfile(func))
+                    _fun_name = RunTool.get_function_name(func)
                     _trace_id = trace_id
 
                     # 处理trace_id，优先获取当前函数参数，没有则找修饰函数传参，没有再找父函数的参数，再没有则自己创建
@@ -317,7 +206,7 @@ class CallChainTool(object):
 
                     # 打印调用信息
                     _log_str = '[TRACE:%s]%s' % (_trace_item, str(_log_obj))
-                    _logger.log(log_level, _log_str)
+                    _logger.log(log_level, _log_str, extra={'callFunLevel': _call_fun_level})
 
                     # 执行函数，把trace_id和trace_level放入参数中
                     kwargs['trace_id'] = _trace_id
@@ -332,7 +221,7 @@ class CallChainTool(object):
                         _use = (_end_time - _start_time).total_seconds()
                         _log_str = '[TRACE:%s][USE:%ss][EX:%s]%s' % (
                             _trace_item, str(_use), str(type(e)), traceback.format_exc())
-                        _logger.log(log_level, _log_str)
+                        _logger.log(log_level, _log_str, extra={'callFunLevel': _call_fun_level})
                         raise e
 
                     # 执行完成
@@ -347,33 +236,29 @@ class CallChainTool(object):
                         _log_back = str(_log_obj)
                     # 打印调用信息
                     _log_str = '[TRACE:%s][USE:%ss]%s' % (_trace_item, str(_use), _log_back)
-                    _logger.log(log_level, _log_str)
+                    _logger.log(log_level, _log_str, extra={'callFunLevel': _call_fun_level})
                     return _back
             return wrapper2
         return wrapper1
 
     @staticmethod
-    def api_call_chain_logging(msg=None, proto_msg=None, logger=None, api_mapping=dict(),
+    def api_call_chain_log_str(msg=None, proto_msg=None, api_mapping=dict(),
                                api_call_type='SEND', api_info_type='SEND',
                                trace_id=None, trace_level=None, call_id=None,
                                parent_id=None, logging_head=dict(),
                                use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
                                is_print_msg=False, msg_print_kwargs=dict(),
-                               key_para=dict(), print_in_para=dict(),
-                               is_use_global_logger=True, log_level=logging.INFO):
+                               key_para=dict(), print_in_para=dict()):
         """
-        记录api接口调用联日志信息
+        创建api接口调用链日志文本
 
-        @param {interface_tool.IntfMsgFW} msg - 接口报文对象
-        @param {interface_tool.IntfMsgFW} proto_msg=None - 协议报文信息对象
-        @param {object} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
-            1、标准logging的logger对象
-            2、自定义的日志类对象，但应实现info、warning、error等标准方法
+        @param {interface_tool.MsgFW} msg - 接口报文对象
+        @param {interface_tool.MsgFW} proto_msg=None - 协议报文信息对象
         @param {dict} api_mapping=dict() - 接口信息映射字典，用于从接口中获取指定的信息项，格式如下：
             key {string} - 输入信息项名（与入参名一致）
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
                 value[2] {dict} - 获取参数
         @param {string} api_call_type='SEND' - 接口调用类型，SEND - 发送报文，RECV - 接收报文
         @param {string} api_info_type='SEND' - 接口信息类型，区分两类：
@@ -407,36 +292,24 @@ class CallChainTool(object):
         @param {object} error=None - 异常对象，api_info_type为EX时需传入
         @param {string} trace_str='' - 异常堆栈信息，api_info_type为EX时需传入
         @param {bool} is_print_proto_msg=False - 是否打印协议报文信息对象
-        @param {dict} proto_msg_print_kwargs=dict() - 协议报文信息对象打印参数（IntfMsgFW转换为字符串的参数）
+        @param {dict} proto_msg_print_kwargs=dict() - 协议报文信息对象打印参数（MsgFW转换为字符串的参数）
         @param {bool} is_print_msg=False - 是否打印接口报文对象
-        @param {dict} msg_print_kwargs=dict() - 报文信息对象打印参数（IntfMsgFW转换为字符串的参数
+        @param {dict} msg_print_kwargs=dict() - 报文信息对象打印参数（MsgFW转换为字符串的参数
         @param {dict} key_para=dict() - 打印业务层面唯一标识业务的接口参数列表，格式如下：
             key {string} - 打印信息项名
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
-                value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
         @param {dict} print_in_para=dict() - 定义需要打印的接口信息，格式如下：
             key {string} - 打印信息项名
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
-                value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
-        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
-            注：通过RunTool.set_global_logger进行设置
-        @param {int} log_level=logging.INFO - 打印日志的级别
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
 
+        @return {string} - 生成要记录日志的message内容字符串
         """
-        # 处理日志对象
-        _logger = logger
-        if _logger is None and is_use_global_logger:
-            # 使用全局logger
-            _logger = RunTool.get_global_logger()
-
-        if _logger is None:
-            # 没有日志对象
-            return
-
         # 组织日志内容
         _log_str = '[INF-%s]' % (api_info_type)
         # 传入的信息项头__get_msg_para_value
@@ -496,29 +369,32 @@ class CallChainTool(object):
             if is_print_msg and msg is not None:
                 _log_str = _log_str + '\r\n' + msg.to_str(**msg_print_kwargs)
 
-        # 打印日志
-        _logger.log(log_level, _log_str)
+        # 返回日志字符串
+        return _log_str
 
     @staticmethod
-    def api_call_chain_logging_nowait(log_queue, msg=None, proto_msg=None, api_mapping=dict(),
-                                      api_call_type='SEND', api_info_type='SEND',
-                                      trace_id=None, trace_level=None, call_id=None,
-                                      parent_id=None, logging_head=dict(),
-                                      use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
-                                      is_print_msg=False, msg_print_kwargs=dict(),
-                                      key_para=dict(), print_in_para=dict(),
-                                      log_level=logging.INFO):
+    def api_call_chain_logging(msg=None, proto_msg=None, logger=None, api_mapping=dict(),
+                               api_call_type='SEND', api_info_type='SEND',
+                               trace_id=None, trace_level=None, call_id=None,
+                               parent_id=None, logging_head=dict(),
+                               use=0, error=None, trace_str='', is_print_proto_msg=False, proto_msg_print_kwargs=dict(),
+                               is_print_msg=False, msg_print_kwargs=dict(),
+                               key_para=dict(), print_in_para=dict(),
+                               is_use_global_logger=True, log_level=logging.INFO,
+                               call_fun_level=0):
         """
-        记录api接口调用联日志信息-异步模式，把信息放入队列处理，快速返回结果
+        记录api接口调用联日志信息
 
-        @param {QueueFw} log_queue - 需要放置日志的队列对象
-        @param {interface_tool.IntfMsgFW} msg - 接口报文对象
-        @param {interface_tool.IntfMsgFW} proto_msg=None - 协议报文信息对象
+        @param {interface_tool.MsgFW} msg - 接口报文对象
+        @param {interface_tool.MsgFW} proto_msg=None - 协议报文信息对象
+        @param {object} logger=None - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
+            1、标准logging的logger对象
+            2、自定义的日志类对象，但应实现info、warning、error等标准方法
         @param {dict} api_mapping=dict() - 接口信息映射字典，用于从接口中获取指定的信息项，格式如下：
             key {string} - 输入信息项名（与入参名一致）
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
                 value[2] {dict} - 获取参数
         @param {string} api_call_type='SEND' - 接口调用类型，SEND - 发送报文，RECV - 接收报文
         @param {string} api_info_type='SEND' - 接口信息类型，区分两类：
@@ -527,10 +403,15 @@ class CallChainTool(object):
                 BACK - 返回报文
                 OT - 超时
                 EX - 异常
+                STREAM-SEND - 流报文发送
+                STREAM-BACK - 流报文返回
             api_call_type为RECV的情况：
                 RECV - 接收报文
                 RET - 返回报文
                 EX - 异常
+                STREAM-RECV - 流报文接收
+                STREAM-DEAL - 流报文处理（非返回）
+                STREAM-RET - 流报文返回
         @param {string} trace_id=None - 调用链追踪ID，None代表从报文对象msg或proto_msg中获取
         @param {int} trace_level=None - 调用层级，None代表从报文对象msg或proto_msg中获取
         @param {string} call_id=None - 当前接口调用的执行ID，None代表从报文对象msg或proto_msg中获取
@@ -547,70 +428,247 @@ class CallChainTool(object):
         @param {object} error=None - 异常对象，api_info_type为EX时需传入
         @param {string} trace_str='' - 异常堆栈信息，api_info_type为EX时需传入
         @param {bool} is_print_proto_msg=False - 是否打印协议报文信息对象
-        @param {dict} proto_msg_print_kwargs=dict() - 协议报文信息对象打印参数（IntfMsgFW转换为字符串的参数）
+        @param {dict} proto_msg_print_kwargs=dict() - 协议报文信息对象打印参数（MsgFW转换为字符串的参数）
         @param {bool} is_print_msg=False - 是否打印接口报文对象
-        @param {dict} msg_print_kwargs=dict() - 报文信息对象打印参数（IntfMsgFW转换为字符串的参数)
+        @param {dict} msg_print_kwargs=dict() - 报文信息对象打印参数（MsgFW转换为字符串的参数
         @param {dict} key_para=dict() - 打印业务层面唯一标识业务的接口参数列表，格式如下：
             key {string} - 打印信息项名
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
-                value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
         @param {dict} print_in_para=dict() - 定义需要打印的接口信息，格式如下：
             key {string} - 打印信息项名
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
-                value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
+        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+            注：通过RunTool.set_global_logger进行设置
         @param {int} log_level=logging.INFO - 打印日志的级别
+        @param {int} call_fun_level=0 - 登记日志时需要记录的实际函数所处层级，
+            从当前执行函数开始，如果需要记录当前函数则传0；记录父函数则传1，记录父父函数则传2...
 
         """
-        # 将传入的信息转换为一个大dict，推入队列中（需注意要转换为基础类型）
-        _task = {
-            'msg': None,
-            'proto_msg': None,
-            'api_mapping': api_mapping,
-            'api_call_type': api_call_type,
-            'api_info_type': api_info_type,
-            'trace_id': trace_id,
-            'trace_level': trace_level,
-            'call_id': call_id,
-            'parent_id': parent_id,
-            'logging_head': logging_head,
-            'use': use,
-            'error': None,
-            'trace_str': trace_str,
-            'is_print_proto_msg': is_print_proto_msg,
-            'proto_msg_print_kwargs': proto_msg_print_kwargs,
-            'is_print_msg': is_print_msg,
-            'msg_print_kwargs': msg_print_kwargs,
-            'key_para': key_para,
-            'print_in_para': print_in_para,
-            'log_level': log_level
-        }
+        # 处理日志对象
+        _logger = logger
+        if _logger is None and is_use_global_logger:
+            # 使用全局logger
+            _logger = RunTool.get_global_logger()
 
-        # 转换已知的非基础类型数据
-        if error is not None:
-            _task['error'] = str(type(error))
-        if msg is not None:
-            _task['msg'] = msg.to_str()
-            _task['msg_moudle_name'] = RunTool.get_object_moudle_name(msg)
-            _task['msg_class_name'] = RunTool.get_object_class_name(msg)
-            _task['msg_msg_id'] = msg.msg_id
+        if _logger is None:
+            # 没有日志对象
+            return
 
-        if proto_msg is not None:
-            _task['proto_msg'] = msg.to_str()
-            _task['proto_msg_moudle_name'] = RunTool.get_object_moudle_name(proto_msg)
-            _task['proto_msg_class_name'] = RunTool.get_object_class_name(proto_msg)
-            _task['proto_msg_msg_id'] = proto_msg.msg_id
+        # 组织日志内容
+        _log_str = CallChainTool.api_call_chain_log_str(
+            msg=msg, proto_msg=proto_msg, api_mapping=api_mapping,
+            api_call_type=api_call_type, api_info_type=api_info_type,
+            trace_id=trace_id, trace_level=trace_level, call_id=call_id,
+            parent_id=parent_id, logging_head=logging_head,
+            use=use, error=error, trace_str=trace_str, is_print_proto_msg=is_print_proto_msg,
+            proto_msg_print_kwargs=proto_msg_print_kwargs,
+            is_print_msg=is_print_msg, msg_print_kwargs=msg_print_kwargs,
+            key_para=key_para, print_in_para=print_in_para
+        )
 
-        # 放入队列中
-        log_queue.put(_task)
+        # 打印日志
+        _call_fun_level = call_fun_level + 1
+        _logger.log(log_level, _log_str, extra={'callFunLevel': _call_fun_level})
+
+    #############################
+    # 异步日志处理
+    #############################
+    @staticmethod
+    def create_call_chain_logger(
+        logger=None, is_use_global_logger=True,
+        asyn_logging=False, asyn_log_config_level=logging.DEBUG,
+        topic_name='', asyn_logging_fun=None, asyn_deal_msg_fun=None, asyn_formater=None
+    ):
+        """
+        创建调用链日志对象
+
+        @param {simple_log.Logger} logger=None - 日志对象，如果为None代表不需要输出日志
+        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+            注：通过RunTool.set_global_logger进行设置
+        @param {bool} asyn_logging=False - 是否异步写日志
+        @param {int} asyn_log_config_level=logging.DEBUG - 异步日志配置文件的级别
+        @param {string} topic_name='' - 日志主题
+        @param {function} asyn_logging_fun=None - 异步写日志时的日志处理函数，如果为None时将默认使用
+            logger传入的日志对象进行写处理（注意会修改对象的formater为'%(message)s'），
+            也可以自行传入一个处理函数实现远程日志的记录，
+            函数格式为funs(levelno, topic_name, msg){...}
+        @param {function} asyn_deal_msg_fun=None - 异步写日志时的日志msg生成函数（可以自定义函数处理
+            record.info_dict来生成日志msg），如果为None时默认直接当前的msg写日志
+            函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+        @param {logging.Formatter} asyn_formater=None - 异步写日志的Formatter格式，如果传None，
+            代表使用logger的格式，logging.Formatter可传入日志的format格式字符串及datefmt日期时间格式
+
+        @return {simple_log.Logger} - 可进行调用链日志处理的日志对象
+        """
+        _logger = None
+        if asyn_logging:
+            # 异步日志模式
+            if logger is not None:
+                # 有传入原始日志对象的情况下才能支持异步处理
+                _LOGGER_QUEUE_MSG_JSON_STR = u'''{
+                    "version": 1,
+                    "disable_existing_loggers": false,
+                    "formatters": {
+                        "simpleFormatter": {
+                            "format": "[%(asctime)s.%(millisecond)s][%(levelname)s][PID:%(process)d][TID:%(thread)d][FILE:%(filename)s][FUN:%(funcName)s]%(message)s",
+                            "datefmt": "%Y-%m-%d %H:%M:%S"
+                        }
+                    },
+
+                    "handlers": {
+                        "QueueRecordHandler": {
+                            "class": "HiveNetLib.simple_log.QueueHandler",
+                            "level": "DEBUG",
+                            "formatter": "simpleFormatter",
+                            "queue": "",
+                            "topic_name": "{=topic_name=}",
+                            "is_deal_msg": false,
+                            "error_queue_size": 20
+                        }
+                    },
+
+                    "loggers": {
+                        "QueueRecord": {
+                            "level": "DEBUG",
+                            "handlers": ["QueueRecordHandler"],
+                            "propagate": "no"
+                        }
+                    },
+
+                    "root": {
+                        "level": "DEBUG",
+                        "handlers": []
+                    }
+                }
+                '''.replace(
+                    'DEBUG', logging.getLevelName(asyn_log_config_level)
+                ).replace('{=topic_name=}', topic_name)
+
+                # 新增日志对象
+                _logger = Logger(
+                    logger_name='QueueRecord',
+                    json_str=_LOGGER_QUEUE_MSG_JSON_STR
+                )
+
+                # 部分信息基于对象本身属性处理
+                _logger._asyn_base_logger = logger
+                _logger._asyn_logging_fun = asyn_logging_fun
+                _logger._asyn_deal_msg_fun = asyn_deal_msg_fun
+
+                # 修改日志Formatter
+                _logger._formater = asyn_formater
+                if _logger._formater is None:
+                    _logger._formater = copy.deepcopy(logger.get_logger_formater())
+
+                _logger.set_logger_formater(
+                    _logger._formater
+                )
+                _logger._asyn_base_logger.set_logger_formater('%(message)s')
+        else:
+            _logger = logger
+            if logger is None and is_use_global_logger and not asyn_logging:
+                # 使用全局logger，注意异步模式将不使用全局日志对象
+                _logger = RunTool.get_global_logger()
+            if _logger is not None and asyn_deal_msg_fun is not None:
+                _logger._asyn_deal_msg_fun = asyn_deal_msg_fun
+                _logger._topic_name = topic_name
+        # 返回日志对象
+        return _logger
+
+    @staticmethod
+    def start_call_chain_asyn_logging(logger, thread_num=1):
+        """
+        启动调用链异步日志服务
+
+        @param {simple_log.Logger} logger - 调用链异步日志对象
+            注：create_api_call_chain_logger产生的日志对象
+        @param {int} thread_num=1 - 处理日志队列对象的线程数
+        """
+        # 启动异常日志的处理
+        if hasattr(logger, '_asyn_base_logger'):
+            # 有属性就代表是异步日志对象
+            _loggers_or_funs = dict()
+            if logger._asyn_logging_fun is not None:
+                _loggers_or_funs['default'] = logger._asyn_logging_fun
+            else:
+                _loggers_or_funs['default'] = logger._asyn_base_logger
+
+            _deal_msg_funs = dict()
+            if logger._asyn_deal_msg_fun is not None:
+                _deal_msg_funs['default'] = logger._asyn_deal_msg_fun
+            else:
+                _deal_msg_funs['default'] = CallChainTool._asyn_deal_msg_fun_default
+
+            logger.base_logger.handlers[0].start_logging(
+                loggers_or_funs=_loggers_or_funs,
+                thread_num=thread_num,
+                deal_msg_funs=_deal_msg_funs,
+                formatters={
+                    'default': logger._formater
+                }
+            )
+
+    @staticmethod
+    def stop_call_chain_asyn_logging(logger):
+        """
+        停止调用链异步日志服务
+
+        @param {simple_log.Logger} logger - 调用链异步日志对象
+            注：create_call_chain_logger产生的日志对象
+        """
+        if hasattr(logger, '_asyn_base_logger'):
+            # 有属性就代表是异步日志对象
+            logger.base_logger.handlers[0].stop_logging()
+
+    @staticmethod
+    def call_chain_asyn_log(logger, level, msg, *args, **kwargs):
+        """
+        写入异步日志
+
+        @param {simple_log.Logger} logger - 调用链异步日志对象
+            注：create_call_chain_logger产生的日志对象
+        @param {int} - 日志级别(simple_log.DEBUG/INFO/WARNING/ERROR/CRITICAL)
+        @param {string} msg='' - 要输出的日志内容
+        @param {*args} args - 通用日志类的args参数
+        @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
+        """
+        # 设置日志打印函数层级
+        if 'extra' not in kwargs.keys():
+            kwargs['extra'] = dict()
+        if 'callFunLevel' not in kwargs['extra'].keys():
+            kwargs['extra']['callFunLevel'] = 1
+        else:
+            kwargs['extra']['callFunLevel'] += 1
+
+        if hasattr(logger, '_topic_name'):
+            # 同步日志，但需要通过异步日志函数处理，增加处理函数的日志输入
+            kwargs['extra']['dealMsgFun'] = logger._asyn_deal_msg_fun
+            kwargs['extra']['topicName'] = logger._topic_name
+
+        # 开始写日志
+        logger.log(level, msg, *args, **kwargs)
+
+    @staticmethod
+    def _asyn_deal_msg_fun_default(topic_name, record):
+        """
+        将日志record对象中的日志内容部分处理为msg并返回(默认函数, 不改变msg)
+
+        @param {string} topic_name - 日志主题
+        @param {object} record - 日志信息对象
+
+        @return {string} - 处理后的msg
+        """
+        return record.msg
 
     #############################
     # 内部函数
     #############################
-
     @staticmethod
     def __call_func(func, args, kwargs, is_standard_def):
         """
@@ -692,13 +750,13 @@ class CallChainTool(object):
 
         @param {string} para_name - 报文项标识名，需要与api_mapping的key对应上
         @param {string} value=None - 报文项固定值，只有在None的情况下才会真正找消息体的内容
-        @param {interface_tool.IntfMsgFW} msg - 接口报文对象
-        @param {interface_tool.IntfMsgFW} proto_msg=None - 协议报文信息对象
+        @param {interface_tool.MsgFW} msg - 接口报文对象
+        @param {interface_tool.MsgFW} proto_msg=None - 协议报文信息对象
         @param {dict} api_mapping=dict() - 接口信息映射字典，用于从接口中获取指定的信息项，格式如下：
             key {string} - 输入信息项名（与入参名一致）
             value {list}- 映射信息，为三项的数组:
                 value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
+                value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
                 value[2] {dict} - 获取参数
 
         @returns {string} - 如果value非None时，直接返回value的值，否则从报文中查找值，查不到返回''

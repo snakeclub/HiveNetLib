@@ -19,6 +19,7 @@ import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.simple_log import Logger
 
 
 class TestExcepitonTool(unittest.TestCase):
@@ -42,11 +43,12 @@ class TestExcepitonTool(unittest.TestCase):
         """
         测试静态方法
         """
+        _logger = Logger()
         _result = CResult('00000')
         _result.net_info = None
         with ExceptionTool.ignored_cresult(
             _result,
-            logger=None,
+            logger=_logger,
             expect=(),
             error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',
@@ -60,7 +62,7 @@ class TestExcepitonTool(unittest.TestCase):
         _result = CResult('00000')
         with ExceptionTool.ignored_cresult(
             _result,
-            logger=None,
+            logger=_logger,
             expect=(),
             error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',
@@ -74,7 +76,7 @@ class TestExcepitonTool(unittest.TestCase):
         _result = CResult('00000')
         with ExceptionTool.ignored_cresult(
             _result,
-            logger=None,
+            logger=_logger,
             expect=(),
             error_map={ImportError: ('20401', None), BlockingIOError: ('20407', None)},
             self_log_msg='test:',

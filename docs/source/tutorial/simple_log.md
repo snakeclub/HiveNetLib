@@ -82,6 +82,9 @@ _logger.debug('要写入的Debug日志')
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 ```
 
 
@@ -208,6 +211,126 @@ keys=simpleFormatter
 format=[%(asctime)s.%(millisecond)s][%(levelname)s][PID:%(process)d][TID:%(thread)d][FILE:%(filename)s][FUN:%(funcName)s]%(message)s
 datefmt=%Y-%m-%d %H:%M:%S
 ```
+
+
+
+## 通过队列日志句柄实现异步日志处理
+
+可以通过simple_log.QueueHandler来实现异步日志处理，QueueHandler可将日志信息写入内存队列中，然后通过对内存队列的日志项进行处理来实现异步记录日志。
+
+使用步骤如下：
+
+### 1、配置Logger句柄，让日志写入队列中
+
+传入的4个参数说明如下：
+
+- queue - 要写入的队列对象，如果不传值，代表由handler自行生成一个内存队列；如果传入的是字符串，则代表该字符串为可获取到队列对象的变量名字符串，handler将自动根据该字符串获取队列对象
+- topic_name - 默认的日志主题，当写日志的时候没有传topicName的扩展信息时使用
+- is_deal_msg - 是否处理日志格式，true代表直接生成完整的日志，将日志字符串写入队列；false代表不直接生成完整的日志消息，而是将record对象放入队列（待后面的程序自动处理）
+- error_queue_size -  通过start_logging方法写日志时，遇到异常时记录错误信息的队列大小, 如果错误信息数量超过大小，会自动删除前面的数据，0代表不限制大小
+
+```
+# 对于json格式的日志配置，句柄配置参考如下
+# 第1个配置会在写日志的时候直接将格式化后的日志字符串写入队列
+# 第2个配置不直接格式化日志字符串，而是将包含日志所有信息的record对象送入队列，可在处理时再格式化
+	"handlers": {
+        "QueueMsgHandler": {
+            "class": "HiveNetLib.simple_log.QueueHandler",
+            "level": "DEBUG",
+            "formatter": "simpleFormatter",
+            "queue": "",
+            "topic_name": "",
+            "is_deal_msg": true,
+            "error_queue_size": 20
+        },
+
+        "QueueRecordHandler": {
+            "class": "HiveNetLib.simple_log.QueueHandler",
+            "level": "DEBUG",
+            "formatter": "simpleFormatter",
+            "queue": "",
+            "topic_name": "",
+            "is_deal_msg": false,
+            "error_queue_size": 20
+        }
+    }
+
+# 对于ini格式的日志配置，句柄配置参考如下
+[QueueMsgHandler]
+class=HiveNetLib.simple_log.handler_queueHandler
+level=DEBUG
+formatter=logstashFormatter
+args=("queue_var_name", "topic_name", true, 20)
+
+[QueueRecordHandler]
+class=HiveNetLib.simple_log.handler_queueHandler
+level=DEBUG
+formatter=logstashFormatter
+args=("queue_var_name", "topic_name", false, 20)
+```
+
+### 2、使用配置生成simple_log.Logger对象
+
+```
+# 配置中的QueueMsg指定使用QueueMsgHandler
+queue_logger = simple_log.Logger(logger_name='QueueMsg',
+                                 json_str=_LOGGER_QUEUE_MSG_JSON_STR)
+```
+
+或
+
+```
+# 配置中的QueueRecord指定使用QueueRecordHandler
+queue_logger = simple_log.Logger(logger_name='QueueRecord',
+                                 json_str=_LOGGER_QUEUE_MSG_JSON_STR)
+```
+
+### 3、按正常情况使用Logger记录日志
+
+```
+# 记录日志，简单模式
+queue_logger.log(simple_log.INFO, 'INFO msg')
+
+# 记录日志，通过extra传入特殊信息，示例中的topicName用于指定日志的topic_name；name2Obj为自定义传入对象，对于QueueRecordHandler的情况，可以自定义日志内容处理函数，通过record.name2Obj访问并使用对象生成日志内容
+queue_logger.log(
+        simple_log.ERROR, 'ERROR msg',
+        extra={
+            'topicName': 'name3',
+            'name2Obj': ['a', 'b', 'c', 'd']
+        }
+    )
+```
+
+### 4、处理队列的日志信息
+
+可以通过Logger.base_logger.handlers[0]获取handler对象，然后通过handler.queue访问队列，取到消息项进行相应的处理，消息项的格式如下：
+
+- queue_obj.levelno {int} : 日志级别，值说明参考logging.INFO这些值
+- queue_obj.topic_name {string} : 日志主题标识（用于使用方区分日志来源）,注意'default'为保留的标识名
+- queue_obj.msg {string} : 已格式化后的日志内容, is_deal_msg为True时有效
+- queue_obj.record {object} : 未格式化的日志相关信息，其中record.msg为要写入的日志'%(message)s', is_deal_msg为False时有效
+
+simple_log.QueueHandler也提供了对队列日志自动处理的方法，通过handler.start_logging启动后端线程自动处理队列中的日志数据，相关参数的定义如下：
+
+```
+@param {dict} loggers_or_funs - 要写入的日志logger对象列表(或处理函数列表), key为topic_name, value为对应的处理日志类(HiveNetLib.simple_log.Logger)或处理函数
+	其中'default'为默认日志处理类或处理函数，如果不传入则代表匹配不到的topic_name不进行处理，规则如下：遇到日志项的topic_name在列表中不存在，先找'default'的日志对象进行处理，如果传入的日志对象清单中没有'default'，则不进行该日志项的处理
+	如果传入的是处理函数，格式为funs(levelno, topic_name, msg){...}
+	注意：如果为logger，则所传入的日志对象的formatter将统一修改为'%(message)s'，因此该日志对象注意不要与其他日志处理共用；字典里可以支持logger和fun并存，只是如果存在fun的情况，应注意formatters的取值
+@param {int} thread_num=1 - 处理队列对象的线程数
+@param {dict} deal_msg_funs={} - 处理record的函数(形成msg部分内容), 当is_deal_msg为False时有效, key为topic_name, value为对应的日志内容生成函数，搜索函数的规则与loggers一样，处理函数的定义应如下：func(topic_name, record) {return msg}
+@param {dict} formatters=None - is_deal_msg为False时，用于格式化record的Formatter，key为topic_name，value为该topic_name的Formatter，搜索格式对象的规则与loggers一样，如果formatters=None，代表自动获取loggers的Formatter形成该字典
+```
+
+提醒：如果loggers_or_funs对应的处理对象为Logger，则会根据Logger的配置进行日志的实际输出处理；如果处理对象为函数，则执行函数进行自定义的日志处理（例如发送到远程服务器）
+
+
+
+
+
+
+
+
 
 
 

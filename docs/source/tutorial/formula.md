@@ -224,8 +224,8 @@ print(_formula.formula_value)
 fun(formular_obj, **kwargs):
 
                 formular_obj : StructFormula 要处理公式对象（函数直接修改对象），该函数需更新对象的formula_value
-
-                kwargs ：计算公式所传入的key=value格式的参数，参数key由处理函数定义（建议统一定义便于简化处理）
+    
+                kwargs ：计算公式所传入的key=value格式的参数，参数key由处理函数定义（建议统一定义便于简化处理,由run_formula_as_string函数的kwargs参数传入）
 
 
 
@@ -240,4 +240,22 @@ default_deal_fun_python ：标签内容作为python代码执行，将执行结�
 default_deal_fun_datetime_str ：获取当前时间日期字符格式
 
 
+
+## 参数详细说明
+
+```
+keywords - {dict} - 公式关键字定义，格式如下：
+	key - string 关键字标识名
+	value - list 匹配定义数组，按顺序定义为:
+		开始标签 - [string-匹配字符串, list-前置字符, list-后置字符]
+		结束标签 - [string-匹配字符串, list-前置字符, list-后置字符]，结束标签可以置None（表示使用匹配参数）
+		匹配参数 - StructFormulaKeywordPara, 对象属性为：
+			object.is_single_tag : bool 该标签是否单独一个标识，不含公式内容
+			object.has_sub_formula : bool 是否包含子公式，如果为True则代表继续分解公式里面的子公式
+			object.is_string : bool 是否字符串，如果为True代表是字符串（字符串不包含子公式）
+			object.string_ignore_chars : list 字符串的结束标签忽略字符，例如["\\'", "''"]
+			object.end_tags : list 当结束标签为None时，且不是单独标签，通过该参数获取结束标识（可以为多个字符）:
+				\$ : 以结尾为结束标签'\\$'
+				\t : 以下一个标签开始为当前结束标签'\\t'，注意不是代表tab的'\t'
+```
 

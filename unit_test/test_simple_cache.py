@@ -71,12 +71,13 @@ class TestMemoryCache(unittest.TestCase):
         self.assertTrue(g1 is None, 'v2应按规则被删除，查到:%s' % (g1))
 
         # 有大小控制，按照访问次数优先规则处理
-        cache_obj2 = MemoryCache(size=5, sorted_order=EnumCacheSortedOrder.HitCountFirst)
-        cache_obj2.update_cache('b1', 'valueb1')
+        cache_obj1 = MemoryCache(size=5, sorted_order=EnumCacheSortedOrder.HitCountFirst)
+        cache_obj1.update_cache('b1', 'valueb1')
         g1 = cache_obj1.get_cache('b1')
         self.assertTrue(g1 == 'valueb1', '查询缓存b1失败，查到:%s' % (g1))
         time.sleep(0.01)
         cache_obj1.update_cache('b2', 'valueb2')
+        g1 = cache_obj1.get_cache('b2')
         time.sleep(0.01)
         cache_obj1.update_cache('b3', 'valueb3')
         g1 = cache_obj1.get_cache('b3')

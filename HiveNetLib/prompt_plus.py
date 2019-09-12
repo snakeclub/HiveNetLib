@@ -83,7 +83,7 @@ class PromptPlusCmdParaLexer(Lexer):
     #############################
     # 内部变量
     #############################
-    _cmd_para = dict()  # {type:cmdpara}
+    _cmd_para = None  # {type:cmdpara}
     _ignore_case = False
     # _cache = MemoryCache(size=10, sorted_order=EnumCacheSortedOrder.HitTimeFirst)
 
@@ -471,11 +471,11 @@ class PromptPlusCompleter(Completer):
     #############################
     # 内部变量
     #############################
-    _cmd_para = dict()  # {type:cmdpara}
+    _cmd_para = None  # {type:cmdpara}
     _ignore_case = False
     _slow_time = 0
-    _cmd_word = list()
-    _para_word = dict()
+    _cmd_word = None
+    _para_word = None
 
     #############################
     # 私有函数
@@ -641,6 +641,9 @@ class PromptPlusCompleter(Completer):
         self._cmd_para = cmd_para
         self._ignore_case = ignore_case
         self._slow_time = slow_time
+        # 应在__init__中初始化，否则会出现两个实例对象引用地址一样的问题
+        self._cmd_word = list()
+        self._para_word = dict()
         # 初始化词组，设置self._cmd_word和self._para_word，用于自动完成快速查找词
         for _cmd in cmd_para.keys():
             self._cmd_word.append(_cmd)
@@ -860,58 +863,19 @@ class PromptPlus(object):
     #############################
     # 实例化的命令行处理 - 内部变量
     #############################
-
     _prompt_instance = None  # 命令输入处理对象（prompt_toolkit.shortcuts.Prompt类）
     _message = 'CMD>'  # 命令行提示符内容
     # 默认输入参数值，定义了一些必须有默认取值的参数，用于创建_prompt_init_para并合并实际的调用参数
-    _prompt_default_para = {
-        'cmd_para': dict(),
-        'ignore_case': False,
-        'default_dealfun': None,
-        'on_abort': None,
-        'on_exit': None,
-        'is_async': False,
-        'logger': None,
-        'enable_color_set': True,
-        'color_set': None,
-        'enable_cmd_auto_complete': True,
-        'cmd_auto_complete_slow_time': 0
-    }
-    _prompt_init_para = dict()  # 用于初始化输入类的参数字典，key为参数名(string)，value为参数值
+    _prompt_default_para = None
+    _prompt_init_para = None  # 用于初始化输入类的参数字典，key为参数名(string)，value为参数值
     # Prompt类初始化支持的参数名清单，内部使用
-    _prompt_para_name_list = (
-        'lexer', 'completer', 'complete_in_thread', 'is_password',
-        'editing_mode', 'extra_key_bindings', 'is_password', 'bottom_toolbar',
-        'style', 'include_default_pygments_style', 'rprompt', 'multiline',
-        'prompt_continuation', 'wrap_lines', 'history',
-        'enable_history_search', 'complete_while_typing',
-        'validate_while_typing', 'complete_style', 'mouse_support',
-        'auto_suggest', 'clipboard', 'validator', 'refresh_interval',
-        'extra_input_processor', 'default', 'enable_system_prompt',
-        'enable_suspend', 'enable_open_in_editor', 'reserve_space_for_menu',
-        'tempfile_suffix', 'inputhook')
+    _prompt_para_name_list = None
     # 命令参数的默认设置值，用于合并至外部参数对象，避免传入参数有误导致其他问题
-    _cmd_para_default = {
-        'deal_fun': None,
-        'name_para': None,
-        'short_para': None,
-        'long_para': None
-    }
-    _loop = asyncio.get_event_loop()  # 异步模式需要的事件循环处理对象
-    _async_cmd_queue = Queue()  # 异步模式的命令执行队列
+    _cmd_para_default = None
+    _loop = None  # 异步模式需要的事件循环处理对象
+    _async_cmd_queue = None  # 异步模式的命令执行队列
     # 关键字配色方案，每个配色方案格式为'#000088 bg:#aaaaff underline'
-    _default_color_set = {
-        # 用户输入
-        '': '#ffffff',  # 默认输入ffffff
-        'cmd': '#00FF00',  # 命令
-        'name_para': '#00FFFF',  # key-value形式参数名 00FFFF
-        'short_para': '#FFFF00',  # -char形式的短参数字符 00FFFF
-        'long_para': '#FF00FF',  # -name形式的长参数字符 ff8c00
-        'wrong_tip': '#C0C0C0 bg:#FF0000 reverse',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
-
-        # prompt提示信息
-        'prompt': '#C0C0C0'
-    }
+    _default_color_set = None
 
     #############################
     # 实例化的命令行处理 - 内部函数
@@ -1243,6 +1207,56 @@ class PromptPlus(object):
                 cmd_auto_complete_slow_time {float} - 默认0，输入后延迟多久提示完成菜单
 
         """
+        # 内部变量
+        self._prompt_default_para = {
+            'cmd_para': dict(),
+            'ignore_case': False,
+            'default_dealfun': None,
+            'on_abort': None,
+            'on_exit': None,
+            'is_async': False,
+            'logger': None,
+            'enable_color_set': True,
+            'color_set': None,
+            'enable_cmd_auto_complete': True,
+            'cmd_auto_complete_slow_time': 0
+        }
+        # Prompt类初始化支持的参数名清单，内部使用
+        self._prompt_para_name_list = (
+            'lexer', 'completer', 'complete_in_thread', 'is_password',
+            'editing_mode', 'extra_key_bindings', 'is_password', 'bottom_toolbar',
+            'style', 'include_default_pygments_style', 'rprompt', 'multiline',
+            'prompt_continuation', 'wrap_lines', 'history',
+            'enable_history_search', 'complete_while_typing',
+            'validate_while_typing', 'complete_style', 'mouse_support',
+            'auto_suggest', 'clipboard', 'validator', 'refresh_interval',
+            'extra_input_processor', 'default', 'enable_system_prompt',
+            'enable_suspend', 'enable_open_in_editor', 'reserve_space_for_menu',
+            'tempfile_suffix', 'inputhook')
+        # 命令参数的默认设置值，用于合并至外部参数对象，避免传入参数有误导致其他问题
+        self._cmd_para_default = {
+            'deal_fun': None,
+            'name_para': None,
+            'short_para': None,
+            'long_para': None
+        }
+        self._loop = asyncio.get_event_loop()  # 异步模式需要的事件循环处理对象
+        self._async_cmd_queue = Queue()  # 异步模式的命令执行队列
+        # 关键字配色方案，每个配色方案格式为'#000088 bg:#aaaaff underline'
+        self._default_color_set = {
+            # 用户输入
+            '': '#ffffff',  # 默认输入ffffff
+            'cmd': '#00FF00',  # 命令
+            'name_para': '#00FFFF',  # key-value形式参数名 00FFFF
+            'short_para': '#FFFF00',  # -char形式的短参数字符 00FFFF
+            'long_para': '#FF00FF',  # -name形式的长参数字符 ff8c00
+            'wrong_tip': '#C0C0C0 bg:#FF0000 reverse',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
+
+            # prompt提示信息
+            'prompt': '#C0C0C0'
+        }
+
+        # 赋值
         self._message = message
         self._default = default
         self._prompt_init_para = self._prompt_default_para.copy()

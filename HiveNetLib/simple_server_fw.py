@@ -87,7 +87,7 @@ class SimpleServerFW(ABC):
 
     __self_tag = ''  # 自定义标识，用于发起端传入自身的识别标识
     __server_run_status = EnumServerRunStatus.Stop  # 服务端服务运行情况
-    __server_run_status_lock = threading.RLock()  # 服务端状态变更的同步锁
+    __server_run_status_lock = None  # 服务端状态变更的同步锁
 
     __server_begin_time = None  # 执行启动函数的开始时间
     __server_stop_time = None  # 执行关闭函数的开始时间
@@ -223,6 +223,7 @@ class SimpleServerFW(ABC):
         @param {string} trans_file_encoding='utf-8' - 要加载的i18n字典文件的字符编码
 
         """
+        self.__server_run_status_lock = threading.RLock()
         self._logger = logger
         self.__server_status_info_fun = server_status_info_fun
         self.__self_tag = self_tag

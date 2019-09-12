@@ -81,7 +81,6 @@ class HttpService(TcpIpService):
     @param {string} default_data_encoding='utf-8' - 打印报文的默认字符集
 
     """
-
     #############################
     # 内部变量
     #############################

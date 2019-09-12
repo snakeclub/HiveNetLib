@@ -57,10 +57,10 @@ class BaseCache(ABC):
     # 缓存使用情况登记字典
     # key为缓存唯一识别标识，value为使用情况登记字典，固定登记信息key包括:
     #   last_hit_time - datetime最后一次命中时间，hit_count - int 命中次数
-    _cache_hit_info = dict()
-    _cache_data = dict()  # 缓存数据登记字典，key为缓存唯一识别标识，value为缓存数据
+    _cache_hit_info = None
+    _cache_data = None  # 缓存数据登记字典，key为缓存唯一识别标识，value为缓存数据
     _sortedorder = EnumCacheSortedOrder.HitTimeFirst  # 缓存排序优先规则
-    _cache_change_lock = threading.RLock()  # 为保证缓存信息的一致性，需要控制的锁
+    _cache_change_lock = None  # 为保证缓存信息的一致性，需要控制的锁
 
     #############################
     # 构造函数
@@ -76,6 +76,9 @@ class BaseCache(ABC):
         """
         self._cache_size = size
         self._sortedorder = sorted_order
+        self._cache_hit_info = dict()
+        self._cache_data = dict()
+        self._cache_change_lock = threading.RLock()
 
     #############################
     # 内部函数
@@ -112,15 +115,9 @@ class BaseCache(ABC):
         else:
             # 命中次数优先
             if hit_info_x[0]['hit_count'] > hit_info_y[0]['hit_count']:
-                if hit_info_y[0]['hit_count'] == 0:
-                    return 1  # 考虑点击次数为0是新加进来的数据
-                else:
-                    return -1
+                return -1
             elif hit_info_x[0]['hit_count'] < hit_info_y[0]['hit_count']:
-                if hit_info_x[0]['hit_count'] == 0:
-                    return -1  # 考虑点击次数为0是新加进来的数据
-                else:
-                    return 1
+                return 1
             else:
                 if hit_info_x[0]['last_hit_time'] > hit_info_y[0]['last_hit_time']:
                     return -1
@@ -166,9 +163,26 @@ class BaseCache(ABC):
         _key_list = self._get_keys_sorted()
         _len = len(_key_list)
         # print(_key_list)
-        while _len - self._cache_size > 0:
-            self.del_cache(_key_list[_len - 1])
-            _len -= 1
+        if self._sortedorder == EnumCacheSortedOrder.HitCountFirst:
+            # 按点击数处理的，要考虑新加进来的项点击数为0，只保留一个点击数为0的项
+            _del_count = _len - self._cache_size
+            while _del_count > 0:
+                if self._cache_hit_info[_key_list[_len - 1]]['hit_count'] != 0:
+                    # 当前节点点击数不为0，直接删除
+                    self.del_cache(_key_list[_len - 1])
+                    _del_count -= 1
+                else:
+                    # 当前节点点击数为0，如果上一个节点的点击数为0，则删除自己
+                    if self._cache_hit_info[_key_list[_len - 2]]['hit_count'] == 0:
+                        self.del_cache(_key_list[_len - 1])
+                        _del_count -= 1
+                # 下一个循环
+                _len -= 1
+        else:
+            # 按点击时间处理的，直接取消最后一个就好
+            while _len - self._cache_size > 0:
+                self.del_cache(_key_list[_len - 1])
+                _len -= 1
 
     #############################
     # 公共处理函数
@@ -227,6 +241,7 @@ class BaseCache(ABC):
                         'last_hit_time': time.time(),
                         'hit_count': 0
                     }
+            # print(self._cache_hit_info)
         finally:
             self._cache_change_lock.release()
         return _data

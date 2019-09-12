@@ -296,7 +296,7 @@ class ParallelFw(ABC):
     _set_daemon = False
     _logger = None
     _log_level = logging.INFO
-    _init_kwargs = {}
+    _init_kwargs = None
 
     _is_running = False  # 任务运行状态
     _stat_lock = None
@@ -370,6 +370,7 @@ class ParallelFw(ABC):
         @param {**kwargs} kwargs - 初始化参数，具体参数定义参考具体实现类
 
         """
+        self._init_kwargs = {}
         self._deal_fun = deal_fun
         self._run_args = run_args
         if run_args is None:

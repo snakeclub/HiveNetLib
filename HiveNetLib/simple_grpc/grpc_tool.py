@@ -22,6 +22,7 @@ from grpc_health.v1 import health_pb2_grpc
 import json
 import copy
 import traceback
+import logging
 from enum import Enum
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -31,6 +32,10 @@ import HiveNetLib.simple_grpc.msg_pb2_grpc as msg_pb2_grpc
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.string_tool import StringTool
+from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.base_tools.call_chain_tool import CallChainTool
+from HiveNetLib.simple_log import QueueHandler, Logger
+
 
 __MOUDLE__ = 'grpc_tools'  # 模块名
 __DESCRIPT__ = u'简单GRPC调用工具库'  # 模块描述
@@ -146,7 +151,7 @@ class SimpleGRpcTools(object):
     @staticmethod
     def parameters_to_json(para_list, is_support_bytes=False):
         """
-        将参数列表转换为json字符串
+        将参数列表转换为json字符串对象
 
         @param {list} para_list - 要转换的参数列表，list的每一项为一个参数项，每个参数项如下：
             [para_name, call_value] : para_name可以为''
@@ -662,7 +667,7 @@ class SimpleGRpcTools(object):
     @staticmethod
     def generate_health_check_stub(channel):
         """
-        生成健康检查桩代码对象(stub code，可以理解为映射服务端的占坑代码)，
+        生成gRPC标准的服务健康检查桩代码对象(stub code，可以理解为映射服务端的占坑代码)，
 
         @param {grpc.Channel} channel - gRPC连接通道
 
@@ -673,7 +678,7 @@ class SimpleGRpcTools(object):
     @staticmethod
     def health_check_by_stub(stub, servicer_name, timeout=None):
         """
-        基于stub对象执行远程调用
+        基于stub对象gRPC标准的服务健康检查
 
         @param {health_pb2_grpc.HealthStub} stub - 已连接的stub对象
         @param {string} servicer_name - 要检查的服务名
@@ -724,7 +729,7 @@ class SimpleGRpcTools(object):
     @staticmethod
     def health_check(connect_para, servicer_name, timeout=None):
         """
-        执行健康检查
+        执行gRPC标准的服务健康检查
 
         @param {object} connect_para - 客户端连接参数
         @param {string} servicer_name - 要检查的服务名
@@ -746,6 +751,126 @@ class SimpleGRpcTools(object):
             )
 
     #############################
+    # 调用链日志处理
+    #############################
+    @staticmethod
+    def write_api_call_chain_log(logger, info_dict):
+        """
+        记录调用链日志
+
+        @param {simple_log.Logger} logger - 调用链异步日志对象
+            注：CallChainTool.create_call_chain_logger产生的日志对象
+        @param {dict} info_dict - 信息字典，可传入的接口信息格式如下：
+            api_call_type - 接口调用类型
+            api_info_type - 接口信息类型
+            call_mode - 调用模式
+            service_name - 要调用的服务名
+            log_level - 打印日志的级别
+            call_fun_level - 登记日志时需要记录的实际函数所处层级
+            logging_para - dict - 日志参数字典
+            para_json - 参数JSON字符串（如果是返回则填入return_json）
+            para_bytes - 参数的bytes转换为字符串（如果是返回则填入return_bytes）
+            para_bytes_len - 参数的bytes的长度（如果是返回则填入return_bytes_len）
+            c-ip - 客户端IP
+            c-port - 客户端端口
+            s-ip - 服务端IP
+            s-port - 服务端端口
+
+            use - 接口执行耗时
+            error - 异常对象
+            trace_str - 异常堆栈信息
+
+            trace_id - request.trace_id - 调用链追踪ID
+            parent_id - request.parent_id - 上一函数的执行ID
+            trace_level - request.trace_level - 函数调用层级
+            call_id - 当前函数的执行id
+        """
+        if logger is None:
+            return
+
+        # 深复制，避免影响后面的对象
+        _info_dict = copy.deepcopy(info_dict)
+        if hasattr(logger, '_asyn_base_logger') or hasattr(logger, '_asyn_deal_msg_fun'):
+            # 使用了异步日志
+            CallChainTool.call_chain_asyn_log(
+                logger, _info_dict['log_level'], '',
+                extra={
+                    'info_dict': _info_dict,
+                    'callFunLevel': _info_dict['call_fun_level']
+                }
+            )
+        else:
+            # 同步日志处理
+            SimpleGRpcTools.call_chain_logging(logger, _info_dict)
+
+    @staticmethod
+    def call_chain_logging(logger, info_dict):
+        """
+        记录调用链日志
+
+        @param {HiveNetLib.simple_log.Logger} logger - 要写日志的日志对象
+        @param {dict} info_dict - 信息字典
+        """
+        with ExceptionTool.ignored_all(
+                logger=logger, self_log_msg=info_dict['err_log_msg']
+        ):
+            _msg = None
+            _logging_para = SimpleGRpcTools._get_logging_para_value(info_dict)
+            _msg = _logging_para['msg_class'](info_dict['para_json'])
+
+            # 记录日志
+            CallChainTool.api_call_chain_logging(
+                msg=_msg, proto_msg=None, logger=logger,
+                api_mapping=_logging_para['api_mapping'],
+                api_call_type=info_dict['api_call_type'], api_info_type=info_dict['api_info_type'],
+                trace_id=info_dict['trace_id'], trace_level=info_dict['trace_level'],
+                call_id=info_dict['call_id'], parent_id=info_dict['parent_id'],
+                logging_head=_logging_para['logging_head'],
+                is_print_msg=_logging_para['is_print_msg'],
+                msg_print_kwargs=_logging_para['msg_print_kwargs'],
+                key_para=_logging_para['key_para'],
+                print_in_para=_logging_para['print_in_para'],
+                use=info_dict['use'], error=info_dict['error'], trace_str=info_dict['trace_str'],
+                log_level=info_dict['log_level'],
+                call_fun_level=info_dict['call_fun_level']
+            )
+
+    @staticmethod
+    def api_call_chain_asyn_deal_msg_fun(topic_name, record):
+        """
+        将日志record对象中的日志内容部分处理为msg并返回（dict_info字典）
+
+        @param {string} topic_name - 日志主题
+        @param {object} record - 日志信息对象
+
+        @return {string} - 处理后的msg
+        """
+        if hasattr(record, 'info_dict'):
+            # 获取信息字典，进行格式化处理
+            info_dict = record.info_dict
+            _msg = None
+            _logging_para = SimpleGRpcTools._get_logging_para_value(info_dict)
+            if _logging_para['msg_class'] is not None:
+                _msg = _logging_para['msg_class'](info_dict['para_json'])
+            # 返回内容
+            return CallChainTool.api_call_chain_log_str(
+                msg=_msg, proto_msg=None,
+                api_mapping=_logging_para['api_mapping'],
+                api_call_type=info_dict['api_call_type'], api_info_type=info_dict['api_info_type'],
+                trace_id=info_dict['trace_id'], trace_level=info_dict['trace_level'],
+                call_id=info_dict['call_id'], parent_id=info_dict['parent_id'],
+                logging_head=_logging_para['logging_head'],
+                is_print_msg=_logging_para['is_print_msg'],
+                msg_print_kwargs=_logging_para['msg_print_kwargs'],
+                key_para=_logging_para['key_para'],
+                print_in_para=_logging_para['print_in_para'],
+                use=info_dict['use'], error=info_dict['error'], trace_str=info_dict['trace_str']
+            )
+        else:
+            # 直接原样返回即可
+            return record.msg
+
+    #############################
     # 内部函数
     #############################
     @staticmethod
@@ -758,6 +883,53 @@ class SimpleGRpcTools(object):
         @return {iterator} - 生成的迭代器对象
         """
         yield obj
+
+    @staticmethod
+    def _update_logging_head_value(info_dict, logging_para):
+        """
+        更新打印日志参数的logging_head的值
+
+        @param {dict} info_dict - 信息字典
+        @param {dict} logging_para - 要修改的日志参数
+        """
+        _logging_head = logging_para['logging_head'].copy()
+        for _key in _logging_head.keys():
+            if _key == 'C-IP':
+                _logging_head[_key] = info_dict['c-ip']
+            elif _key == 'C-PORT':
+                _logging_head[_key] = info_dict['c-port']
+            elif _key == 'S-IP':
+                _logging_head[_key] = info_dict['s-ip']
+            elif _key == 'S-PORT':
+                _logging_head[_key] = info_dict['s-port']
+            elif _key == 'CALL_MODE':
+                _logging_head[_key] = info_dict['call_mode']
+            elif _key == 'SERVICE_NAME':
+                _logging_head[_key] = info_dict['service_name']
+            elif _key == 'PARA_BYTES':
+                _logging_head[_key] = info_dict['para_bytes']
+            elif _key == 'PARA_BYTES_LEN':
+                _logging_head[_key] = info_dict['para_bytes_len']
+
+        # 返回结果
+        logging_para['logging_head'] = _logging_head
+
+    @staticmethod
+    def _get_logging_para_value(info_dict):
+        """
+        获取日志打印参数及相应值
+
+        @param {dict} info_dict - 信息字典
+
+        @return {dict} - 带值的打印日志参数字典
+        """
+        _logging_para = info_dict['logging_para'].copy()
+
+        # 更新logging_head
+        SimpleGRpcTools._update_logging_head_value(info_dict, _logging_para)
+
+        # 返回打印日志参数字典
+        return _logging_para
 
 
 if __name__ == '__main__':

@@ -232,7 +232,7 @@ class ExceptionTool(object):
             else:
                 _log_str = trace_str
             # 输出日志
-            RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
+            logger.log(log_level, _log_str, extra={'callFunLevel': 3})
 
 
 if __name__ == '__main__':

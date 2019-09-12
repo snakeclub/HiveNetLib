@@ -31,6 +31,7 @@ import traceback
 import datetime
 import threading
 import logging
+import copy
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -44,6 +45,7 @@ from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_i18n import _
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
 from HiveNetLib.interface_tool.msg_json import MsgJSON
+from HiveNetLib.simple_log import QueueHandler, Logger
 
 
 __MOUDLE__ = 'grpc_server'  # 模块名
@@ -73,138 +75,199 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
     # msg_print_kwargs - MsgFW对象（统一为MsgJSON）的msg.to_str()函数的传入参数
     # key_para - 要打印的关键业务参数，具体格式和定义参见CallChainTool.api_call_chain_logging的参数说明
     # print_in_para - 要打印的指定接口字段，具体格式和定义参见CallChainTool.api_call_chain_logging的参数说明
-    _simple_service_list = dict()  # 简单调用的可执行的服务列表（动态添加），key为服务名，value为函数对象
-    _client_side_stream_service_list = dict()  # 客户端流式的可执行的服务列表
-    _server_side_stream_service_list = dict()  # 服务端流式的可执行的服务列表
-    _bidirectional_stream_service_list = dict()  # 双向数据流模式的可执行的服务列表
+    _simple_service_list = None  # 简单调用的可执行的服务列表（动态添加），key为服务名，value为函数对象
+    _client_side_stream_service_list = None  # 客户端流式的可执行的服务列表
+    _server_side_stream_service_list = None  # 服务端流式的可执行的服务列表
+    _bidirectional_stream_service_list = None  # 双向数据流模式的可执行的服务列表
 
     _dealing_num = 0  # 当前正在处理的报文数
-    _dealing_num_lock = threading.RLock()  # 为保证缓存信息的一致性，需要控制的锁
+    _dealing_num_lock = None  # 为保证缓存信息的一致性，需要控制的锁
 
     _logger = None  # 日志对象
+    _log_level = logging.INFO  # 日志打印级别
     # 默认的logging打印参数
-    _default_logging_para = {
-        EnumCallMode.Simple: {
-            'RECV': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'S-IP': '',
-                    'S-PORT': '',
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'PARA_BYTES_LEN': '',
+    _default_logging_para = None
+
+    _idpool = None  # 获取id的资源池
+    _get_id_overtime = 0  # 超时时间
+    _init_kwargs = None  # 构造函数对应的动态参数
+
+    #############################
+    # 构造函数
+    #############################
+    def __init__(self, logger=None, log_level=logging.INFO, is_use_global_logger=True,
+                idpool=None, get_id_overtime=0,
+                **kwargs):
+        """
+        构造函数
+
+        @param {simple_log.Logger} logger=None - 日志对象，如果为None代表不需要输出日志
+        @param {int} log_level=logging.INFO - 打印日志的级别
+        @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
+            注：通过RunTool.set_global_logger进行设置
+        @param {HiveNetLib.IdPool} idpool=None - 获取id的资源池，如果传入None代表直接通过uuid生成id
+        @param {number} get_id_overtime=0 - 超时时间，单位为秒，如果需要一直不超时送入0
+        @param {kwargs}  - 动态参数，已定义的参数如下：
+            id的资源池的get_id传入参数
+        """
+        # 内部变量初始化
+        self._simple_service_list = dict()  # 简单调用的可执行的服务列表（动态添加），key为服务名，value为函数对象
+        self._client_side_stream_service_list = dict()  # 客户端流式的可执行的服务列表
+        self._server_side_stream_service_list = dict()  # 服务端流式的可执行的服务列表
+        self._bidirectional_stream_service_list = dict()  # 双向数据流模式的可执行的服务列表
+        self._dealing_num_lock = threading.RLock()  # 为保证缓存信息的一致性，需要控制的锁
+
+        # 默认的logging打印参数
+        self._default_logging_para = {
+            EnumCallMode.Simple: {
+                'RECV': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'S-IP': '',
+                        'S-PORT': '',
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
                 },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
+                'RESP': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
+                }
             },
-            'RESP': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'RETURN_BYTES_LEN': '',
+            EnumCallMode.ClientSideStream: {
+                'RECV': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'S-IP': '',
+                        'S-PORT': '',
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
                 },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
-            }
-        },
-        EnumCallMode.ClientSideStream: {
-            'RECV': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'S-IP': '',
-                    'S-PORT': '',
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'PARA_BYTES_LEN': '',
-                },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
+                'RESP': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
+                }
             },
-            'RESP': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'RETURN_BYTES_LEN': '',
+            EnumCallMode.ServerSideStream: {
+                'RECV': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'S-IP': '',
+                        'S-PORT': '',
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
                 },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
-            }
-        },
-        EnumCallMode.ServerSideStream: {
-            'RECV': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'S-IP': '',
-                    'S-PORT': '',
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'PARA_BYTES_LEN': '',
-                },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
+                'RESP': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
+                }
             },
-            'RESP': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'RETURN_BYTES_LEN': '',
+            EnumCallMode.BidirectionalStream: {
+                'RECV': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'S-IP': '',
+                        'S-PORT': '',
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
                 },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
-            }
-        },
-        EnumCallMode.BidirectionalStream: {
-            'RECV': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'S-IP': '',
-                    'S-PORT': '',
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'PARA_BYTES_LEN': '',
-                },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
-            },
-            'RESP': {
-                'msg_class': MsgJSON,
-                'api_mapping': {},
-                'logging_head': {
-                    'C-IP': '',
-                    'C-PORT': '',
-                    'RETURN_BYTES_LEN': '',
-                },
-                'is_print_msg': True,
-                'msg_print_kwargs': {},
-                'key_para': {},
-                'print_in_para': {}
+                'RESP': {
+                    'msg_class': MsgJSON,
+                    'api_mapping': {},
+                    'logging_head': {
+                        'C-IP': '',
+                        'C-PORT': '',
+                        'CALL_MODE': '',
+                        'SERVICE_NAME': '',
+                        'PARA_BYTES_LEN': '',
+                    },
+                    'is_print_msg': True,
+                    'msg_print_kwargs': {},
+                    'key_para': {},
+                    'print_in_para': {}
+                }
             }
         }
-    }
+
+        # 调用链ID产生信息
+        self._idpool = idpool
+        self._get_id_overtime = get_id_overtime
+        self._init_kwargs = kwargs
+
+        # 初始化日志信息
+        self._logger = logger
+        self._log_level = log_level
+        if logger is None and is_use_global_logger:
+            # 使用全局logger
+            self._logger = RunTool.get_global_logger()
 
     #############################
     # 静态函数
@@ -219,7 +282,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
         @return {dict} - 返回具有完整信息的参数对象
         """
-        _ret_para = self._default_logging_para[call_mode][api_type].copy()
+        _ret_para = copy.deepcopy(self._default_logging_para[call_mode][api_type])
         _ret_para.update(init_para)
         return _ret_para
 
@@ -233,15 +296,6 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
         @property {HiveNetLib.simple_log.Logger}
         """
         return self._logger
-
-    @logger.setter
-    def logger(self, value):
-        """
-        设置日志类
-
-        @param {HiveNetLib.simple_log.Logger} value - 日志类
-        """
-        self._logger = value
 
     @property
     def dealing_num(self):
@@ -281,11 +335,10 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 C-PORT : 客户端的连接端口
                 S-IP : 服务端绑定服务
                 S-PORT : 服务端监听端口
+                CALL_MODE : 服务端调用模式
                 SERVICE_NAME : 访问的服务名
-                PARA_BYTES : 转换为字符串显示的参数字节数组信息
-                PARA_BYTES_LEN : 字节数组长度
-                RETURN_BYTES : 转换为字符串显示的响应字节数组信息
-                RETURN_BYTES_LEN ： 响应报文字节数组长度
+                PARA_BYTES : 转换为字符串显示的参数字节数组信息（如果是返回报文该参数代表显示RETURN_BYTES）
+                PARA_BYTES_LEN : 字节数组长度（如果是返回报文该参数代表显示RETURN_BYTES_LEN）
 
             'api_mapping' {dict}- 定义从报文中获取logging_head所需的信息
             'key_para' {dict} - 要打印的关键业务参数
@@ -294,8 +347,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 key {string} - 打印信息项名
                 value {list}- 映射信息，为三项的数组:
                     value[0] {string} - 获取api对象类型，'msg'或'proto_msg'
-                    value[1] {string} - 搜索路径，具体规则参考对应的IntfMsgFW实例
-                    value[2] {dict} - 获取参数,具体规则参考对应的IntfMsgFW实例
+                    value[1] {string} - 搜索路径，具体规则参考对应的MsgFW实例
+                    value[2] {dict} - 获取参数,具体规则参考对应的MsgFW实例
 
             'is_print_msg' {bool} - 是否打印报文内容
             'msg_print_kwargs' {dict} - MsgFW对象（例如MsgJSON）的msg.to_str()函数的传入参数
@@ -323,7 +376,6 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _result = CResult(code='13001', i18n_msg_paras=('name'))
         else:
             # 接收报文的打印参数，初始化为可用
-
             _recv_para = self.generate_logging_para(call_mode, 'RECV', recv_logging_para)
 
             # 响应报文的打印参数，初始化为可用
@@ -438,31 +490,23 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _call_result = CResult(code='00000')  # 执行结果，默认先为成功
             _return_json_obj = None
 
+            _request_info_dict = dict()
+            if self._logger is not None:
+                # 获取请求信息中与日志登记相关的信息，形成日志字典
+                _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.Simple)
+                # 补充日志字典信息
+                _request_info_dict['trace_id'] = _trace_info.trace_id
+                _request_info_dict['parent_id'] = _trace_info.parent_id
+                _request_info_dict['trace_level'] = _trace_info.trace_level
+                _request_info_dict['call_id'] = _trace_info.call_id
+                _request_info_dict['api_call_type'] = 'RECV'
+                _request_info_dict['api_info_type'] = 'RECV'
+                _request_info_dict['err_log_msg'] = 'api call chain recv log error'
+                # 打印调用链日志
+                self._write_call_chain_log(_request_info_dict)
+
             # 开始进行处理，处理过程中要捕获异常
             try:
-                _recv_logging_para = self._get_logging_para(
-                    request, context, EnumCallMode.Simple, 'RECV', None)
-                # 用于打印的参数解析对象，通过MsgFW框架处理
-                _msg = None
-                if _recv_logging_para['msg_class'] is not None:
-                    _msg = _recv_logging_para['msg_class'](request.para_json)
-                # 打印请求报文
-                with ExceptionTool.ignored_all(
-                    logger=self._logger, self_log_msg='api call chain recv log error'
-                ):
-                    CallChainTool.api_call_chain_logging(
-                        msg=_msg, proto_msg=None, logger=self._logger,
-                        api_mapping=_recv_logging_para['api_mapping'],
-                        api_call_type='RECV', api_info_type='RECV',
-                        trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                        parent_id=_trace_info.parent_id,
-                        logging_head=_recv_logging_para['logging_head'],
-                        is_print_msg=_recv_logging_para['is_print_msg'],
-                        msg_print_kwargs=_recv_logging_para['msg_print_kwargs'],
-                        key_para=_recv_logging_para['key_para'],
-                        print_in_para=_recv_logging_para['print_in_para']
-                    )
-
                 # 执行函数
                 if request.service_name not in self._simple_service_list.keys():
                     # 没有找到服务名，返回执行失败
@@ -504,38 +548,36 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 call_msg_para=_call_result.i18n_msg_paras
             )
 
-            # 打印调用链日志
-            with ExceptionTool.ignored_all(
-                logger=self._logger, self_log_msg='api call chain resp log error'
-            ):
-                # 记录API日志
-                _resp_logging_para = self._get_logging_para(
-                    request, context, EnumCallMode.Simple, 'RESP', _return_obj)
+            if self._logger is not None:
+                # 在日志字典中补充返回信息内容
+                _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                _request_info_dict['para_json'] = _return_obj.return_json
+                if _return_obj.return_bytes is None:
+                    _request_info_dict['para_bytes_len'] = 'None'
+                    _request_info_dict['para_bytes'] = 'None'
+                else:
+                    _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                    if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                        _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
+
+                _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                _request_info_dict['api_call_type'] = 'RECV'
+                _request_info_dict['api_info_type'] = 'RET'
+                _request_info_dict['log_level'] = self._log_level
                 _end_time = datetime.datetime.now()
-                _use = (_end_time - _start_time).total_seconds()
-                _msg = None
-                if _resp_logging_para['msg_class'] is not None:
-                    _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
-                _api_info_type = 'RET'
-                _log_level = logging.INFO
+                _request_info_dict['use'] = (_end_time - _start_time).total_seconds()
                 if _call_result.code == '21008':
                     # 异常的情况
-                    _api_info_type = 'EX'
-                    _log_level = logging.ERROR
-                CallChainTool.api_call_chain_logging(
-                    msg=_msg, proto_msg=None, logger=self._logger,
-                    api_mapping=_resp_logging_para['api_mapping'],
-                    api_call_type='RECV', api_info_type=_api_info_type,
-                    trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                    parent_id=_trace_info.parent_id,
-                    logging_head=_resp_logging_para['logging_head'],
-                    is_print_msg=_resp_logging_para['is_print_msg'],
-                    msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                    key_para=_resp_logging_para['key_para'],
-                    print_in_para=_resp_logging_para['print_in_para'],
-                    use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                    log_level=_log_level
-                )
+                    _request_info_dict['api_info_type'] = 'EX'
+                    _request_info_dict['log_level'] = logging.ERROR
+                # 异常信息
+                _request_info_dict['error'] = _call_result.error
+                _request_info_dict['trace_str'] = _call_result.trace_str
+                _request_info_dict['error'] = _call_result.error
+
+                # 打印调用链日志
+                self._write_call_chain_log(_request_info_dict)
+
             # 返回结果
             return _return_obj
         except Exception as e:
@@ -584,32 +626,24 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 _return_json_obj = None
                 _block_start_time = datetime.datetime.now()  # 流数据块开始处理时间
                 _trace_info = self._get_trace_info(request, context)  # 调用链信息获取及处理
-                _recv_logging_para = self._get_logging_para(
-                    request, context, EnumCallMode.ClientSideStream, 'RECV', None)
+                _request_info_dict = dict()
+                if self._logger is not None:
+                    # 获取请求信息中与日志登记相关的信息，形成日志字典
+                    _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.ClientSideStream)
+                    # 补充日志字典信息
+                    _request_info_dict['trace_id'] = _trace_info.trace_id
+                    _request_info_dict['parent_id'] = _trace_info.parent_id
+                    _request_info_dict['trace_level'] = _trace_info.trace_level
+                    _request_info_dict['call_id'] = _trace_info.call_id
+                    _request_info_dict['api_call_type'] = 'RECV'
+                    _request_info_dict['api_info_type'] = 'STREAM-RECV'
+                    _request_info_dict['err_log_msg'] = 'api call chain recv log error'
+
+                    # 打印调用链日志
+                    self._write_call_chain_log(_request_info_dict)
 
                 # 开始进行处理，处理过程中要捕获异常
                 try:
-                    # 用于打印的参数解析对象，通过MsgFW框架处理
-                    _msg = None
-                    if _recv_logging_para['msg_class'] is not None:
-                        _msg = _recv_logging_para['msg_class'](request.para_json)
-                    # 打印请求报文
-                    with ExceptionTool.ignored_all(
-                        logger=self._logger, self_log_msg='api call chain recv log error'
-                    ):
-                        CallChainTool.api_call_chain_logging(
-                            msg=_msg, proto_msg=None, logger=self._logger,
-                            api_mapping=_recv_logging_para['api_mapping'],
-                            api_call_type='RECV', api_info_type='STREAM-RECV',
-                            trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                            parent_id=_trace_info.parent_id,
-                            logging_head=_recv_logging_para['logging_head'],
-                            is_print_msg=_recv_logging_para['is_print_msg'],
-                            msg_print_kwargs=_recv_logging_para['msg_print_kwargs'],
-                            key_para=_recv_logging_para['key_para'],
-                            print_in_para=_recv_logging_para['print_in_para']
-                        )
-
                     # 执行函数
                     if request.service_name not in self._client_side_stream_service_list.keys():
                         # 没有找到服务名，返回执行失败
@@ -651,43 +685,40 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     call_msg_para=_call_result.i18n_msg_paras
                 )
 
-                # 打印调用链日志
-                with ExceptionTool.ignored_all(
-                    logger=self._logger, self_log_msg='api call chain resp log error'
-                ):
-                    # 记录API日志
-                    _resp_logging_para = self._get_logging_para(
-                        request, context, EnumCallMode.ClientSideStream, 'RESP', _return_obj)
+                if self._logger is not None:
+                    # 在日志字典中补充返回信息内容
+                    _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                    _request_info_dict['para_json'] = _return_obj.return_json
+                    if _return_obj.return_bytes is None:
+                        _request_info_dict['para_bytes_len'] = 'None'
+                        _request_info_dict['para_bytes'] = 'None'
+                    else:
+                        _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                        if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                            _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
+
+                    _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                    _request_info_dict['api_call_type'] = 'RECV'
+                    _request_info_dict['api_info_type'] = 'STREAM-RET'
+                    _request_info_dict['log_level'] = self._log_level
                     _end_time = datetime.datetime.now()
-                    _use = (_end_time - _start_time).total_seconds()
-                    _msg = None
-                    if _resp_logging_para['msg_class'] is not None:
-                        _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
-                    _api_info_type = 'STREAM-RET'
-                    _log_level = logging.INFO
+                    _request_info_dict['use'] = (_end_time - _start_time).total_seconds()
                     if _call_result.code == '21008':
                         # 异常的情况
-                        _api_info_type = 'EX'
-                        _log_level = logging.ERROR
+                        _request_info_dict['api_info_type'] = 'EX'
+                        _request_info_dict['log_level'] = logging.ERROR
                     elif _has_next:
                         # 还有下一个报文
-                        _api_info_type = 'STREAM-DEAL'
-                        _use = (_end_time - _block_start_time).total_seconds()
+                        _request_info_dict['api_info_type'] = 'STREAM-DEAL'
+                        _request_info_dict['use'] = (_end_time - _block_start_time).total_seconds()
 
-                    CallChainTool.api_call_chain_logging(
-                        msg=_msg, proto_msg=None, logger=self._logger,
-                        api_mapping=_resp_logging_para['api_mapping'],
-                        api_call_type='RECV', api_info_type=_api_info_type,
-                        trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                        parent_id=_trace_info.parent_id,
-                        logging_head=_resp_logging_para['logging_head'],
-                        is_print_msg=_resp_logging_para['is_print_msg'],
-                        msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                        key_para=_resp_logging_para['key_para'],
-                        print_in_para=_resp_logging_para['print_in_para'],
-                        use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                        log_level=_log_level
-                    )
+                    # 异常信息
+                    _request_info_dict['error'] = _call_result.error
+                    _request_info_dict['trace_str'] = _call_result.trace_str
+                    _request_info_dict['error'] = _call_result.error
+
+                    # 打印调用链日志
+                    self._write_call_chain_log(_request_info_dict)
 
                 # 判断本次处理结果，如果不是成功则直接跳出循环并返回结果
                 if not _call_result.is_success():
@@ -729,32 +760,24 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _call_result = CResult(code='00000')  # 执行结果，默认先为成功
             _return_json_obj = None
             _fun_iterator = None
-            _recv_logging_para = self._get_logging_para(
-                request, context, EnumCallMode.ServerSideStream, 'RECV', None)
+            _request_info_dict = dict()
+            if self._logger is not None:
+                # 获取请求信息中与日志登记相关的信息，形成日志字典
+                _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.ServerSideStream)
+                # 补充日志字典信息
+                _request_info_dict['trace_id'] = _trace_info.trace_id
+                _request_info_dict['parent_id'] = _trace_info.parent_id
+                _request_info_dict['trace_level'] = _trace_info.trace_level
+                _request_info_dict['call_id'] = _trace_info.call_id
+                _request_info_dict['api_call_type'] = 'RECV'
+                _request_info_dict['api_info_type'] = 'RECV'
+                _request_info_dict['err_log_msg'] = 'api call chain recv log error'
+
+                # 打印调用链日志
+                self._write_call_chain_log(_request_info_dict)
 
             # 开始进行处理，处理过程中要捕获异常
             try:
-                # 用于打印的参数解析对象，通过MsgFW框架处理
-                _msg = None
-                if _recv_logging_para['msg_class'] is not None:
-                    _msg = _recv_logging_para['msg_class'](request.para_json)
-                # 打印请求报文
-                with ExceptionTool.ignored_all(
-                    logger=self._logger, self_log_msg='api call chain recv log error'
-                ):
-                    CallChainTool.api_call_chain_logging(
-                        msg=_msg, proto_msg=None, logger=self._logger,
-                        api_mapping=_recv_logging_para['api_mapping'],
-                        api_call_type='RECV', api_info_type='RECV',
-                        trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                        parent_id=_trace_info.parent_id,
-                        logging_head=_recv_logging_para['logging_head'],
-                        is_print_msg=_recv_logging_para['is_print_msg'],
-                        msg_print_kwargs=_recv_logging_para['msg_print_kwargs'],
-                        key_para=_recv_logging_para['key_para'],
-                        print_in_para=_recv_logging_para['print_in_para']
-                    )
-
                 # 执行函数
                 if request.service_name not in self._server_side_stream_service_list.keys():
                     # 没有找到服务名，返回执行失败
@@ -775,6 +798,12 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 _call_result = CResult(code='21008', error=_error, trace_str=traceback.format_exc(),
                                        i18n_msg_paras=(_error, ))
 
+            if self._logger is not None:
+                # 异常信息
+                _request_info_dict['error'] = _call_result.error
+                _request_info_dict['trace_str'] = _call_result.trace_str
+                _request_info_dict['error'] = _call_result.error
+
             # 判断是否异常失败，如果是，单独返回
             if not _call_result.is_success():
                 _return_obj = SimpleGRpcTools.generate_response_obj(
@@ -786,34 +815,32 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     call_error=_call_result.error,
                     call_msg_para=_call_result.i18n_msg_paras
                 )
+                if self._logger is not None:
+                    # 在日志字典中补充返回信息内容
+                    _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                    _request_info_dict['para_json'] = _return_obj.return_json
+                    if _return_obj.return_bytes is None:
+                        _request_info_dict['para_bytes_len'] = 'None'
+                        _request_info_dict['para_bytes'] = 'None'
+                    else:
+                        _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                        if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                            _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
-                # 打印调用链日志
-                with ExceptionTool.ignored_all(
-                    logger=self._logger, self_log_msg='api call chain resp log error'
-                ):
-                    # 记录API日志
-                    _resp_logging_para = self._get_logging_para(
-                        request, context, EnumCallMode.ServerSideStream, 'RESP', _return_obj)
+                    _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                    _request_info_dict['api_call_type'] = 'RECV'
+                    _request_info_dict['api_info_type'] = 'STREAM-RET'
+                    _request_info_dict['log_level'] = self._log_level
                     _end_time = datetime.datetime.now()
-                    _use = (_end_time - _start_time).total_seconds()
-                    _api_info_type = 'STREAM-RET'
+                    _request_info_dict['use'] = (_end_time - _start_time).total_seconds()
                     if _call_result.code == '21008':
-                        _api_info_type = 'EX'
+                        # 异常的情况
+                        _request_info_dict['api_info_type'] = 'EX'
+                        _request_info_dict['log_level'] = logging.ERROR
 
-                    CallChainTool.api_call_chain_logging(
-                        msg=None, proto_msg=None, logger=self._logger,
-                        api_mapping=_resp_logging_para['api_mapping'],
-                        api_call_type='RECV', api_info_type=_api_info_type,
-                        trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                        parent_id=_trace_info.parent_id,
-                        logging_head=_resp_logging_para['logging_head'],
-                        is_print_msg=_resp_logging_para['is_print_msg'],
-                        msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                        key_para=_resp_logging_para['key_para'],
-                        print_in_para=_resp_logging_para['print_in_para'],
-                        use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                        log_level=logging.ERROR
-                    )
+                    # 打印调用链日志
+                    self._write_call_chain_log(_request_info_dict)
+
                 # 返回处理结果
                 yield _return_obj
             else:
@@ -833,33 +860,28 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                         call_msg_para=_call_result.i18n_msg_paras
                     )
 
-                    # 打印调用链日志
-                    with ExceptionTool.ignored_all(
-                        logger=self._logger, self_log_msg='api call chain resp log error'
-                    ):
-                        # 记录API日志
-                        _resp_logging_para = self._get_logging_para(
-                            request, context, EnumCallMode.ServerSideStream, 'RESP', _return_obj)
-                        _end_time = datetime.datetime.now()
-                        _use = (_end_time - _start_time).total_seconds()
-                        _msg = None
-                        if _resp_logging_para['msg_class'] is not None:
-                            _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
+                    if self._logger is not None:
+                        # 在日志字典中补充返回信息内容
+                        _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                        _request_info_dict['para_json'] = _return_obj.return_json
+                        if _return_obj.return_bytes is None:
+                            _request_info_dict['para_bytes_len'] = 'None'
+                            _request_info_dict['para_bytes'] = 'None'
+                        else:
+                            _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                            if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                                _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
-                        CallChainTool.api_call_chain_logging(
-                            msg=_msg, proto_msg=None, logger=self._logger,
-                            api_mapping=_resp_logging_para['api_mapping'],
-                            api_call_type='RECV', api_info_type='STREAM-RET',
-                            trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                            parent_id=_trace_info.parent_id,
-                            logging_head=_resp_logging_para['logging_head'],
-                            is_print_msg=_resp_logging_para['is_print_msg'],
-                            msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                            key_para=_resp_logging_para['key_para'],
-                            print_in_para=_resp_logging_para['print_in_para'],
-                            use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                            log_level=logging.INFO
-                        )
+                        _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                        _request_info_dict['api_call_type'] = 'RECV'
+                        _request_info_dict['api_info_type'] = 'STREAM-RET'
+                        _request_info_dict['log_level'] = self._log_level
+                        _end_time = datetime.datetime.now()
+                        _request_info_dict['use'] = (_end_time - _start_time).total_seconds()
+
+                        # 打印调用链日志
+                        self._write_call_chain_log(_request_info_dict)
+
                     # 返回结果
                     yield _return_obj
         except Exception as e:
@@ -914,32 +936,24 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 _return_json_obj = None
                 _block_start_time = datetime.datetime.now()  # 流数据块开始处理时间
                 _trace_info = self._get_trace_info(request, context)  # 调用链信息获取及处理
-                _recv_logging_para = self._get_logging_para(
-                    request, context, EnumCallMode.BidirectionalStream, 'RECV', None)
+                _request_info_dict = dict()
+                if self._logger is not None:
+                    # 获取请求信息中与日志登记相关的信息，形成日志字典
+                    _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.BidirectionalStream)
+                    # 补充日志字典信息
+                    _request_info_dict['trace_id'] = _trace_info.trace_id
+                    _request_info_dict['parent_id'] = _trace_info.parent_id
+                    _request_info_dict['trace_level'] = _trace_info.trace_level
+                    _request_info_dict['call_id'] = _trace_info.call_id
+                    _request_info_dict['api_call_type'] = 'RECV'
+                    _request_info_dict['api_info_type'] = 'STREAM-RECV'
+                    _request_info_dict['err_log_msg'] = 'api call chain recv log error'
+
+                    # 打印调用链日志
+                    self._write_call_chain_log(_request_info_dict)
 
                 # 开始进行处理，处理过程中要捕获异常
                 try:
-                    # 用于打印的参数解析对象，通过MsgFW框架处理
-                    _msg = None
-                    if _recv_logging_para['msg_class'] is not None:
-                        _msg = _recv_logging_para['msg_class'](request.para_json)
-                    # 打印请求报文
-                    with ExceptionTool.ignored_all(
-                        logger=self._logger, self_log_msg='api call chain recv log error'
-                    ):
-                        CallChainTool.api_call_chain_logging(
-                            msg=_msg, proto_msg=None, logger=self._logger,
-                            api_mapping=_recv_logging_para['api_mapping'],
-                            api_call_type='RECV', api_info_type='STREAM-RECV',
-                            trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                            parent_id=_trace_info.parent_id,
-                            logging_head=_recv_logging_para['logging_head'],
-                            is_print_msg=_recv_logging_para['is_print_msg'],
-                            msg_print_kwargs=_recv_logging_para['msg_print_kwargs'],
-                            key_para=_recv_logging_para['key_para'],
-                            print_in_para=_recv_logging_para['print_in_para']
-                        )
-
                     # 执行函数
                     if request.service_name not in self._bidirectional_stream_service_list.keys():
                         # 没有找到服务名，返回执行失败
@@ -960,6 +974,12 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     _call_result = CResult(code='21008', error=_error, trace_str=traceback.format_exc(),
                                         i18n_msg_paras=(_error, ))
 
+                if self._logger is not None:
+                    # 异常信息
+                    _request_info_dict['error'] = _call_result.error
+                    _request_info_dict['trace_str'] = _call_result.trace_str
+                    _request_info_dict['error'] = _call_result.error
+
                 # 判断是否异常失败，如果是，单独返回
                 if not _call_result.is_success():
                     _return_obj = SimpleGRpcTools.generate_response_obj(
@@ -972,33 +992,32 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                         call_msg_para=_call_result.i18n_msg_paras
                     )
 
-                    # 打印调用链日志
-                    with ExceptionTool.ignored_all(
-                        logger=self._logger, self_log_msg='api call chain resp log error'
-                    ):
-                        # 记录API日志
-                        _resp_logging_para = self._get_logging_para(
-                            request, context, EnumCallMode.BidirectionalStream, 'RESP', _return_obj)
-                        _end_time = datetime.datetime.now()
-                        _use = (_end_time - _start_time).total_seconds()
-                        _api_info_type = 'STREAM-RET'
-                        if _call_result.code == '21008':
-                            _api_info_type = 'EX'
+                    if self._logger is not None:
+                        # 在日志字典中补充返回信息内容
+                        _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                        _request_info_dict['para_json'] = _return_obj.return_json
+                        if _return_obj.return_bytes is None:
+                            _request_info_dict['para_bytes_len'] = 'None'
+                            _request_info_dict['para_bytes'] = 'None'
+                        else:
+                            _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                            if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                                _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
-                        CallChainTool.api_call_chain_logging(
-                            msg=None, proto_msg=None, logger=self._logger,
-                            api_mapping=_resp_logging_para['api_mapping'],
-                            api_call_type='RECV', api_info_type=_api_info_type,
-                            trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                            parent_id=_trace_info.parent_id,
-                            logging_head=_resp_logging_para['logging_head'],
-                            is_print_msg=_resp_logging_para['is_print_msg'],
-                            msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                            key_para=_resp_logging_para['key_para'],
-                            print_in_para=_resp_logging_para['print_in_para'],
-                            use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                            log_level=logging.ERROR
-                        )
+                        _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                        _request_info_dict['api_call_type'] = 'RECV'
+                        _request_info_dict['api_info_type'] = 'STREAM-RET'
+                        _request_info_dict['log_level'] = self._log_level
+                        _end_time = datetime.datetime.now()
+                        _request_info_dict['use'] = (_end_time - _start_time).total_seconds()
+                        if _call_result.code == '21008':
+                            # 异常的情况
+                            _request_info_dict['api_info_type'] = 'EX'
+                            _request_info_dict['log_level'] = logging.ERROR
+
+                        # 打印调用链日志
+                        self._write_call_chain_log(_request_info_dict)
+
                     # 返回处理结果
                     yield _return_obj
                 else:
@@ -1015,7 +1034,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                                 call_error=_call_result.error,
                                 call_msg_para=_call_result.i18n_msg_paras
                             )
-                            _api_info_type = 'STREAM-DEAL'
+                            _request_info_dict['api_info_type'] = 'STREAM-DEAL'
                             _use_time = _block_start_time
                         else:
                             # 返回值转换为json
@@ -1031,36 +1050,30 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                                 call_error=_call_result.error,
                                 call_msg_para=_call_result.i18n_msg_paras
                             )
-                            _api_info_type = 'STREAM-RET'
+                            _request_info_dict['api_info_type'] = 'STREAM-RET'
                             _use_time = _start_time
 
-                        # 打印调用链日志
-                        with ExceptionTool.ignored_all(
-                            logger=self._logger, self_log_msg='api call chain resp log error'
-                        ):
-                            # 记录API日志
-                            _resp_logging_para = self._get_logging_para(
-                                request, context, EnumCallMode.BidirectionalStream, 'RESP', _return_obj)
-                            _end_time = datetime.datetime.now()
-                            _use = (_end_time - _use_time).total_seconds()
-                            _msg = None
-                            if _resp_logging_para['msg_class'] is not None:
-                                _msg = _resp_logging_para['msg_class'](_return_obj.return_json)
+                        if self._logger is not None:
+                            # 在日志字典中补充返回信息内容
+                            _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                            _request_info_dict['para_json'] = _return_obj.return_json
+                            if _return_obj.return_bytes is None:
+                                _request_info_dict['para_bytes_len'] = 'None'
+                                _request_info_dict['para_bytes'] = 'None'
+                            else:
+                                _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                                if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
+                                    _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
-                            CallChainTool.api_call_chain_logging(
-                                msg=_msg, proto_msg=None, logger=self._logger,
-                                api_mapping=_resp_logging_para['api_mapping'],
-                                api_call_type='RECV', api_info_type=_api_info_type,
-                                trace_id=_trace_info.trace_id, trace_level=_trace_info.trace_level, call_id=_trace_info.call_id,
-                                parent_id=_trace_info.parent_id,
-                                logging_head=_resp_logging_para['logging_head'],
-                                is_print_msg=_resp_logging_para['is_print_msg'],
-                                msg_print_kwargs=_resp_logging_para['msg_print_kwargs'],
-                                key_para=_resp_logging_para['key_para'],
-                                print_in_para=_resp_logging_para['print_in_para'],
-                                use=_use, error=_call_result.error, trace_str=_call_result.trace_str,
-                                log_level=logging.INFO
-                            )
+                            _request_info_dict['err_log_msg'] = 'api call chain resp log error'
+                            _request_info_dict['api_call_type'] = 'RECV'
+                            _request_info_dict['log_level'] = logging.INFO
+                            _end_time = datetime.datetime.now()
+                            _request_info_dict['use'] = (_end_time - _use_time).total_seconds()
+
+                            # 打印调用链日志
+                            self._write_call_chain_log(_request_info_dict)
+
                         # 返回结果
                         if _fun_obj is not None:
                             yield _return_obj
@@ -1099,6 +1112,108 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
     #############################
     # 内部函数
     #############################
+    def _write_call_chain_log(self, info_dict):
+        """
+        写调用链日志（同步及异步模式区别处理）
+
+        @param {dict} info_dict - 信息字典
+        """
+        SimpleGRpcTools.write_api_call_chain_log(self._logger, info_dict)
+
+    def _get_request_info_dict(self, request, context, call_mode):
+        """
+        将请求中的request和context的关键信息转换为字典，用于进行日志处理
+
+        @param {RpcRequest|StreamRpcRequest} request - 请求对象，与msg.proto定义一致
+        @param {grpc.ServicerContext} context - 服务端的上下文
+        @param {EnumCallMode} call_mode - 调用模式
+
+        @return {dict} - 转换后的信息字典，包括的信息如下“key - value - 说明”：
+            call_mode - 调用模式
+            para_json - 请求信息
+            c-ip - str(context.peer()).split(':')[1] - 客户端IP
+            c-port - str(context.peer()).split(':')[2] - 客户端端口
+            s-ip - str(context._rpc_event.call_details.host, 'utf-8').split(':')[0] - 服务端IP
+            s-port - str(context._rpc_event.call_details.host, 'utf-8').split(':')[1] - 服务端端口
+            service_name - request.service_name - 服务名
+            logging_para - dict - 日志参数字典
+            para_bytes - 请求信息的bytes转换为字符串
+            para_bytes_len - 请求信息的bytes的长度
+
+            以下信息为默认信息，可以在处理过程中修改：
+            use - 接口执行耗时
+            error - 异常对象
+            trace_str - 异常堆栈信息
+
+            以下信息在处理过程中再添加：
+            trace_id - request.trace_id - 调用链追踪ID
+            parent_id - request.parent_id - 上一函数的执行ID
+            trace_level - request.trace_level - 函数调用层级
+            call_id - 当前函数的执行id
+
+            err_log_msg - 写日志异常时的日志输出
+            api_call_type - 接口调用类型
+            api_info_type - 接口信息类型
+
+            以下信息作为冗余备份，作用是当请求重复打印请求时可以直接获取处理
+            recv_logging_para - dict - 复制self._default_logging_para的对应RECV的日志参数
+            resp_logging_para - dict - 复制self._default_logging_para的对应RESP的日志参数
+            recv_para_bytes_len
+            recv_para_bytes
+        """
+        _dict = dict()
+        # 默认信息
+        _dict['use'] = 0
+        _dict['error'] = None
+        _dict['trace_str'] = ''
+        _dict['log_level'] = self._log_level
+        _dict['call_fun_level'] = 2
+        # _frame = RunTool.get_parent_function_frame(1)
+        # _dict['function_name'] = _frame.f_code.co_name
+        # _dict['module_file'] = os.path.realpath(_frame.f_code.co_filename)
+        # 基本信息
+        _dict['call_mode'] = call_mode
+        _dict['para_json'] = request.para_json
+        # IP信息
+        _dict['c-ip'] = str(context.peer()).split(':')[1]
+        _dict['c-port'] = str(context.peer()).split(':')[2]
+        _dict['s-ip'] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[0]
+        _dict['s-port'] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[1]
+        # 请求报文信息
+        _dict['service_name'] = request.service_name
+        # 获取日志打印参数
+        _service_list = None
+        if call_mode == EnumCallMode.ClientSideStream:
+            _service_list = self._client_side_stream_service_list
+        elif call_mode == EnumCallMode.ServerSideStream:
+            _service_list = self._server_side_stream_service_list
+        elif call_mode == EnumCallMode.BidirectionalStream:
+            _service_list = self._bidirectional_stream_service_list
+        else:
+            _service_list = self._simple_service_list
+        if request.service_name not in _service_list.keys():
+            # 服务不在，取默认打印参数
+            _dict['recv_logging_para'] = self._default_logging_para[call_mode]['RECV']
+            _dict['resp_logging_para'] = self._default_logging_para[call_mode]['RESP']
+        else:
+            _dict['recv_logging_para'] = _service_list[request.service_name][1]
+            _dict['resp_logging_para'] = _service_list[request.service_name][2]
+        _dict['logging_para'] = copy.deepcopy(_dict['recv_logging_para'])
+        # 请求信息的bytes数组
+        if request.para_bytes is None:
+            _dict['recv_para_bytes_len'] = 'None'
+            _dict['recv_para_bytes'] = 'None'
+        else:
+            _dict['recv_para_bytes_len'] = str(len(request.para_bytes))
+            if 'PARA_BYTES' in _dict['logging_para']['logging_head'].keys():
+                _dict['recv_para_bytes'] = str(request.para_bytes)
+            else:
+                _dict['recv_para_bytes'] = 'None'
+        _dict['para_bytes_len'] = _dict['recv_para_bytes_len']
+        _dict['para_bytes'] = _dict['recv_para_bytes']
+        # 返回字典
+        return _dict
+
     def _get_trace_info(self, request, context):
         """
         获取调用链信息
@@ -1112,7 +1227,11 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
         _trace_info.trace_id = request.trace_id
         _trace_info.parent_id = request.parent_id
         _trace_info.trace_level = request.trace_level
-        _trace_info.call_id = CallChainTool.generate_trace_id()  # 当前函数的执行id
+        _trace_info.call_id = CallChainTool.generate_trace_id(
+            idpool=self._idpool,
+            get_id_overtime=self._get_id_overtime,
+            **self._init_kwargs
+        )  # 当前函数的执行id
         if _trace_info.trace_id == '':
             # 上送请求没有调用链，则链从自己开始
             _trace_info.trace_id = _trace_info.call_id
@@ -1121,95 +1240,6 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _trace_info.trace_level = _trace_info.trace_level + 1
         # 返回信息
         return _trace_info
-
-    def _get_logging_para(self, request, context, call_mode, api_type, response=None):
-        """
-        获取请求日志打印参数
-
-        @param {RpcRequest} request - 请求对象，与msg.proto定义一致
-        @param {grpc.ServicerContext} context - 服务端的上下文
-        @param {EnumCallMode} call_mode - 调用模式
-        @param {string} api_type - 'RECV'，请求处理；'RESP',回复处理
-        @param {RpcResponse} response=None - 响应对象
-
-        @return {dict} - 打印日志参数字典
-
-        """
-        _logging_para = None
-        _service_list = None
-        if call_mode == EnumCallMode.ClientSideStream:
-            _service_list = self._client_side_stream_service_list
-        elif call_mode == EnumCallMode.ServerSideStream:
-            _service_list = self._server_side_stream_service_list
-        elif call_mode == EnumCallMode.BidirectionalStream:
-            _service_list = self._bidirectional_stream_service_list
-        else:
-            _service_list = self._simple_service_list
-
-        if request.service_name not in _service_list.keys():
-            # 服务不在
-            _logging_para = self._default_logging_para[call_mode][api_type].copy()
-        else:
-            if api_type == 'RECV':
-                _logging_para = _service_list[request.service_name][1].copy()
-            else:
-                _logging_para = _service_list[request.service_name][2].copy()
-
-        # 更新logging_head
-        self._update_logging_head(request, context, _logging_para, response)
-
-        # 返回打印日志参数字典
-        return _logging_para
-
-    def _update_logging_head(self, request, context, logging_para, response=None):
-        """
-        更新打印日志参数的logging_head的值
-
-        @param {RpcRequest} request - 请求对象，与msg.proto定义一致
-        @param {grpc.ServicerContext} context - 服务端的上下文
-        @param {dict} logging_para - 参数打印参数
-        @param {RpcResponse} response=None - 响应对象
-
-        @return {dict} - 更新logging_head信息的参数字典
-        """
-        _logging_head = logging_para['logging_head'].copy()
-        # 判断是处理请求还是响应
-        _deal_obj = request
-        if response is not None:
-            _deal_obj = response
-
-        for _key in _logging_head.keys():
-            if _key == 'C-IP':
-                _logging_head[_key] = str(context.peer()).split(':')[1]
-            elif _key == 'C-PORT':
-                _logging_head[_key] = str(context.peer()).split(':')[2]
-            elif _key == 'S-IP':
-                _logging_head[_key] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[0]
-            elif _key == 'S-PORT':
-                _logging_head[_key] = str(context._rpc_event.call_details.host, 'utf-8').split(':')[1]
-            elif _key == 'SERVICE_NAME':
-                _logging_head[_key] = request.service_name
-            elif response is None:
-                # 请求报文
-                if _key == 'PARA_BYTES':
-                    _logging_head[_key] = str(_deal_obj.para_bytes)
-                elif _key == 'PARA_BYTES_LEN':
-                    if _deal_obj.para_bytes is None:
-                        _logging_head[_key] = 'None'
-                    else:
-                        _logging_head[_key] = str(len(_deal_obj.para_bytes))
-            else:
-                # 响应报文
-                if _key == 'RETURN_BYTES':
-                    _logging_head[_key] = str(_deal_obj.return_bytes)
-                elif _key == 'RETURN_BYTES_LEN':
-                    if _deal_obj.return_bytes is None:
-                        _logging_head[_key] = 'None'
-                    else:
-                        _logging_head[_key] = str(len(_deal_obj.return_bytes))
-
-        # 返回结果
-        logging_para['logging_head'] = _logging_head
 
     def _get_call_para_str(self, request, context, fun_object, paras, paras_var_name, trace_info_var_name, has_next_stream_data=None):
         """
@@ -1261,7 +1291,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     _call_para_str = '%s, trace_id=%s.trace_id' % (_call_para_str, trace_info_var_name)
                 elif not _has_deal_parent_id and paras[_i][0] == 'parent_id':
                     _has_deal_parent_id = True
-                    _call_para_str = '%s, parent_id=%s.parent_id' % (_call_para_str, trace_info_var_name)
+                    _call_para_str = '%s, parent_id=%s.call_id' % (_call_para_str, trace_info_var_name)
                 elif not _has_deal_trace_level and paras[_i][0] == 'trace_level':
                     _has_deal_trace_level = True
                     _call_para_str = '%s, trace_level=%s.trace_level' % (_call_para_str, trace_info_var_name)
@@ -1278,7 +1308,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             if not _has_deal_trace_id:
                 _call_para_str = '%s, trace_id=%s.trace_id' % (_call_para_str, trace_info_var_name)
             if not _has_deal_parent_id:
-                _call_para_str = '%s, parent_id=%s.parent_id' % (_call_para_str, trace_info_var_name)
+                _call_para_str = '%s, parent_id=%s.call_id' % (_call_para_str, trace_info_var_name)
             if not _has_deal_trace_level:
                 _call_para_str = '%s, trace_level=%s.trace_level' % (_call_para_str, trace_info_var_name)
 
@@ -1311,7 +1341,7 @@ class SimpleGRpcServer(SimpleServerFW):
     # 内部变量
     #############################
     _grpc_server = None  # 服务对象
-    _grpc_servicer_list = dict()  # 服务端处理对象列表，key为服务名，value为服务的servicer
+    _grpc_servicer_list = None  # 服务端处理对象列表，key为服务名，value为服务的servicer
     _grpc_health_servicer = None  # 服务端健康检查对象
     _server_opts = None  # 启动参数
     _server_credentials = None  # 服务端凭证
@@ -1400,6 +1430,7 @@ class SimpleGRpcServer(SimpleServerFW):
         @param {string} trans_file_encoding='utf-8' - 要加载的i18n字典文件的字符编
 
         """
+        self._grpc_servicer_list = dict()  # 服务端处理对象列表，key为服务名，value为服务的servicer
         SimpleServerFW.__init__(self, logger=logger, server_status_info_fun=server_status_info_fun,
                                 self_tag=self_tag, log_level=log_level, server_log_prefix='LIS',
                                 server_name=server_name, is_auto_load_i18n=is_auto_load_i18n,

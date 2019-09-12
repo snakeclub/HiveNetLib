@@ -3,7 +3,7 @@
     "disable_existing_loggers": false,
     "formatters": {
         "simpleFormatter": {
-            "format": "[%(asctime)s][%(levelname)s][PID:%(process)d][TID:%(thread)d]%(message)s"
+            "format": "[%(asctime)s][%(levelname)s][PID:%(process)d][TID:%(thread)d][FILE:%(filename)s][FUN:%(funcName)s]%(message)s"
         }
     },
 

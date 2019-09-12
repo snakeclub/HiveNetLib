@@ -350,15 +350,26 @@ class SimpleLogFilter(logging.Filter):
         _bresult = logging.Filter.filter(self, record)
         if _bresult:
             if hasattr(record, 'callFunLevel'):
+                # 增加变更日志真实触发函数的支持
                 record.pathname = record.pathnameReal
                 record.funcName = record.funcNameReal
                 record.filename = record.filenameReal
 
             if hasattr(record, 'asctimeReal'):
+                # 增加变更日志真实记录时间的支持
                 record.asctime = record.asctimeReal
 
             if hasattr(record, 'millisecond'):
+                # 增加时间中毫秒的支持
                 record.millisecond = StringTool.fill_fix_string(str(round(record.msecs)), 3, '0')
+
+            if hasattr(record, 'dealMsgFun'):
+                # 增加自定义日志内容（msg）修改的支持
+                if callable(record.dealMsgFun):
+                    topic_name = ''
+                    if hasattr(record, 'topicName'):
+                        topic_name = record.topicName
+                    record.msg = record.dealMsgFun(topic_name, record)
 
         # 返回结果
         return _bresult
@@ -408,7 +419,7 @@ class Logger(object):
     __logfile_path = ""  # 日志文件的路径（含文件名）
     __logger = None  # 日志对象
     __logger_filter = None  # 日志的过滤器
-    __thread_lock = threading.Lock()  # 保证多线程访问的锁
+    __thread_lock = None  # 保证多线程访问的锁
     __json_config = None  # json格式的配置信息
     __is_create_logfile_by_day = True  # 是否按天生成新的日志文件
     __call_fun_level = 0  # 调用log函数输出文件名和函数名的层级,0代表获取直接调用函数；1代表获取直接调用函数的上一级
@@ -472,6 +483,8 @@ class Logger(object):
             log.log(simple_log.INFO, '输出日志内容'):
 
         """
+        # 初始化变量
+        self.__thread_lock = threading.Lock()  # 保证多线程访问的锁
         # 设置默认值
         self.__file_date = ''
         self.__conf_file_name = conf_file_name
@@ -776,6 +789,9 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 
         @example
             log = Logger(conf_file_name='/root/logger.conf',logger_name='ConsoleAndFile',
@@ -789,8 +805,7 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
+
         # 增加毫秒的处理
         kwargs['extra']['millisecond'] = ''
 
@@ -819,6 +834,9 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 
         """
         # 获取参数并处理
@@ -826,8 +844,6 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
         self.log(DEBUG, msg=msg, *args, **kwargs)
 
     def warning(self, msg, *args, **kwargs):
@@ -846,14 +862,16 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
         """
         # 获取参数并处理
         if 'extra' not in kwargs:
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
+
         self.log(WARNING, msg=msg, *args, **kwargs)
 
     def error(self, msg, *args, **kwargs):
@@ -872,6 +890,9 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 
         """
         # 获取参数并处理
@@ -879,8 +900,7 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
+
         self.log(ERROR, msg=msg, *args, **kwargs)
 
     def critical(self, msg, *args, **kwargs):
@@ -899,6 +919,9 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 
         """
         # 获取参数并处理
@@ -906,8 +929,7 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
+
         self.log(CRITICAL, msg=msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
@@ -926,6 +948,9 @@ class Logger(object):
                         0 - 输出调用本函数的函数名（文件名）
                         1 - 输出调用本函数的函数的上1级函数的函数名（文件名）
                         n - 输出调用本函数的函数的上n级函数的函数名（文件名）
+                    dealMsgFun {function} - 自定义日志内容修改函数，可以在输出日志前动态修改日志内容（msg）
+                        函数格式为funs(topic_name, record){return msg_string}，返回生成后的日志msg内容
+                    topicName {string} - 日志主题，与dealMsgFun配套使用
 
         """
         # 获取参数并处理
@@ -933,8 +958,7 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
-        else:
-            kwargs['extra']['callFunLevel'] += 1
+
         self.log(INFO, msg=msg, *args, **kwargs)
 
     def change_logger_name(self, logger_name):
@@ -1005,7 +1029,7 @@ class Logger(object):
             return _handler.formatter
 
 
-class handler_queueHandler(logging.Handler):
+class QueueHandler(logging.Handler):
     """
     内存队列日志处理Handler类
     将日志信息写入指定队列对象(通过handler.queue访问)，队列对象必须支持put(object)的方法，每个传入的日志的对象信息如下：
@@ -1024,7 +1048,7 @@ class handler_queueHandler(logging.Handler):
         'topicName'参数传入；最后一个参数为is_deal_msg，代表是否处理日志格式，True代表直接生成完整的日志，
         将日志字符串写入队列，False代表不直接生成完整的日志消息，而是将record对象放入队列（待后面的程序自动处理）
         [handler_queueHandler]
-        class=HiveNetLib.simple_log.handler_queueHandler
+        class=HiveNetLib.simple_log.QueueHandler
         level=DEBUG
         formatter=logstashFormatter
         args=("queue_var_name", "topic_name", True)
@@ -1041,15 +1065,15 @@ class handler_queueHandler(logging.Handler):
     _is_deal_msg = True
 
     # 队列中日志项处理的相关参数
-    _loggers = dict()  # 要写入的日志logger对象列表，key为topic_name，value为对应的日志类Logger
+    _loggers = None  # 要写入的日志logger对象列表，key为topic_name，value为对应的日志类Logger
     _thread_num = 1  # 处理队列对象的线程数
-    _deal_msg_funs = dict()  # is_deal_msg为False时，处理record的函数（形成msg部分内容）
-    _formatters = dict()  # 如果is_deal_msg为False时，原日志logger对象的formatter
+    _deal_msg_funs = None  # is_deal_msg为False时，处理record的函数（形成msg部分内容）
+    _formatters = None  # 如果is_deal_msg为False时，原日志logger对象的formatter
 
     # 运行相关变量
     _logging_running = False  # 是否已启动日志处理
     _current_running_num = 0  # 当前正在执行的线程数
-    _running_status_lock = threading.RLock()  # 处理线程执行状态锁
+    _running_status_lock = None  # 处理线程执行状态锁
     _is_stop = False  # 标记是否结束处理线程
 
     #############################
@@ -1070,6 +1094,12 @@ class handler_queueHandler(logging.Handler):
         @param {int} error_queue_size=20 - 通过start_logging方法写日志时，遇到异常时记录错误信息的队列大小,
             如果错误信息数量超过大小，会自动删除前面的数据，0代表不限制大小
         """
+        # 初始化
+        self._loggers = dict()  # 要写入的日志logger对象列表，key为topic_name，value为对应的日志类Logger
+        self._deal_msg_funs = dict()  # is_deal_msg为False时，处理record的函数（形成msg部分内容）
+        self._formatters = dict()  # 如果is_deal_msg为False时，原日志logger对象的formatter
+        self._running_status_lock = threading.RLock()  # 处理线程执行状态锁
+
         # 处理入参
         self.default_topic_name = topic_name
         self._is_deal_msg = is_deal_msg
@@ -1122,15 +1152,17 @@ class handler_queueHandler(logging.Handler):
     #############################
     # 处理队列中日志内容的通用方法
     #############################
-    def start_logging(self, loggers, thread_num=1, deal_msg_funs={}, formatters=None):
+    def start_logging(self, loggers_or_funs, thread_num=1, deal_msg_funs={}, formatters=None):
         """
         启动线程处理日志队列的对象
 
-        @param {dict} loggers - 要写入的日志logger对象列表, key为topic_name, value为对应的
-            处理日志类(HiveNetLib.simple_log.Logger), 其中'default'为默认日志处理类，如果不传入则代表匹配不到的
-            topic_name不进行处理，规则如下：遇到日志项的topic_name在列表中不存在，先找'default'的日志对象进行处理，
+        @param {dict} loggers_or_funs - 要写入的日志logger对象列表(或处理函数列表), key为topic_name, value为对应的
+            处理日志类(HiveNetLib.simple_log.Logger)或处理函数, 其中'default'为默认日志处理类或处理函数，
+            如果不传入则代表匹配不到的topic_name不进行处理，规则如下：遇到日志项的topic_name在列表中不存在，先找'default'的日志对象进行处理，
             如果传入的日志对象清单中没有'default'，则不进行该日志项的处理
-            注意：所传入的日志对象的formatter将统一修改为'%(message)s'，因此该日志对象注意不要与其他日志处理共用
+            如果传入的是处理函数，格式为funs(levelno, topic_name, msg){...}
+            注意：如果为logger，则所传入的日志对象的formatter将统一修改为'%(message)s'，因此该日志对象注意不要与其他日志处理共用
+                 字典里可以支持logger和fun并存，只是如果存在fun的情况，应注意formatters的取值
         @param {int} thread_num=1 - 处理队列对象的线程数
         @param {dict} deal_msg_funs={} - 处理record的函数(形成msg部分内容), 当is_deal_msg为False时有效,
             key为topic_name, value为对应的日志内容生成函数，
@@ -1151,19 +1183,22 @@ class handler_queueHandler(logging.Handler):
         else:
             with ExceptionTool.ignored_cresult(_result, logger=None):
                 # 参数处理
-                self._loggers = loggers
+                self._loggers = loggers_or_funs
                 self._thread_num = thread_num
                 self._deal_msg_funs = deal_msg_funs
                 self._formatters = formatters
                 if formatters is None and not self._is_deal_msg:
                     self._formatters = dict()
                     # 获取loggers原来的Formatter对象
-                    for _topic_name in loggers.keys():
-                        self._formatters[_topic_name] = loggers[_topic_name].get_logger_formater()
+                    for _topic_name in loggers_or_funs.keys():
+                        if not callable(loggers_or_funs[_topic_name]):
+                            self._formatters[_topic_name] = loggers_or_funs[_topic_name].get_logger_formater(
+                            )
 
                 # 变更loggers的formater
                 for _topic_name in self._loggers.keys():
-                    self._loggers[_topic_name].set_logger_formater('%(message)s')
+                    if not callable(self._loggers[_topic_name]):
+                        self._loggers[_topic_name].set_logger_formater('%(message)s')
 
                 # 启动处理线程
                 self._is_stop = False
@@ -1263,13 +1298,17 @@ class handler_queueHandler(logging.Handler):
                     elif 'default' in self._deal_msg_funs.keys():
                         _deal_msg_fun = self._deal_msg_funs['default']
                     if _deal_msg_fun is not None:
-                        _log_obj.record.msg = _deal_msg_fun(_log_obj.record)
+                        _log_obj.record.msg = _deal_msg_fun(_log_obj.topic_name, _log_obj.record)
 
                     # 格式化日志信息
                     _msg = _formatter.format(_log_obj.record)
 
-                # 记录日志
-                _logger.log(_log_obj.levelno, _msg)
+                # 记录日志或调用日志处理函数
+                if callable(_logger):
+                    # 调用处理函数
+                    _logger(_log_obj.levelno, _log_obj.topic_name, _msg)
+                else:
+                    _logger.log(_log_obj.levelno, _msg)
             except Empty:
                 # 获取不到数据继续循环
                 time.sleep(0.1)

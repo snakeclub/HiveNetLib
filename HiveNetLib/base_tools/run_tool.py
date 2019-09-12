@@ -158,29 +158,6 @@ class RunTool(object):
     # 日志处理
     #############################
     @staticmethod
-    def writelog_by_level(logger, log_str, log_level=logging.INFO):
-        """
-        根据日志级别调用日志输出,根据日志级别调用日志类的不同方法，简化日志级别的判断处理
-
-        @param {object} logger - 日志对象，如果为None代表不需要输出日志，传入对象需满足:
-            1、标准logging的logger对象
-            2、自定义的日志类对象，但应实现warning、error的标准方法
-        @param {string} log_str - 需输出的日志内容
-        @param {int} log_level=logging.INFO - 输出日志级别
-
-        """
-        if log_level == logging.DEBUG:
-            logger.debug(log_str)
-        elif log_level == logging.WARNING:
-            logger.warning(log_str)
-        elif log_level == logging.ERROR:
-            logger.error(log_str)
-        elif log_level == logging.CRITICAL:
-            logger.critical(log_str)
-        else:
-            logger.info(log_str)
-
-    @staticmethod
     def set_global_logger(logger):
         """
         设置全局使用的logger对象
@@ -343,7 +320,7 @@ class RunTool(object):
             if logger is not None:
                 # 打印日志
                 _log_str = u'已存在一个"%s"进程在执行中，结束本进程' % process_name
-                RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
+                logger.log(log_level, _log_str)
             # 退出进程
             exit(exit_code)
         try:
@@ -352,19 +329,43 @@ class RunTool(object):
             # 退出进程，打印日志
             if logger is not None:
                 _log_str = u'进程"%s"结束退出，释放进程锁' % process_name
-                RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
+                logger.log(log_level, _log_str)
             try:
                 RunTool.single_process_exit(process_name=process_name, base_path=base_path)
             except:
                 # 出现异常，写日志，同时抛出异常
                 if logger is not None:
                     _log_str = u'进程"%s"结束时释放进程锁发生异常：%s' % (process_name, traceback.format_exc())
-                    RunTool.writelog_by_level(logger=logger, log_str=_log_str, log_level=log_level)
+                    logger.log(log_level, _log_str)
                 raise sys.exc_info()[1]
 
     #############################
     # 对象处理
     #############################
+    @staticmethod
+    def get_parent_function_frame(call_fun_level):
+        """
+        获取指定层级的调用函数框架（fake_frame）, 从当前调用函数开始往逐级向上获取
+
+        @param {int} call_fun_level - 要获取的函数名所属层级:
+            -1 - 返回函数自身框架
+            0 - 返回调用本函数的函数框架
+            1 - 返回调用本函数的函数的上1级函数框架
+            n - 返回调用本函数的函数的上n级函数框架
+
+        @returns {fake_frame} - 返回指定层级函数的框架（fake_frame），可以通过fake_frame.f_code获取代码相关信息
+
+        """
+        _ret_frame = sys._getframe()  # 要返回的函数框架
+        if call_fun_level < 0:
+            return _ret_frame
+        _index = 0
+        # 循环获取上一级函数的框架
+        while _index <= call_fun_level:
+            _ret_frame = _ret_frame.f_back
+            _index = _index + 1
+        return _ret_frame
+
     @staticmethod
     def get_object_class(obj):
         """

@@ -70,6 +70,12 @@ class PriorityObject(object):
         self.obj = obj
         return
 
+    def __lt__(self, other):
+        """
+        比较函数
+        """
+        return self.priority > other.priority
+
     def __cmp__(self, other):
         """
         比较函数
@@ -84,6 +90,7 @@ class QueueFw(ABC):
 
     @param {**kwargs} kwargs - 队列初始化动态参数，定义如下：
             maxsize=0 {int} - 队列深度，如果为0代表不限制队列大小
+            bucket_mode=False {bool} - 启动水桶模式，队列大小达到上限后插入数据可自动丢弃老数据(get出来并丢弃)
             注：其他定义参考具体的实例化类
 
     """
@@ -113,12 +120,14 @@ class QueueFw(ABC):
 
         @param {**kwargs} kwargs - 队列初始化动态参数，定义如下：
             maxsize=0 {int} - 队列深度，如果为0代表不限制队列大小
+            bucket_mode=False {bool} - 启动水桶模式，队列大小达到上限后插入数据可自动丢弃老数据(get出来并丢弃)
             注：其他定义参考具体的实例化类
 
         """
         self._init_kwargs = kwargs
         _maxsize = ValueTool.get_dict_value('maxsize', kwargs, default_value=0)
         self.maxsize = _maxsize
+        self.bucket_mode = ValueTool.get_dict_value('bucket_mode', kwargs, default_value=False)
         self._init(**kwargs)  # 改写部分，增加动态参数支持
 
         # mutex must be held whenever the queue is mutating.  All methods
@@ -221,21 +230,25 @@ class QueueFw(ABC):
         """
         with self.not_full:
             if self.maxsize > 0:
-                if not block:
-                    if self._qsize(**kwargs) >= self.maxsize:
-                        raise Full
-                elif timeout is None:
-                    while self._qsize(**kwargs) >= self.maxsize:
-                        self.not_full.wait()
-                elif timeout < 0:
-                    raise ValueError("'timeout' must be a non-negative number")
+                if self.bucket_mode and self._qsize(**kwargs) >= self.maxsize:
+                    # 水桶模式且已满, 直接抛弃掉可最先取出的对象
+                    self._get(**kwargs)
                 else:
-                    endtime = time() + timeout
-                    while self._qsize(**kwargs) >= self.maxsize:
-                        remaining = endtime - time()
-                        if remaining <= 0.0:
+                    if not block:
+                        if self._qsize(**kwargs) >= self.maxsize:
                             raise Full
-                        self.not_full.wait(remaining)
+                    elif timeout is None:
+                        while self._qsize(**kwargs) >= self.maxsize:
+                            self.not_full.wait()
+                    elif timeout < 0:
+                        raise ValueError("'timeout' must be a non-negative number")
+                    else:
+                        endtime = time() + timeout
+                        while self._qsize(**kwargs) >= self.maxsize:
+                            remaining = endtime - time()
+                            if remaining <= 0.0:
+                                raise Full
+                            self.not_full.wait(remaining)
             self._put(item, **kwargs)
             self.unfinished_tasks += 1
             self.not_empty.notify()
@@ -385,7 +398,8 @@ class MemoryQueue(QueueFw):
 
     @param {**kwargs} kwargs - 初始化参数，定义如下：
         queue_type {EnumQueueType} - 队列类型，默认为EnumQueueType.FIFO
-        maxsize {int} - 队列最大深度, 0代表不限制
+        maxsize=0 {int} - 队列深度，如果为0代表不限制队列大小
+        bucket_mode=False {bool} - 启动水桶模式，队列大小达到上限后插入数据可自动丢弃老数据(get出来并丢弃)
 
     """
 
@@ -398,7 +412,8 @@ class MemoryQueue(QueueFw):
 
         @param {**kwargs} kwargs - 初始化参数，定义如下：
             queue_type {EnumQueueType} - 队列类型，默认为EnumQueueType.FIFO
-            maxsize {int} - 队列最大深度, 0代表不限制
+            maxsize=0 {int} - 队列深度，如果为0代表不限制队列大小
+            bucket_mode=False {bool} - 启动水桶模式，队列大小达到上限后插入数据可自动丢弃老数据(get出来并丢弃)
 
         """
         self.queue_type = ValueTool.get_dict_value(
@@ -433,8 +448,9 @@ class MemoryQueue(QueueFw):
         elif self.queue_type == EnumQueueType.LIFO:
             self.queue.append(item)
         else:
-            heappush(self.queue, PriorityObject(item, priority=ValueTool.get_dict_value(
-                'priority', kwargs, default_value=0)))
+            _item = PriorityObject(item, priority=ValueTool.get_dict_value(
+                'priority', kwargs, default_value=0))
+            heappush(self.queue, _item)
 
     def _get(self, **kwargs):
         """

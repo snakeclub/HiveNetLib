@@ -25,7 +25,8 @@ import logging
 from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.simple_server_fw import EnumServerRunStatus, SimpleServerFW
 from HiveNetLib.simple_i18n import _, SimpleI18N, get_global_i18n, init_global_i18n
@@ -103,23 +104,10 @@ class NetServiceFW(SimpleServerFW):
                 print(read_result.data)
 
     """
-
     #############################
     # 私有变量 - 子类可访问的变量
     #############################
     _server_opts = None  # 外围传入的网络服务启动参数，应为一个object对象，通过_serverOpts.xxx 获取对应的属性xxx值
-
-    #############################
-    # 私有变量 - 只用于框架内部处理的变量
-    #############################
-
-    # 外围传入的网络服务与客户端连接后对连接的处理线程函数:
-    # 函数实现的第1个参数为线程ID，第2个参数为服务启动参数，第3个为连接信息
-    # 需注意实现上应在每次循环时查询服务器关闭状态，如果遇到则结束处理
-    __server_connect_deal_fun = None
-    __server_connect_thread_id = 1  # 服务端的链接线程ID序列
-    __server_connect_thread_list = {}  # 服务端正在运行的连接线程列表
-    __server_connect_thread_list_lock = threading.RLock()  # 连接线程列表变更的同步锁
 
     #############################
     # 私有函数 - 子类可直接使用的函数
@@ -254,6 +242,19 @@ class NetServiceFW(SimpleServerFW):
         @param {string} trans_file_encoding='utf-8' - 要加载的i18n字典文件的字符编
 
         """
+        #############################
+        # 私有变量 - 只用于框架内部处理的变量
+        #############################
+
+        # 外围传入的网络服务与客户端连接后对连接的处理线程函数:
+        # 函数实现的第1个参数为线程ID，第2个参数为服务启动参数，第3个为连接信息
+        # 需注意实现上应在每次循环时查询服务器关闭状态，如果遇到则结束处理
+        self.__server_connect_deal_fun = None
+        self.__server_connect_thread_id = 1  # 服务端的链接线程ID序列
+        self.__server_connect_thread_list = {}  # 服务端正在运行的连接线程列表
+        self.__server_connect_thread_list_lock = threading.RLock()  # 连接线程列表变更的同步锁
+
+        # 赋值
         __trans_file_path = trans_file_path
         __trans_file_prefix = trans_file_prefix
         if trans_file_prefix == '':
@@ -305,10 +306,11 @@ class NetServiceFW(SimpleServerFW):
             self._logger.log(
                 self._log_level,
                 '[%s-STARTING][NAME:%s]%s:\n%s' % (
-                self._server_log_prefix,
-                self._server_name,
-                _('net start parameter'),
-                StringTool.format_obj_property_str(self._server_opts, is_deal_subobj=True))
+                    self._server_log_prefix,
+                    self._server_name,
+                    _('net start parameter'),
+                    StringTool.format_obj_property_str(self._server_opts, is_deal_subobj=True)
+                )
             )
 
             # 启动服务，但不接受连接

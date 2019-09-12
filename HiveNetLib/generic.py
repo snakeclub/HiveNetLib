@@ -132,7 +132,7 @@ class CResult(NullObj):
     _i18n_obj = None  # 国际化类实例化对象
     i18n_error_type_msg_id = ''  # 国际化记录下来的错误类型ID串（第1位的错误说明）
     i18n_msg_id = ''  # 国际化记录下来的错误明细编码ID串
-    i18n_msg_paras = ()  # 国际化记录下来的可替换参数变量
+    i18n_msg_paras = None  # 国际化记录下来的可替换参数变量
 
     def __init__(self, code='00000', msg=None, error='', trace_str='',
                  i18n_obj=None, i18n_msg_paras=()):

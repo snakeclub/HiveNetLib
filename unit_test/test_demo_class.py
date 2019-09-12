@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
-import sys
-import os
 import unittest
 import threading
 import json
-import netifaces
-# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-from HiveNetLib.base_tools.net_tool import NetTool
+
+# 整个文件的开始和结束执行
 
 
 def setUpModule():
@@ -45,7 +41,29 @@ class Test(unittest.TestCase):
         print("test case2")
 
 
+class ParaTest(object):
+    """
+    测试类局部变量的有效范围
+    """
+    li = list()
+    d = dict()
+    t = tuple()
+    s = 'string'
+    i = 10
+
+
 if __name__ == '__main__':
     # unittest.main()
-    print(NetTool.get_net_interfaces())
-    print(NetTool.get_net_interface_info(NetTool.get_net_interfaces()[5]))
+    c1 = ParaTest()
+    c1.li.append(1)
+    c1.t = (333)
+    c1.d['add'] = 2
+    c1.s = 'change'
+    c1.i = 22
+
+    c2 = ParaTest()
+    print(c2.li)
+    print(c2.t)
+    print(c2.d)
+    print(c2.s)
+    print(c2.i)

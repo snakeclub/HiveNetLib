@@ -38,14 +38,6 @@ class IntfMsgFW(ABC):
 
     """
     #############################
-    # 内部变量
-    #############################
-    __msg = None  # 报文信息对象
-    __proto_msg = None  # 协议信息对象
-    __proto_obj = None  # 协议通讯对象
-    __net_info = None  # 网络连接信息
-
-    #############################
     # 访问协议对象
     #############################
     @property
@@ -101,10 +93,13 @@ class IntfMsgFW(ABC):
         @param {object} net_info=None - 默认使用的网络连接信息（长连接情况）
 
         """
-        self.__msg = msg
-        self.__proto_msg = proto_msg
-        self.__proto_obj = proto_obj
-        self.__net_info = net_info
+        #############################
+        # 内部变量
+        #############################
+        self.__msg = msg  # 报文信息对象
+        self.__proto_msg = proto_msg  # 协议信息对象
+        self.__proto_obj = proto_obj  # 协议通讯对象
+        self.__net_info = net_info  # 网络连接信息
 
     #############################
     # 需继承类实现的内容

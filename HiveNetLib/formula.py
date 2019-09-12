@@ -890,7 +890,6 @@ class FormulaTool(object):
     #############################
     # 静态工具
     #############################
-
     @staticmethod
     def search(source_str, match_list, ignore_case=False,
                multiple_match=True, sort_oder=EnumFormulaSearchSortOrder.MatchAsc,
@@ -1007,16 +1006,15 @@ class FormulaTool(object):
     # 实例处理 - 私有对象
     #############################
 
-    _keywords = dict()  # 公式关键字定义
-    _match_list = dict()  # 要检索的匹配字符清单字典(预先生成提高性能)
+    _keywords = None  # 公式关键字定义
+    _match_list = None  # 要检索的匹配字符清单字典(预先生成提高性能)
     _ignore_case = False  # 是否忽略大小写
-    _deal_fun_list = dict()  # 公式计算函数对照字典
+    _deal_fun_list = None  # 公式计算函数对照字典
     _default_deal_fun = None  # 默认的公式处理函数
 
     #############################
     # 实例处理 - 内部函数
     #############################
-
     def __run_formula(self, formular_obj, **kwargs):
         """
         进行公式对象的计算, 循环调用自己进行公式对象的计算
@@ -1062,7 +1060,6 @@ class FormulaTool(object):
     #############################
     # 实例处理 - 内置的公式处理函数
     #############################
-
     @staticmethod
     def default_deal_fun_string_full(formular_obj, **kwargs):
         """
@@ -1128,7 +1125,10 @@ class FormulaTool(object):
             %% %号本身
 
         """
-        formular_obj.formula_value = datetime.datetime.now().strftime(datetime_format_str)
+        _datetime_format_str = datetime_format_str
+        if formular_obj.content_string != '':
+            _datetime_format_str = formular_obj.content_string
+        formular_obj.formula_value = datetime.datetime.now().strftime(_datetime_format_str)
 
     #############################
     # 实例处理 - 公共函数
@@ -1155,6 +1155,10 @@ class FormulaTool(object):
         @param {function} default_deal_fun=None - 默认的公式处理函数，如果None代表默认使用default_deal_fun_string_content
 
         """
+        # 应在__init__中初始化，否则会出现两个实例对象引用地址一样的问题
+        self._keywords = dict()  # 公式关键字定义
+        self._match_list = dict()  # 要检索的匹配字符清单字典(预先生成提高性能)
+        self._deal_fun_list = dict()  # 公式计算函数对照字典
         self.reset_formula_para(keywords=keywords, ignore_case=ignore_case,
                                 deal_fun_list=deal_fun_list, default_deal_fun=default_deal_fun)
 
@@ -1186,6 +1190,7 @@ class FormulaTool(object):
             self._default_deal_fun = self.default_deal_fun_string_content
         else:
             self._default_deal_fun = default_deal_fun
+
         # 计算match_list
         self._match_list = self.__keywords_to_match_list(self._keywords)
 
