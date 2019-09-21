@@ -711,6 +711,112 @@ class PromptPlus(object):
     #############################
     # 静态方法，无需实例化对象即可使用的方法
     #############################
+    @staticmethod
+    def get_cmd_para_list(cmd_para_str, str_char='\'', tran_char='\\', with_name_para=True):
+        """
+        根据字符串获取命令参数字典
+
+        @param {string} cmd_para_str - 命令行参数字符串
+        @param {string} str_char='\'' - 字符串标识符
+        @param {string} tran_char='\\' - 字符串里的转义字符
+        @param {bool} with_name_para=True - 是否同时支持name_para的格式
+
+        @return {list} - 返回参数清单，格式为：[ ['参数标识': '参数值'], ... ]
+            注：参数标识为对应的name_para、short_para、long_para，如果是单独的词，标识为空
+
+        @example
+            _cmd_para_str = "abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name'"
+            _list = get_cmd_para_dict(_cmd_para_str)
+            _list 为:
+            [
+                ['', 'abc'],
+                ['k1=', 'v1'],
+                ['-a', '10'],
+                ['', '20'],
+                ['-abc', '30'],
+                ['-c', "'abcd hh=name'"]
+            ]
+        """
+        # 临时变量
+        _word = ''  # 当前词的缓存
+        _para_tag = ''  # 当前匹配的参数标识，为name_para、short_para、long_para的缓存
+        _last_char = ''  # 上一个字符的缓存
+        _is_in_str = False  # 标识是否正在字符串中
+
+        # 进行处理
+        _list = list()
+        _cmd_para_str = cmd_para_str + ' '  # 结尾增加一个空格，保证在循环内完成处理
+        for _char in _cmd_para_str:
+            # 逐个字符串遍历进行处理
+            if _is_in_str:
+                # 正在字符串中
+                if _char == tran_char and _last_char == tran_char:
+                    # 如果当前字符为转义符，且上一字符也为转义符，则抵消当前转义符
+                    _last_char = ''
+
+                if _char == str_char and _last_char != tran_char:
+                    # 遇到字符串结束标识，结束字符串的获取
+                    _is_in_str = False
+                else:
+                    # 还在字符串内，词继续增加
+                    _word += _char
+                    _last_char = _char
+                    continue
+            elif _char == str_char:
+                # 不在字符串内遇到字符标签，进入字符串处理
+                _is_in_str = True
+
+            if _char == ' ':
+                # 遇到空格的情况要考虑分词
+                if _word != '':
+                    if _para_tag == '':
+                        if _word[0: 1] == '-':
+                            _para_tag = _word
+                        else:
+                            # 为独立的参数
+                            _list.append(['', _word])
+                    else:
+                        # 有标签
+                        _list.append([_para_tag, _word])
+                        _para_tag = ''
+                    # 清空词并重新开始
+                    _word = ''
+                    _last_char = ''
+                    continue
+                else:
+                    # 词为空且遇到空格
+                    if _para_tag == '' or _para_tag[0: 1] == '-':
+                        # 没有标签，或则为-标签（需要贪婪地获取下一个参数），直接往下走即可
+                        _last_char = ''
+                        continue
+                    else:
+                        # 有标签，认为值为空
+                        _list.append([_para_tag, ''])
+                        _para_tag = ''
+                        _last_char = ''
+                        continue
+            elif with_name_para and _char == '=' and _para_tag == '' and _word != '':
+                # 第一次遇到=产生_name_para
+                _para_tag = _word + _char
+                _word = ''  # 已经将词分给标签
+                _last_char = _char
+                continue
+            else:
+                # 非特殊情况
+                _word += _char
+                _last_char = _char
+                continue
+
+        # 处理字符串没有结束的清空
+        if _is_in_str:
+            # 还在字符串里
+            if _para_tag != '':
+                _list.append([_para_tag, _word])
+            else:
+                _list.append('', _word)
+
+        # 返回结果
+        return _list
 
     @staticmethod
     def simple_prompt(message='', deal_fun=None, **kwargs):
