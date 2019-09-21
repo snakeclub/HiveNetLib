@@ -387,23 +387,35 @@ class StringTool(object):
         _root = _xml_doc
         while _root is not None:
             _key, _value = StringTool._xml_node_addto_dict(_root, item_name=item_name)
-            _dict[_key] = _value
+            if _key is not None:
+                # 是节点的情况才增加字典
+                _dict[_key] = _value
             _root = _root.getnext()
         return _dict
 
     @staticmethod
     def _xml_node_addto_dict(node, item_name='item'):
+        if not hasattr(node, 'tag'):
+            # 不是节点的情况（例如注释），直接返回None
+            return None, None
+
         _key = node.tag
         _value = None
         _is_list = False
         if 'type' not in node.attrib.keys() or node.attrib['type'] == 'dict':
-            # 是一个新对象，遍历所有子节点加进来
-            _value = dict()
-            for childnode in node.getchildren():
-                _child_key, _child_value = StringTool._xml_node_addto_dict(
-                    childnode, item_name=item_name)
-                # 加到字典里面
-                _value[_child_key] = _child_value
+            # 是一个新对象，检查是否有子对象
+            _childs = node.getchildren()
+            if len(_childs) > 0:
+                # 有子节点
+                _value = dict()
+                for childnode in node.getchildren():
+                    _child_key, _child_value = StringTool._xml_node_addto_dict(
+                        childnode, item_name=item_name)
+                    # 加到字典里面
+                    if _child_key is not None:
+                        _value[_child_key] = _child_value
+            else:
+                _value = node.text
         elif node.attrib['type'] == 'list':
             # 是一个列表
             _value = list()
@@ -434,6 +446,8 @@ class StringTool(object):
                 _value.append(_child_value)
 
         # 返回自身的key值和Value值
+        if _value is None:
+            _value = ''
         return _key, _value
 
     @staticmethod

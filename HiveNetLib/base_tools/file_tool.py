@@ -323,6 +323,22 @@ class FileTool(object):
                 # 复制文件夹
                 shutil.copytree(_full_filename, _full_destname)
 
+    #############################
+    # 文件内容处理
+    #############################
+    @staticmethod
+    def get_file_text(filename, encoding='utf-8'):
+        """
+        获取文件文本
+
+        @param {string} filename - 要获取的文件名（含路径）
+        @param {string} encoding='utf-8' - 文件内容的编码
+
+        @return {string} - 返回全部文件内容
+        """
+        with open(filename, 'rt', encoding=encoding) as f:
+            return f.read()
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
