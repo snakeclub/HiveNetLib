@@ -10,6 +10,7 @@ import netifaces
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.base_tools.net_tool import NetTool
+from HiveNetLib.prompt_plus import PromptPlus
 
 
 def setUpModule():
@@ -47,5 +48,7 @@ class Test(unittest.TestCase):
 
 if __name__ == '__main__':
     # unittest.main()
-    print(NetTool.get_net_interfaces())
-    print(NetTool.get_net_interface_info(NetTool.get_net_interfaces()[5]))
+    # print(NetTool.get_net_interfaces())
+    # print(NetTool.get_net_interface_info(NetTool.get_net_interfaces()[5]))
+    print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name' -c"))
+    print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name "))

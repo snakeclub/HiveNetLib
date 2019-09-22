@@ -17,7 +17,7 @@ prompt_plus是基Python语言开发的一个增强的交互命令行扩展处理
 **multiline** :  bool or Filter， 默认为False，是否支持多行输入，如果是多行输入，有两种退出方式:
 
             1、输入结束后按Esc键，并接着按Enter键
-
+    
             2、输入结束后按“Ctrl + Enter”
 
 **validate_while_typing** :  bool or Filter， 默认为False，是否在启动时同步进行输入验证，和validator参数共同应用
@@ -29,15 +29,15 @@ prompt_plus是基Python语言开发的一个增强的交互命令行扩展处理
 前面提到的Filter的说明： prompt_toolkit.filters.Filter类（抽象类，继承类必须至少实现__call__函数-必须返回bool值）:
 
             可以利用prompt_toolkit.filters内置的一些类简化处理，例如：
-
+    
             1、Condition类: is_password=Condition(lambda: hidden[0])
-
+    
             2、利用修饰符，将无入参的函数转换为Filter类:
-
+    
                 @Condition
-
+    
                 def feature_is_active():  # `feature_is_active` becomes a Filter.
-
+    
                     return True
 
 
@@ -93,33 +93,34 @@ print('html return :' + result3 + '\n')
        @param {string} message - prompt提示信息
        @param {string} cmd - 执行的命令key值
        @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
-       @returns {string} - 执行命令完成后要输到屏幕的内容
-       ```
-
-  - **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
-
+       @returns {string|string_iter} - 执行命令完成后要输到屏幕的内容
+       	注：如果是执行完再返回打印，则直接在函数结尾返回string即可；但如果希望一边执行一边输出，则可在函数中通过yield替代return进行迭代器的返回，实时打印相关执行信息
+     ```
+  
+- **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
+  
        ```
        para_name {string} - 参数名
        para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
-       ```
-
-  - **short_para** (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
-
+     ```
+  
+- **short_para** (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
+  
        ```
        para_char {char} - 短参数标识字符（单字符，不带-）
        para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
        注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
-       ```
-
-  - **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
-
+     ```
+  
+- **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
+  
        ```
        para_name {string} - 参数名（可以多字符，不带-）
        para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
-       ```
-
-       **cmd_para** 的示例如下：
-
+     ```
+  
+     **cmd_para** 的示例如下：
+  
        ```
        # 示例：dir para1=value12 -a value2a -bc -abc value1abc -ci
        test_cmd_para = {

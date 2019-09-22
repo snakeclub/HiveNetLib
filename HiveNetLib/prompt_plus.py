@@ -813,7 +813,10 @@ class PromptPlus(object):
             if _para_tag != '':
                 _list.append([_para_tag, _word])
             else:
-                _list.append('', _word)
+                _list.append(['', _word])
+        elif _para_tag != '':
+            # 有标签，但结束了，说明最后一个是标签
+            _list.append([_para_tag, ''])
 
         # 返回结果
         return _list
@@ -1360,15 +1363,15 @@ class PromptPlus(object):
         # 关键字配色方案，每个配色方案格式为'#000088 bg:#aaaaff underline'
         self._default_color_set = {
             # 用户输入
-            '': '#ffffff',  # 默认输入ffffff
-            'cmd': '#00FF00',  # 命令
-            'name_para': '#00FFFF',  # key-value形式参数名 00FFFF
-            'short_para': '#FFFF00',  # -char形式的短参数字符 00FFFF
-            'long_para': '#FF00FF',  # -name形式的长参数字符 ff8c00
-            'wrong_tip': '#C0C0C0 bg:#FF0000 reverse',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
+            '': '#F2F2F2',  # 默认输入 212,212,212#D4D4D4
+            'cmd': '#13A10E',  # 命令 106,153,85
+            'name_para': '#C19C00',  # key-value形式参数名, 206,145,120
+            'short_para': '#3B78FF',  # -char形式的短参数字符, 86,156,214
+            'long_para': '#FFFF00',  # -name形式的长参数字符, 255,215,142
+            'wrong_tip': '#FF0000 bg:#303030',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
 
             # prompt提示信息
-            'prompt': '#C0C0C0'
+            'prompt': '#F2F2F2'
         }
 
         # 赋值
@@ -1434,11 +1437,43 @@ class PromptPlus(object):
                 _print_str = self._call_on_cmd(message=_message, cmd_str=_cmd_str)
 
         # 打印信息，返回结果
-        if len(_print_str) > 0:
+        if not hasattr(_print_str, '__iter__'):
+            # 字符串
+            if len(_print_str) > 0:
+                if self._prompt_init_para['logger'] is None:
+                    print('%s\r\n' % _print_str)  # 没有日志类，直接输出
+                else:
+                    self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
+        else:
+            # 执行函数通过yield方式返回迭代器
+            try:
+                for _str in _print_str:
+                    if len(_str) > 0:
+                        if self._prompt_init_para['logger'] is None:
+                            sys.stdout.write('%s' % _str)  # 没有日志类，直接输出
+                        else:
+                            self._prompt_init_para['logger'].info('%s' % _str)
+            except Exception:
+                _print_str = 'prompt_once stdout exception: %s' % (
+                    traceback.format_exc()
+                )
+                if self._prompt_init_para['logger'] is None:
+                    print(_print_str)  # 没有日志类，直接输出
+                else:
+                    self._prompt_init_para['logger'].error(_print_str)
+
+                # 认为执行异常
+                _result.code = '11399'
+                _result.msg = u'function call other failure'
+                _result.error = str(sys.exc_info()[0])
+                _result.trace_str = traceback.format_exc()
+
+            # 增加一个换行调整
             if self._prompt_init_para['logger'] is None:
-                print('%s\r\n' % _print_str)  # 没有日志类，直接输出
+                sys.stdout.write('\r\n')  # 没有日志类，直接输出
             else:
-                self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
+                self._prompt_init_para['logger'].info('\r\n')
+
         return _result
 
     # FIXME(黎慧剑): 异步模式，当任务进程有输出时命令行不能固定在最后一行
