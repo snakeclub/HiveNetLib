@@ -1168,6 +1168,15 @@ class PromptPlus(object):
                     return self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'](
                         message=message, cmd=_match_cmd, cmd_para=_cmd_para_str
                     )
+        except KeyboardInterrupt:
+            _print_str = '_call_on_cmd (cmd[%s] para[%s]) get KeyboardInterrupt: %s' % (
+                _cmd, _cmd_para_str, traceback.format_exc()
+            )
+            if self._prompt_init_para['logger'] is None:
+                print(_print_str)  # 没有日志类，直接输出
+            else:
+                self._prompt_init_para['logger'].error(_print_str)
+            _print_str = ''
         except Exception:
             _print_str = '_call_on_cmd (cmd[%s] para[%s]) exception: %s' % (
                 _cmd, _cmd_para_str, traceback.format_exc()
@@ -1427,9 +1436,9 @@ class PromptPlus(object):
         # 打印信息，返回结果
         if len(_print_str) > 0:
             if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
+                print('%s\r\n' % _print_str)  # 没有日志类，直接输出
             else:
-                self._prompt_init_para['logger'].info(_print_str)
+                self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
         return _result
 
     # FIXME(黎慧剑): 异步模式，当任务进程有输出时命令行不能固定在最后一行
