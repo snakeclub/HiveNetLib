@@ -1375,7 +1375,8 @@ class SimpleGRpcServer(SimpleServerFW):
                 private_key = f.read()  # 服务器端的私钥文件
             with open('server.crt', 'rb') as f:
                 certificate_chain = f.read()  # 服务器端的公钥证书文件
-        @param {list} root_certificates=None - 客户端反向认证时（验证客户端证书）的客户端根证书，即客户端的公钥证书文件
+        @param {bytes} root_certificates=None - 客户端反向认证时（验证客户端证书）的客户端根证书，即客户端的公钥证书文件
+            多客户端反向认证时，客户端证书应基于同一个根证书签发，这里使用根证书的公钥证书文件
             with open('ca.crt', 'rb') as f:
                 root_certificates = f.read()
         @param {type?} options=None - An optional list of key-value pairs (channel args in gRPC runtime) to configure the channel

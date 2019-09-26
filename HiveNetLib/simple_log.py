@@ -451,6 +451,43 @@ class Logger(object):
         """
         handler.setLevel(log_level)
 
+    @staticmethod
+    def create_logger_by_dict(config_dict):
+        """
+        根据参数字典生成日志对象
+
+        @param {dict} config_dict - 参数字典
+            注：通过 StringTool.xml_to_dict 函数解析xml配置产生的字典，取logger节点内部的内容
+            <logger>
+                <conf-file-name></conf-file-name>
+                <logger-name>Console</logger-name>
+                <logfile-path></logfile-path>
+                <config-type>JSON_STR</config-type>
+                <json-str></json-str>
+                <auto-create-conf>true</auto-create-conf>
+                <is-create-logfile-by-day>true</is-create-logfile-by-day>
+                <call-fun-level>0</call-fun-level>
+            </logger>
+
+        @return {simple_log.Logger} - 返回日志对象
+        """
+        # 根据字典生成日志参数
+        _conf_file_name = None if config_dict['conf-file-name'] == '' else config_dict['conf-file-name']
+        _logger_name = config_dict['logger-name']
+        _logfile_path = config_dict['logfile-path']
+        _config_type = eval('EnumLoggerConfigType.%s' % config_dict['config-type'])
+        _json_str = config_dict['json-str']
+        _auto_create_conf = (config_dict['auto-create-conf'] == 'true')
+        _is_create_logfile_by_day = (config_dict['is-create-logfile-by-day'] == 'true')
+        _call_fun_level = int(config_dict['call-fun-level'])
+        # 返回日志对象
+        return Logger(
+            conf_file_name=_conf_file_name, logger_name=_logger_name, logfile_path=_logfile_path,
+            config_type=_config_type, json_str=_json_str, auto_create_conf=_auto_create_conf,
+            is_create_logfile_by_day=_is_create_logfile_by_day,
+            call_fun_level=_call_fun_level
+        )
+
     #############################
     # 构造函数
     #############################

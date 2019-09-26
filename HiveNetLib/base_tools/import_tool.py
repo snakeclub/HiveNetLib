@@ -43,9 +43,36 @@ class ImportTool(object):
             (2)子库情况，例如'simple_log.Logger'
 
         @returns {bool} - True-模块已导入，False-模块未导入
-
         """
         return moudle_name in sys.modules.keys()
+
+    @staticmethod
+    def get_imported_moudle(moudle_name):
+        """
+        根据模块名称获取已导入的模块，如果模块不存在返回None
+
+         @param {string} moudle_name - 要获取的模块名，形式有以下几种:
+            (1)基础库的情况，例如'sys'
+            (2)子库情况，例如'simple_log.Logger'
+
+        @returns {Moudle} - 已导入的模块对象，可以直接引用该对象执行操作
+        """
+        if ImportTool.check_moudle_imported(moudle_name):
+            return sys.modules[moudle_name]
+        else:
+            return None
+
+    @staticmethod
+    def get_member_from_moudle(moudle, member_name):
+        """
+        从指定模块中获取成员对象（例如类）
+
+        @param {Moudle} moudle - 要处理的模块对象
+        @param {string} member_name - 成员对象名
+
+        @return {object} - 返回成员对象
+        """
+        return getattr(moudle, member_name)
 
     @staticmethod
     def import_module(module_name, as_name=None, extend_path=None, import_member=None, is_force=False):

@@ -395,7 +395,7 @@ class StringTool(object):
 
     @staticmethod
     def _xml_node_addto_dict(node, item_name='item'):
-        if not hasattr(node, 'tag'):
+        if not (hasattr(node, 'tag') and type(node.tag) == str):
             # 不是节点的情况（例如注释），直接返回None
             return None, None
 
