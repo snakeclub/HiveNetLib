@@ -93,8 +93,8 @@ print('html return :' + result3 + '\n')
        @param {string} message - prompt提示信息
        @param {string} cmd - 执行的命令key值
        @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
-       @returns {string|string_iter} - 执行命令完成后要输到屏幕的内容
-       	注：如果是执行完再返回打印，则直接在函数结尾返回string即可；但如果希望一边执行一边输出，则可在函数中通过yield替代return进行迭代器的返回，实时打印相关执行信息
+       @returns {string|string_iter|CResult} - 执行命令完成后要输到屏幕的内容
+       	注：如果是执行完再返回打印，则直接在函数结尾返回string即可；但如果希望一边执行一边输出，则可在函数中通过yield替代return进行迭代器的返回，实时打印相关执行信息；如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
      ```
   
 - **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
@@ -104,6 +104,8 @@ print('html return :' + result3 + '\n')
        para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
      ```
   
+    ```
+  
 - **short_para** (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
   
        ```
@@ -112,16 +114,18 @@ print('html return :' + result3 + '\n')
        注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
      ```
   
+    ```
+  
 - **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
   
        ```
        para_name {string} - 参数名（可以多字符，不带-）
        para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
      ```
-  
+    
      **cmd_para** 的示例如下：
-  
-       ```
+    
+     ```
        # 示例：dir para1=value12 -a value2a -bc -abc value1abc -ci
        test_cmd_para = {
            'help': {
@@ -163,6 +167,8 @@ def default_cmd_dealfun(message='', cmd='', cmd_para=''):
 #### on_abort /on_exit
 
 on_abort 是当用户取消输入（Ctrl + C）时执行的函数 ；on_exit 是当用户退出（Ctrl + D）时执行的函数（**注意如果已输入部分内容，Ctrl + D将不生效**）。两类函数的定义一样，为fun(message='')，返回值为string，是执行命令函数要输出的内容。
+
+注：如果返回结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
 
 ```
 def on_abort(message=''):

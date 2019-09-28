@@ -58,7 +58,8 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
                 @param {string} message - prompt提示信息
                 @param {string} cmd - 执行的命令key值
                 @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
-                @returns {string} - 执行命令完成后要输到屏幕的内容
+                @returns {string|string_iter|CResult} - 执行命令完成后要输到屏幕的内容
+                如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
         name_para (para_name=para_value形式的参数) : dict(para_name: para_value_list)
             para_name {string} - 参数名
             para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
@@ -1309,9 +1310,11 @@ class PromptPlus(object):
                 default_dealfun {function} - 在命令处理函数字典中没有匹配到的命令，默认执行的处理函数
                     函数定义为fun(message='', cmd='', cmd_para='')，返回值为string，是执行命令函数要输出的内容
                 on_abort {function} - 当用户取消输入（Ctrl + C）时执行的函数:
-                    函数定义为fun(message='')，返回值为string，是执行命令函数要输出的内容
+                    函数定义为fun(message='')，返回值为string、string_iter或CResult，是执行命令函数要输出的内容
+                    如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
                 on_exit {fun} - 当用户退出（Ctrl + D）时执行的函数，注意如果已输入部分内容，Ctrl + D将不生效:
-                    函数定义为fun(message='')，返回值为string，是执行命令函数要输出的内容
+                    函数定义为fun(message='')，返回值为string、string_iter或CResult，是执行命令函数要输出的内容
+                    如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
                 logger {object} - logger 日志对象，服务过程中通过该函数写日志:
                     可以为标准的logging日志库对象，也可以为simple_log对象，但要求对象实现:
                     标准的info、debug、warning、error、critical五个日志方法
@@ -1416,30 +1419,44 @@ class PromptPlus(object):
             try:
                 _cmd_str = eval(_run_str)
             except KeyboardInterrupt:
-                # 用户取消输入
-                _result.code = '10100'
-                _result.msg = u'get abort single(KeyboardInterrupt)'
-                _result.error = str(sys.exc_info()[0])
-                _result.trace_str = traceback.format_exc()
                 # 执行on_abort函数
                 _print_str = self._call_on_abort(message=_message)
+                if type(_print_str) == CResult:
+                    # 如果返回的结果是CResult，则按CResult进行控制
+                    _result = _print_str
+                    _print_str = _result.msg
+                else:
+                    # 用户取消输入
+                    _result.code = '10100'
+                    _result.msg = u'get abort single(KeyboardInterrupt)'
+                    _result.error = str(sys.exc_info()[0])
+                    _result.trace_str = traceback.format_exc()
             except EOFError:
-                # 用户退出处理
-                _result.code = '10101'
-                _result.msg = u'get exit single(EOFError)'
-                _result.error = str(sys.exc_info()[0])
-                _result.trace_str = traceback.format_exc()
                 # 执行on_exit函数
                 _print_str = self._call_on_exit(message=_message)
+                if type(_print_str) == CResult:
+                    # 如果返回的结果是CResult，则按CResult进行控制
+                    _result = _print_str
+                    _print_str = _result.msg
+                else:
+                    # 用户退出处理
+                    _result.code = '10101'
+                    _result.msg = u'get exit single(EOFError)'
+                    _result.error = str(sys.exc_info()[0])
+                    _result.trace_str = traceback.format_exc()
 
             # 处理输入
             if len(_cmd_str) > 0:
                 _print_str = self._call_on_cmd(message=_message, cmd_str=_cmd_str)
+                if type(_print_str) == CResult:
+                    # 如果返回的结果是CResult，则按CResult进行控制
+                    _result = _print_str
+                    _print_str = _result.msg
 
         # 打印信息，返回结果
         if not hasattr(_print_str, '__iter__'):
             # 字符串
-            if len(_print_str) > 0:
+            if _print_str is not None and len(_print_str) > 0:
                 if self._prompt_init_para['logger'] is None:
                     print('%s\r\n' % _print_str)  # 没有日志类，直接输出
                 else:

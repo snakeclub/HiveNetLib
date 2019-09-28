@@ -50,5 +50,8 @@ if __name__ == '__main__':
     # unittest.main()
     # print(NetTool.get_net_interfaces())
     # print(NetTool.get_net_interface_info(NetTool.get_net_interfaces()[5]))
-    print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name' -c"))
-    print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name "))
+    # print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name' -c"))
+    # print(PromptPlus.get_cmd_para_list("abc k1=v1 -a 10 20 -abc 30 -c   'abcd hh=name "))
+    from HiveNetLib.generic import CResult
+    _result = CResult()
+    print(type(_result) == CResult)
