@@ -158,7 +158,11 @@ class SimpleGRpcConnection(object):
         _connect_para.ip = ip
         _connect_para.port = port
         _connect_para.conn_str = conn_str
+        if conn_str == '':
+            _connect_para.conn_str = None
         _connect_para.timeout = timeout
+        if timeout is not None and timeout <= 0:
+            _connect_para.timeout = None
         _connect_para.is_use_ssl = is_use_ssl  # 是否使用SSL/TLS
         _connect_para.private_key = private_key
         _connect_para.certificate_chain = certificate_chain
@@ -338,7 +342,7 @@ class SimpleGRpcConnection(object):
         _trace_info = self._get_trace_info(**kwargs)  # 获取调用链信息
         _request = None
         _timeout = timeout
-        if timeout is None:
+        if timeout is None or timeout <= 0:
             _timeout = self._connect_para.timeout
 
         # 发送之前记录日
