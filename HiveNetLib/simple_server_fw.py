@@ -92,6 +92,8 @@ class SimpleServerFW(ABC):
     __server_begin_time = None  # 执行启动函数的开始时间
     __server_stop_time = None  # 执行关闭函数的开始时间
 
+    __last_start_result = None  # 登记最后一次启动状态
+
     #############################
     # 私有函数 - 子类可直接使用的函数
     #############################
@@ -287,6 +289,11 @@ class SimpleServerFW(ABC):
         while is_wait and self.__server_run_status == EnumServerRunStatus.WaitStart:
             time.sleep(0.01)
 
+        # 如果是等待模式，检查一次结果，如果没有正常运行返回最后一次启动结果
+        if is_wait:
+            if self.__server_run_status != EnumServerRunStatus.Running:
+                _result = self.__last_start_result
+
         return _result
 
     def stop_server(self, is_wait=True, overtime=0):
@@ -376,6 +383,7 @@ class SimpleServerFW(ABC):
 
             # 执行服务启动处理，执行通过则代表启动成功tid
             start_result = self._start_server_self(tid)
+            self.__last_start_result = start_result
 
             if start_result.code != '00000':
                 # 启动失败，登记了日志，修改状态为未启动，退出
