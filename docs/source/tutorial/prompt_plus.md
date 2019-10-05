@@ -86,6 +86,7 @@ print('html return :' + result3 + '\n')
 命令参数字典 ，PromptPlus最核心的参数，其基本类型是dict，具体定义如下：
 
 - key为命令标识
+
 - value仍为dict()，value的key为参数名，参数名与参数值的定义如下:
   - **deal_fun** (匹配到命令要执行的函数) : fun 函数定义（function类型），函数固定入参为fun(message='', cmd='', cmd_para='')
 
@@ -96,63 +97,63 @@ print('html return :' + result3 + '\n')
        @returns {string|string_iter|CResult} - 执行命令完成后要输到屏幕的内容
        	注：如果是执行完再返回打印，则直接在函数结尾返回string即可；但如果希望一边执行一边输出，则可在函数中通过yield替代return进行迭代器的返回，实时打印相关执行信息；如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
      ```
+     
+  - **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
   
-- **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
+      para_name {string} - 参数名
+      para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+  - **short_para** (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
   
-       ```
-       para_name {string} - 参数名
-       para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
-     ```
+      para_char {char} - 短参数标识字符（单字符，不带-）
+      para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+      注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
   
-    ```
+  - **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
   
-- **short_para** (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
+      
+      para_name {string} - 参数名（可以多字符，不带-）
+      para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+  - **word_para** (直接一个词形式的参数) : dict(word_name, '')
   
-       ```
-       para_char {char} - 短参数标识字符（单字符，不带-）
-       para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
-       注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
-     ```
+  ```
+  word_name {string} - 直接参数名
+  ```
   
-    ```
   
-- **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
   
-       ```
-       para_name {string} - 参数名（可以多字符，不带-）
-       para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
-     ```
-    
-     **cmd_para** 的示例如下：
-    
-     ```
-       # 示例：dir para1=value12 -a value2a -bc -abc value1abc -ci
-       test_cmd_para = {
-           'help': {
-               'deal_fun': help_cmd_dealfun,
-               'name_para': None,
-               'short_para': None,
-               'long_para': None
-           },
-           'dir': {
-               'deal_fun': dir_cmd_dealfun,
-               'name_para': {
-                   'para1': ['value11', 'value12'],
-                   'para2': ['value21', 'value22']
-               },
-               'short_para': {
-                   'a': ['value1a', 'value2a'],
-                   'b': None,
-                   'c': []
-               },
-               'long_para': {
-                   'abc': ['value1abc', 'value2abc'],
-                   'bcd': None,
-                   'ci': []
-               }
-           }
-       }
-       ```
+  **cmd_para** 的示例如下：
+  
+      # 示例：dir para1=value12 -a value2a -bc -abc value1abc -ci
+      test_cmd_para = {
+          'help': {
+              'deal_fun': help_cmd_dealfun,
+              'name_para': None,
+              'short_para': None,
+              'long_para': None,
+              'word_para': {
+              	'help': '',
+              	'start': ''
+              }
+          },
+          'dir': {
+              'deal_fun': dir_cmd_dealfun,
+              'name_para': {
+                  'para1': ['value11', 'value12'],
+                  'para2': ['value21', 'value22']
+              },
+              'short_para': {
+                  'a': ['value1a', 'value2a'],
+                  'b': None,
+                  'c': []
+              },
+              'long_para': {
+                  'abc': ['value1abc', 'value2abc'],
+                  'bcd': None,
+                  'ci': []
+              }
+          }
+      }
+      ```
 #### default_dealfun
 
 在命令处理函数字典中没有匹配到的命令，默认执行的处理函数。函数的定义为fun(message='', cmd='', cmd_para='')，返回值为string，是执行命令函数要输出的内容。
@@ -249,16 +250,17 @@ prompt1.start_prompt_service(
 
 ```
 	_default_color_set = {
-        # 用户输入
-        '': '#ffffff',  # 默认输入
-        'cmd': '#66ff66',  # 命令
-        'name_para': '#00FFFF',  # key-value形式参数名
-        'short_para': '#00FFFF',  # -char形式的短参数字符
-        'long_para': '#ff8c00',  # -name形式的长参数字符
-        'wrong_tip': '#ff0000 bg:#ffffff reverse',  # 错误的命令或参数名提示
+            # 用户输入
+            '': '#F2F2F2',  # 默认输入
+            'cmd': '#13A10E',  # 命令
+            'name_para': '#C19C00',  # key-value形式参数名
+            'short_para': '#3B78FF',  # -char形式的短参数字符
+            'long_para': '#FFFF00',  # -name形式的长参数字符
+            'word_para': '#C19C00', # word 形式的词字符
+            'wrong_tip': '#FF0000 bg:#303030',  # 错误的命令或参数名提示
 
-        # prompt提示信息
-        'prompt': '#EEEEEE'
-    }
+            # prompt提示信息
+            'prompt': '#F2F2F2'
+        }
 ```
 

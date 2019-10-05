@@ -70,6 +70,8 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
         long_para (-para_name para_value形式的参数) : dict(para_name, para_value_list)
             para_name {string} - 参数名（可以多字符，不带-）
             para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+        word_para (直接一个词形式的参数) : dict(word_name, '')
+            word_name {string} - 直接参数名
 
 """.strip()
 
@@ -132,6 +134,44 @@ class PromptPlusCmdParaLexer(Lexer):
         # 最终返回匹配结果
         return _ret_key
 
+    def _match_cmd_para_str_start(self, match_str='', cmd='', match_type=''):
+        """
+        按类型找到指定词对应的命令行参数key值的开头
+
+        @param {string} match_str='' - 要匹配的词（命令或参数的开头）
+        @param {string} cmd='' - 指定要搜索的命令（匹配命令参数时候用到，如果要匹配命令则无需传入）
+        @param {string} match_type='' - 匹配类型（cmd|name_para|short_para|long_para）
+
+        @returns {string} - 没有匹配上返回''，匹配上返回对应的关键字
+        """
+        _ret_key = ''
+        _match_str = match_str
+        if match_type == 'cmd':
+            # 匹配命令
+            for _key in self._cmd_para.keys():
+                _match_key = _key
+                if self._ignore_case:
+                    _match_key = _match_key.upper()
+                    _match_str = _match_str.upper()
+                if _match_str == _match_key[0: len(_match_str)]:
+                    _ret_key = _key
+                    break
+        else:
+            # 匹配参数
+            if not(cmd not in self._cmd_para.keys() or
+                   match_type not in self._cmd_para[cmd].keys() or
+                   self._cmd_para[cmd][match_type] is None):
+                for _key in self._cmd_para[cmd][match_type].keys():
+                    _match_key = _key
+                    if self._ignore_case:
+                        _match_key = _match_key.upper()
+                        _match_str = _match_str.upper()
+                    if _match_str == _match_key[0: len(_match_str)]:
+                        _ret_key = _key
+                        break
+        # 返回结果
+        return _ret_key
+
     def _analyse_cmd_para_stream_dealer(self, deal_char='', position=0, cmd_para_str='',
                                         match_cmd='', current_info=None,
                                         style_list=None, info_list=None):
@@ -147,7 +187,8 @@ class PromptPlusCmdParaLexer(Lexer):
             [
                 引号是否结束(bool), 引号开始位置(int),
                 长短参数是否结束(bool)， 长短参数开始位置(int),
-                连续词是否结束, 连续词开始位置
+                连续词是否结束, 连续词开始位置,
+                name_para参数是否结束(bool)，word_para参数是否结束(bool)
             ]
             注：如果需标注参数内容是从字符串开始，可以通过传入current_info设置，应对多行处理的情况
         @param {list} style_list=None - 字符样式对应列表，传入的是上一个字符处理后的列表，处理中会更新:
@@ -170,12 +211,13 @@ class PromptPlusCmdParaLexer(Lexer):
             # [引号是否结束(bool), 引号开始位置(int),
             # 长短参数是否结束(bool)， 长短参数开始位置(int),
             # 连续词是否结束, 连续词开始位置]
+            # name_para参数是否结束(bool)，word_para参数是否结束(bool)
             if current_info.count == 0:
-                current_info.extend([True, -1, True, -1, False, 0])
+                current_info.extend([True, -1, True, -1, False, 0, True, True])
             else:
                 _is_in_string = current_info[0]
                 current_info.clear()
-                current_info.extend([_is_in_string, -1, True, -1, False, 0])
+                current_info.extend([_is_in_string, -1, True, -1, False, 0, True, True])
 
             # [('style_str','char_str'), ('style_str','char_str'), ...]，注意如果对外部变量直接用=赋值，传不到外面
             style_list.clear()
@@ -201,22 +243,30 @@ class PromptPlusCmdParaLexer(Lexer):
         _last_word = cmd_para_str[current_info[5]: position]
         if deal_char == ' ':
             # 引号外遇到空格，代表上一个字的结束
-            if _last_word != '' and _last_word[0:1] == '-' and \
-                self._match_cmd_para_str(match_str=_last_word[1:], cmd=match_cmd,
-                                         match_type='long_para') != '':
-                # 开始是按短参数匹配的，判断是否能匹配到长参数，如果可以，则修改为长参数
-                _deal_index = _last_index
-                # 注意_deal_index有可能变成-1，因此需要进行判断
-                while _deal_index >= 0 and info_list[_deal_index][0] >= current_info[5]:
-                    del info_list[_deal_index]
-                    del style_list[_deal_index]
-                    _deal_index -= 1
-                # 删除完以后，重新建立样式
-                style_list.append(('class:long_para', _last_word))
-                info_list.append([current_info[5], position, 'long_para'])
+            current_info[6] = True  # 一定是name_para的结束
+            if current_info[6] and _last_word != '' and _last_word[0:1] == '-':
                 current_info[2] = True  # 标注长短词结束
-                _last_index = len(style_list) - 1
-                _last_style_word = style_list[_last_index][1]
+                if _last_word == '-':
+                    # 只送一个标识符，只需要修改为错误
+                    style_list[_last_index] = ('class:wrong_tip', _last_word)
+                    info_list[_last_index][2] = 'wrong'
+                elif len(_last_word) > 2 and self._match_cmd_para_str(match_str=_last_word[1:], cmd=match_cmd,
+                                         match_type='long_para') == '':
+                    # 不是短词，但也匹配不上长词
+                    style_list[_last_index] = ('class:wrong_tip', _last_word)
+                    info_list[_last_index][2] = 'wrong'
+            elif current_info[6] and _last_word != '' and self._match_cmd_para_str(match_str=_last_word, cmd=match_cmd,
+                    match_type='word_para') != '':
+                # 非name_para参数情况，匹配上词模式
+                style_list[_last_index] = ('class:word_para', _last_word)
+                info_list[_last_index][2] = 'word_para'
+            elif not current_info[7] and self._match_cmd_para_str(match_str=_last_word, cmd=match_cmd,
+                    match_type='word_para') == '':
+                # 原来匹配到word_para但实际上最终不是
+                style_list[_last_index] = ('class:', _last_word)
+                info_list[_last_index][2] = ''
+
+            current_info[7] = True  # 处理完成后，肯定不再在word_para参数中
 
             # 其他情况无需对原来的样式进行调整单纯关闭和初始化下一个词的开始即可
             if style_list[_last_index][1] == '':
@@ -231,7 +281,7 @@ class PromptPlusCmdParaLexer(Lexer):
             style_list.append(('class:', ''))
             info_list.append([position + 1, position + 1, ''])
             current_info.clear()
-            current_info.extend([True, -1, True, -1, False, position + 1])
+            current_info.extend([True, -1, True, -1, False, position + 1, True, True])
             return
         elif deal_char == '"' and _last_word[0:1] != '-':
             # 字符串开始，与平常处理没有分别，只是要标注是字符串开始
@@ -239,6 +289,7 @@ class PromptPlusCmdParaLexer(Lexer):
             info_list[_last_index][1] = position + 1
             current_info[0] = False
             current_info[1] = position
+            # print('end %s: %s' % (deal_char, str(current_info)))
             return
         elif deal_char == '-' and (position == 0 or cmd_para_str[position-1:position] == ' '):
             # 短参数匹配，且是在词的开始位置
@@ -247,11 +298,13 @@ class PromptPlusCmdParaLexer(Lexer):
             current_info[2] = False
             current_info[3] = position
             # 初始化下一个词的处理
-            style_list.append(('class:', ''))
-            info_list.append([position + 1, position + 1, ''])
+            # style_list.append(('class:', ''))
+            # info_list.append([position + 1, position + 1, ''])
+            # print('end %s: %s' % (deal_char, str(current_info)))
             return
         elif deal_char == '=' and _last_word != '' and _last_word[0:1] != '-':
             # 遇到等号，则代表前面是name_para
+            current_info[6] = False  # 标记后面一个词处于name_para模式
             if self._match_cmd_para_str(match_str=_last_word,
                                         cmd=match_cmd, match_type='name_para') != '':
                 # 匹配上
@@ -264,30 +317,52 @@ class PromptPlusCmdParaLexer(Lexer):
             # 加上自身样式同步初始化下一个的处理
             style_list.append(('class:', '='))
             info_list.append([position, position + 1, ''])
+            # print('end %s: %s' % (deal_char, str(current_info)))
             return
         else:
             # 延续字符的处理，只需要特殊判断是否短参数的情况
             if not current_info[2]:
-                # 按短参数匹配处理
-                if self._match_cmd_para_str(match_str=deal_char, cmd=match_cmd,
+                _temp_para_str = cmd_para_str[current_info[3] + 1: position + 1]
+                if len(_temp_para_str) == 1 and self._match_cmd_para_str(match_str=_temp_para_str, cmd=match_cmd,
                                             match_type='short_para') != '':
-                    # 匹配上
-                    style_list[_last_index] = ('class:short_para', deal_char)
+                    # 一个字符，按短参数匹配成功
+                    style_list[_last_index] = ('class:short_para', '-' + _temp_para_str)
                     info_list[_last_index][1] = position + 1
                     info_list[_last_index][2] = 'short_para'
+                elif self._match_cmd_para_str_start(match_str=_temp_para_str, cmd=match_cmd,
+                        match_type='long_para') != '':
+                    # 匹配到长参数
+                    style_list[_last_index] = ('class:long_para', '-' + _temp_para_str)
+                    info_list[_last_index][1] = position + 1
+                    info_list[_last_index][2] = 'long_para'
                 else:
-                    # 匹配不上
-                    style_list[_last_index] = ('class:wrong_tip', deal_char)
+                    # 匹配不上，错误提示
+                    style_list[_last_index] = ('class:wrong_tip', '-' + _temp_para_str)
                     info_list[_last_index][1] = position + 1
                     info_list[_last_index][2] = 'wrong'
+
                 # 初始化下一个词的处理
-                style_list.append(('class:', ''))
-                info_list.append([position + 1, position + 1, ''])
+                # style_list.append(('class:', ''))
+                # info_list.append([position + 1, position + 1, ''])
+                # print('end %s: %s' % (deal_char, str(current_info)))
                 return
             else:
-                # 正常字符增加，延续上一个的情况
-                style_list[_last_index] = (style_list[_last_index][0], _last_style_word + deal_char)
+                # 正常字符增加，延续上一个的情况，判断是否word_para
+                if current_info[6] and self._match_cmd_para_str_start(match_str=_last_style_word + deal_char, cmd=match_cmd,
+                        match_type='word_para') != '':
+                    style_list[_last_index] = ('class:word_para', _last_style_word + deal_char)
+                    info_list[_last_index][2] = 'word_para'
+                    current_info[7] = False
+                elif not current_info[7]:
+                    # 在word_para中但是匹配不上
+                    style_list[_last_index] = ('class:', _last_style_word + deal_char)
+                    info_list[_last_index][2] = ''
+                    current_info[7] = True
+                else:
+                    style_list[_last_index] = (style_list[_last_index][0], _last_style_word + deal_char)
+                    current_info[7] = True
                 info_list[_last_index][1] = position + 1
+                # print('end %s: %s' % (deal_char, str(current_info)))
                 return
 
     def _get_line_tokens(self, line='', match_cmd='', start_in_string=False, current_info=None):
@@ -319,9 +394,9 @@ class PromptPlusCmdParaLexer(Lexer):
             # 从缓存获取不到数据，将_cache_data设置为从0位置开始，cache的数据格式如下：
             # [current_position, last_current_info, last_style_list, last_info_list]
             if start_in_string:
-                _cache_data = [0, [False, 0, True, -1, False, 0], list(), list()]  # 从字符串开始行
+                _cache_data = [0, [False, 0, True, -1, False, 0, True, True], list(), list()]  # 从字符串开始行
             else:
-                _cache_data = [0, [True, 0, True, -1, False, 0], list(), list()]
+                _cache_data = [0, [True, 0, True, -1, False, 0, True, True], list(), list()]
         else:
             _cache_data = copy.deepcopy(x=_cache_data)  # 深度复制，避免影响原缓存信息
 
@@ -659,18 +734,22 @@ class PromptPlusCompleter(Completer):
             # 长短名
             if cmd_para[_cmd]['long_para'] is not None:
                 for _long_para_key in cmd_para[_cmd]['long_para'].keys():
-                    self._para_word[_cmd].append('-'+_long_para_key+' ')
+                    self._para_word[_cmd].append('-'+_long_para_key)
                     if cmd_para[_cmd]['long_para'][_long_para_key] is not None:
                         for _long_para_value in cmd_para[_cmd]['long_para'][_long_para_key]:
                             self._para_word[_cmd].append(
                                 '-' + _long_para_key + ' ' + _long_para_value)
             if cmd_para[_cmd]['short_para'] is not None:
                 for _short_para_key in cmd_para[_cmd]['short_para'].keys():
-                    self._para_word[_cmd].append('-'+_short_para_key + ' ')
+                    self._para_word[_cmd].append('-'+_short_para_key)
                     if cmd_para[_cmd]['short_para'][_short_para_key] is not None:
                         for _short_para_value in cmd_para[_cmd]['short_para'][_short_para_key]:
                             self._para_word[_cmd].append(
                                 '-' + _short_para_key + ' ' + _short_para_value)
+            # 词模式
+            if cmd_para[_cmd]['word_para'] is not None:
+                for _word in cmd_para[_cmd]['word_para'].keys():
+                    self._para_word[_cmd].append(_word)
 
     def get_completions(self, document, complete_event):
         """
@@ -1359,18 +1438,20 @@ class PromptPlus(object):
             'deal_fun': None,
             'name_para': None,
             'short_para': None,
-            'long_para': None
+            'long_para': None,
+            'word_para': None,
         }
         self._loop = asyncio.get_event_loop()  # 异步模式需要的事件循环处理对象
         self._async_cmd_queue = Queue()  # 异步模式的命令执行队列
         # 关键字配色方案，每个配色方案格式为'#000088 bg:#aaaaff underline'
         self._default_color_set = {
             # 用户输入
-            '': '#F2F2F2',  # 默认输入 212,212,212#D4D4D4
-            'cmd': '#13A10E',  # 命令 106,153,85
-            'name_para': '#C19C00',  # key-value形式参数名, 206,145,120
-            'short_para': '#3B78FF',  # -char形式的短参数字符, 86,156,214
-            'long_para': '#FFFF00',  # -name形式的长参数字符, 255,215,142
+            '': '#F2F2F2',  # 默认输入
+            'cmd': '#13A10E',  # 命令
+            'name_para': '#C19C00',  # key-value形式参数名
+            'short_para': '#3B78FF',  # -char形式的短参数字符
+            'long_para': '#FFFF00',  # -name形式的长参数字符
+            'word_para': '#C19C00', # word 形式的词字符
             'wrong_tip': '#FF0000 bg:#303030',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
 
             # prompt提示信息
