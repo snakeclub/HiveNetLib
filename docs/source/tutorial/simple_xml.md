@@ -1,0 +1,321 @@
+# simple_xml使用说明
+
+simple_stream模块主要实现了xml文件的简单处理处理，模块使用lxml.etree进行底层处理。
+
+
+
+## SimpleXml的基本使用参考
+
+1、构造函数
+
+```
+示例：xmldoc = SimpleXml('test.xml', obj_type=EnumXmlObjType.File)
+
+主要参数如下：
+@param {object} xml_obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如(仅供参考)：
+    obj_type = EnumXmlObjType.File 时，obj为文件路径
+    obj_type = EnumXmlObjType.FileHandle 时，obj为文件句柄
+    obj_type = EnumXmlObjType.String 时，obj为报文文本
+@param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
+@param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
+@param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
+@param {dict} register_namespace=None - 注册命名空间别名，格式为：
+    {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
+    注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
+@param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
+```
+
+​            obj_type = EnumXmlObjType.FileHandle 时，obj为文件句柄
+
+​            obj_type = EnumXmlObjType.String 时，obj为报文文本
+
+​        @param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
+
+​        @param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
+
+​        @param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
+
+​        @param {dict} register_namespace=None - 注册命名空间别名，格式为：
+
+​            {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
+
+​            注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
+
+​        @param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
+
+2、提供各类函数获取及修改节点值和属性，主要的检索使用XPath语法；
+
+3、支持另存为文件
+
+```
+示例：xmldoc.save('test1.xml', encoding='utf-8', xml_declaration=True)
+
+@param {string|object} file=None - 要保存的文件的完整路径，如果不传代表修改原文件
+    注：也可以传入打开的文件句柄
+@param {string} encoding=None - 文件编码，如果为None代表使用创建时的编码
+@param {**kwargs} kwargs - 扩展的装载参数，包括ElementTree.write的参数
+	xml_declaration=None - 控制是否在文件中添加xml的声明，True - 一直添加, False - 不添加
+    如果传None，代表只有encoding不是US-ASCII or UTF-8 or Unicode的时候才添加声明
+```
+
+
+
+## lxml.etree的基本使用参考
+
+官方参考文档见：https://lxml.de/api/lxml-module.html
+
+### 主要方法列表
+
+**访问元素属性**
+Element.tag(): 字符串类型，标识标识次元素类型
+Element.text():  元素内容
+Element.attrib():  属性字典
+Element.clear(): 清楚所有子元素
+Element.get(key, default=None): 获取key的元素属性，返回属性值，默认None
+Element.items(): 将元素属性以元组形式返回
+Element.keys():  列表形式返回属性名称
+Element.set(key, value): 将元素上的属性设置为value
+
+**元素子元素操作**
+append(subelement): 添加子元素
+extend(subelements)：零个或多个元素序列追加子元素
+find(match, namespaces=None)：查找匹配第一个子元素，返回一个元素示例或None，match为标签名或xpath路径
+findall(match, namespaces=None): 按照标签名称寻找子元素，match为标签名或者xpath路径
+findtext(match, default=None, namespaces=None)：返回匹配到的第一个子元素的文本，match可以是标签名或xpath路径，如果一个元素都匹配不到，返回default的值
+insert(index, element):在元素指定位置插入子元素
+iter(tag=None): 使用当前元素作为跟创建树迭代器
+iterfind(match, namespaces=None): 按照标签名和xpath查找所有匹配的子元素，返回迭代
+itertext()：创建文本迭代器，迭代器按照文本顺序遍历元素和子元素，返回全部文本
+remove(subelement): 从元素中删除子元素
+
+
+
+### 遍历XML节点
+
+1、遍历指定节点的子节点
+
+```
+import xml.etree as ET
+
+tree = ET.parse('demo.xml')
+root = tree.getroot()  # 获得根节点
+
+# 遍历子节点，可以通过该方法遍历递归遍历所有节点
+for child in root:
+   print('%s %s' % (child.tag, child.attrib))
+```
+
+2、遍历所有节点重可符合匹配条件的节点
+
+```
+for n in root.iter(tag='neighbor'):
+	# 遍历所有节点中tag为'neighbor'的节点
+	print(n.attrib)
+```
+
+
+
+### 查找节点
+
+1、通过XPath查找对象
+
+```
+for n in root.findall(".//year/..[@name='Singapore']")
+	print(n.attrib)
+```
+
+2、带命名空间的情况
+
+xml示例文件：
+
+```
+<?xml version="1.0"?>
+<actors xmlns:fictional="http://characters.example.com"
+        xmlns="http://people.example.com">
+    <actor>
+        <name>John Cleese</name>
+        <fictional:character>Lancelot</fictional:character>
+        <fictional:character>Archie Leach</fictional:character>
+    </actor>
+    <actor>
+        <name>Eric Idle</name>
+        <fictional:character>Sir Robin</fictional:character>
+        <fictional:character>Gunther</fictional:character>
+        <fictional:character>Commander Clement</fictional:character>
+    </actor>
+</actors>
+```
+
+方法1：
+
+```
+for actor in root.findall('{http://people.example.com}actor'):
+    name = actor.find('{http://people.example.com}name')
+        print(name.text)
+        for char in actor.findall('{http://characters.example.com}character'):
+            print(' |-->%s' % char.text)
+```
+
+方法2（推荐）：
+
+```
+ns = {
+    'real_person': 'http://people.example.com',
+    'role': 'http://characters.example.com'
+}
+for actor in root.findall('real_person:actor', ns):
+    name = actor.find('real_person:name', ns)
+        print(name.text)
+        for char in actor.findall('role:character', ns):
+            print(' |-->%s' % char.text)
+```
+
+
+
+### 添加节点
+
+1、先创建要添加的节点元素
+
+```
+# 生成新节点：ET.Element(tag, attrib={}, **extra)
+# <a attr1='value1' attr2='value2' />
+a = ET.Element('a', attrib={'attr1': 'value1', 'attr2': 'value2'})
+# <b>b text</b>
+b = ET.Element('b', text='b text')
+# <c>c text</c>c-tail
+c = ET.Element('c', text='c text', tail='c-tail')
+
+# 组合节点：ET.SubElement(parent, tag, attrib={}, **extra)
+# <a attr1='value1' attr2='value2'><d /></a>
+d = ET.SubElement(a, 'd')
+```
+
+2、添加节点到根节点
+
+```
+# <a attr1='value1' attr2='value2'><d /><b>b text</b><c>c text</c>c-tail</a>
+n = a.append(
+	b.append(c)
+)
+
+# 添加到根节点
+root.append(n)
+```
+
+
+
+## XPath参考
+
+具体参考学习网站：https://www.w3school.com.cn/xpath/index.asp
+
+### XML 实例文档
+
+我们将在下面的例子中使用这个 XML 文档。
+
+```
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<bookstore>
+    <book>
+      <title lang="eng">Harry Potter</title>
+      <price>29.99</price>
+    </book>
+    <book>
+      <title lang="eng">Learning XML</title>
+      <price>39.95</price>
+    </book>
+</bookstore>
+```
+
+   
+
+### 选取节点
+
+XPath 使用路径表达式在 XML 文档中选取节点。节点是通过沿着路径或者 step 来选取的。
+
+**下面列出了最有用的路径表达式：**
+
+| 表达式   | 描述                                                       |
+| :------- | :--------------------------------------------------------- |
+| nodename | 选取此节点的所有子节点。                                   |
+| /        | 从根节点选取。                                             |
+| //       | 从匹配选择的当前节点选择文档中的节点，而不考虑它们的位置。 |
+| .        | 选取当前节点。                                             |
+| ..       | 选取当前节点的父节点。                                     |
+| @        | 选取属性。                                                 |
+
+**实例**
+
+在下面的表格中，我们已列出了一些路径表达式以及表达式的结果：
+
+| 路径表达式      | 结果                                                         |
+| :-------------- | :----------------------------------------------------------- |
+| bookstore       | 选取 bookstore 元素的所有子节点。                            |
+| /bookstore      | 选取根元素 bookstore。 注释：假如路径起始于正斜杠( / )，则此路径始终代表到某元素的绝对路径！ |
+| bookstore/book  | 选取属于 bookstore 的子元素的所有 book 元素。                |
+| //book          | 选取所有 book 子元素，而不管它们在文档中的位置。             |
+| bookstore//book | 选择属于 bookstore 元素的后代的所有 book 元素，而不管它们位于 bookstore 之下的什么位置。 |
+| //@lang         | 选取名为 lang 的所有属性。                                   |
+
+   
+
+### 谓语（Predicates）
+
+谓语用来查找某个特定的节点或者包含某个指定的值的节点。
+
+谓语被嵌在方括号中。
+
+**实例**
+
+在下面的表格中，我们列出了带有谓语的一些路径表达式，以及表达式的结果：
+
+| 路径表达式                         | 结果                                                         |
+| :--------------------------------- | :----------------------------------------------------------- |
+| /bookstore/book[1]                 | 选取属于 bookstore 子元素的第一个 book 元素。                |
+| /bookstore/book[last()]            | 选取属于 bookstore 子元素的最后一个 book 元素。              |
+| /bookstore/book[last()-1]          | 选取属于 bookstore 子元素的倒数第二个 book 元素。            |
+| /bookstore/book[position()<3]      | 选取最前面的两个属于 bookstore 元素的子元素的 book 元素。    |
+| //title[@lang]                     | 选取所有拥有名为 lang 的属性的 title 元素。                  |
+| //title[@lang='eng']               | 选取所有 title 元素，且这些元素拥有值为 eng 的 lang 属性。   |
+| /bookstore/book[price>35.00]       | 选取 bookstore 元素的所有 book 元素，且其中的 price 元素的值须大于 35.00。 |
+| /bookstore/book[price>35.00]/title | 选取 bookstore 元素中的 book 元素的所有 title 元素，且其中的 price 元素的值须大于 35.00。 |
+
+   
+
+### 选取未知节点
+
+XPath 通配符可用来选取未知的 XML 元素。
+
+| 通配符 | 描述                 |
+| :----- | :------------------- |
+| *      | 匹配任何元素节点。   |
+| @*     | 匹配任何属性节点。   |
+| node() | 匹配任何类型的节点。 |
+
+**实例**
+
+在下面的表格中，我们列出了一些路径表达式，以及这些表达式的结果：
+
+| 路径表达式   | 结果                              |
+| :----------- | :-------------------------------- |
+| /bookstore/* | 选取 bookstore 元素的所有子元素。 |
+| //*          | 选取文档中的所有元素。            |
+| //title[@*]  | 选取所有带有属性的 title 元素。   |
+
+   
+
+### 选取若干路径
+
+通过在路径表达式中使用“|”运算符，您可以选取若干个路径。
+
+**实例**
+
+在下面的表格中，我们列出了一些路径表达式，以及这些表达式的结果：
+
+| 路径表达式                       | 结果                                                         |
+| :------------------------------- | :----------------------------------------------------------- |
+| //book/title \| //book/price     | 选取 book 元素的所有 title 和 price 元素。                   |
+| //title \| //price               | 选取文档中的所有 title 和 price 元素。                       |
+| /bookstore/book/title \| //price | 选取属于 bookstore 元素的 book 元素的所有 title 元素，以及文档中所有的 price 元素。 |
+
+
+
