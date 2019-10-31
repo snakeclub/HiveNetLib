@@ -189,13 +189,16 @@ class SimpleXml(object):
                 _tag_list = list()
                 _type = 'dict'
                 for _childnode in _childs:
-                    if hasattr(_childnode, 'tag'):
-                        if _childnode.tag in _tag_list:
-                            # 发现有tag重复的节点
-                            _type = 'list'
-                            break
-                        else:
-                            _tag_list.append(_childnode.tag)
+                    if not (hasattr(_childnode, 'tag') and type(_childnode.tag) == str):
+                        # 注释
+                        continue
+
+                    if _childnode.tag in _tag_list:
+                        # 发现有tag重复的节点
+                        _type = 'list'
+                        break
+                    else:
+                        _tag_list.append(_childnode.tag)
             else:
                 _type = 'string'
 
@@ -232,10 +235,11 @@ class SimpleXml(object):
                 _value = list()
             # 判断是否使用字典方式放在列表中
             _use_dict = False
-            for _node in item_dict_nodes:
-                if _node is node:
-                    _use_dict = True
-                    break
+            if item_dict_nodes is not None:
+                for _node in item_dict_nodes:
+                    if _node is node:
+                        _use_dict = True
+                        break
             # 列表处理
             for childnode in node.getchildren():
                 _child_key, _child_value = self._xml_node_to_dict_value(
