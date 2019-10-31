@@ -6,6 +6,8 @@ simple_stream模块主要实现了xml文件的简单处理处理，模块使用l
 
 ## SimpleXml的基本使用参考
 
+### 基本使用说明
+
 1、构造函数
 
 ```
@@ -56,6 +58,93 @@ simple_stream模块主要实现了xml文件的简单处理处理，模块使用l
 @param {**kwargs} kwargs - 扩展的装载参数，包括ElementTree.write的参数
 	xml_declaration=None - 控制是否在文件中添加xml的声明，True - 一直添加, False - 不添加
     如果传None，代表只有encoding不是US-ASCII or UTF-8 or Unicode的时候才添加声明
+```
+
+### 存在命名空间的情况
+
+对于存在命名空间的情况，SimpleXml并不支持“{namespace}tag”这种类型的xPath语法处理，标准的使用方法如下：
+
+```
+# 指定命名空间字典，key值为命名空间的别名，可自定义
+_ns = {
+    'people': 'http://people.example.com',
+    'role': 'http://characters.example.com'
+}
+
+# 获取节点值，需注意xPath中命名空间下的每个节点都需要指定别名
+_text = _pfile.get_value('people:actor[1]/people:name', default='None', namespaces=_ns)
+_text = _pfile.get_value(
+    '/people:actors/people:actor[1]/role:character[1]', default='None', namespaces=_ns)
+
+# 创建带命名空间的节点，节点tag需要带命名空间的指定标识"{namespace}"
+_tag = '{%s}%s' % (_ns['role'], 'tagname')
+_node = ET.Element(_tag, nsmap=_ns)
+_pfile.append_node('/people:actors', _node, namespaces=_ns)
+```
+
+### 将指定节点生成字典对象
+
+to_dict函数可以将指定的节点生成字典对象（需注意不支持节点属性的情况），规则如下：
+
+1、访问字典从节点的标签（tag）作为key，例如根节点的tag为data，则可通过_dict['data']进行对应的节点信息访问；
+
+```
+例如：
+<data>
+	<a>val1</a>
+	<b>val2</b>
+</data>
+转换为字典：{'data': {'a': 'val1', 'b': 'val2'} }
+```
+
+2、xml中可通过type属性指定节点的类型，支持 dict, list, tuple, bool, int, float, string 这7种类型：其中dict 类型是默认类型，在字典中对应的value是一个字典，key为子节点的tag； bool, int, float, string 类型在字典中对应的value是节点的text转换过来的值；list、tuple是列表类型，在字典中对应得value是列表；
+
+```
+例如：
+<data type='dict'>
+	<a>val1</a>
+	<b type='int'>3</b>
+	<c type='list'>
+		<c1>v1</c1>
+		<c2>v2</c2>
+		<c3><d>d1</d></c3>
+	</c>
+</data>
+转换为字典：
+{
+	'data': {
+		'a': 'val1',
+		'b': 3,
+		'c': ['v1', 'v2', {'d': 'd1'}]
+	}
+}
+```
+
+3、如果节点没有指定type属性，将自动根据子节点判断当前节点的类型，如果当前节点没有子节点，按string类型转换；如果当前节点有子节点，且子节点的tag没有重复情况，则按dict类型转换；如果子节点的tag有重复，则按list类型转换；
+
+4、可以通过item_dict_xpaths参数指定某个list节点的列表项，不是直接取节点值，而是生成key值为tag的列表项：
+
+```
+例如：
+<data>
+	<a type='list'>
+		<a1>x1</a1>
+		<a2>x2</a2>
+	</a>
+	<c type='list'>
+		<c1>v1</c1>
+		<c2>v2</c2>
+		<c3><d>d1</d></c3>
+	</c>
+<data>
+指定item_dict_xpaths={'/data/c': None}
+转换为字典：
+{
+	'data': {
+		'a': ['x1', 'x2'],
+		'c': [{'c1': 'v1'}, {'c2': 'v2'}, {'c3': {'d': 'd1'}}, ]
+	}
+}
 ```
 
 

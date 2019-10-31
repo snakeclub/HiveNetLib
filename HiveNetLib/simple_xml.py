@@ -55,7 +55,7 @@ class SimpleXml(object):
     """
 
     #############################
-    # 构造函数
+    # 内部函数
     #############################
     def __init__(self, xml_obj, obj_type=EnumXmlObjType.File, encoding=None, use_chardet=True,
                  register_namespace=None, **kwargs):
@@ -157,9 +157,104 @@ class SimpleXml(object):
         """
         return self.to_string(xml_declaration=None)
 
+    def _xml_node_to_dict_value(self, node, item_dict_nodes=None):
+        """
+        将指定节点通过递归生成存入dict的key-value值
+
+        @param {Element} node - 要生成key-value的节点
+        @param {list} item_dict_nodes = None - 指定list和tuple情况下，使用字典作为列表项的节点清单(Element)
+
+        @return {tuple} - 返回 key, value 值，如果是注释返回 None, None
+        """
+        if not (hasattr(node, 'tag') and type(node.tag) == str):
+            # 不是节点的情况（例如注释），直接返回None
+            return None, None
+
+        _key = node.tag
+        _value = None
+        _type = None
+
+        # 处理数据类型的判断
+        if 'type' in node.attrib.keys():
+            _type = node.attrib['type']
+            if _type not in ('dict', 'list', 'tuple', 'bool', 'int', 'float', 'string'):
+                # 非标准类型，当作没有传入，重新再处理
+                _type = None
+
+        _childs = None  # 子节点清单
+        if _type is None:
+            _childs = node.getchildren()
+            if len(_childs) > 0:
+                # 只要子节点有重复的tag，则认为一定是list
+                _tag_list = list()
+                _type = 'dict'
+                for _childnode in _childs:
+                    if hasattr(_childnode, 'tag'):
+                        if _childnode.tag in _tag_list:
+                            # 发现有tag重复的节点
+                            _type = 'list'
+                            break
+                        else:
+                            _tag_list.append(_childnode.tag)
+            else:
+                _type = 'string'
+
+        # 按不同type属性类型进行处理
+        if _type == 'string':
+            _value = node.text
+        elif _type == 'bool':
+            _value = (node.text == 'true')
+        elif _type == 'int':
+            _value = round(float(node.text))
+        elif _type == 'float':
+            _value = float(node.text)
+        elif _type == 'dict':
+            # 字典
+            if _childs is None:
+                _childs = node.getchildren()
+            if len(_childs) > 0:
+                # 有子节点
+                _value = dict()
+                for childnode in node.getchildren():
+                    _child_key, _child_value = self._xml_node_to_dict_value(
+                        childnode, item_dict_nodes=item_dict_nodes)
+                    # 加到字典里面
+                    if _child_key is not None:
+                        _value[_child_key] = _child_value
+            else:
+                # 没有子节点，等同于string
+                _value = node.text
+        else:
+            # list或tuple
+            if _type == 'tuple':
+                _value = tuple()
+            else:
+                _value = list()
+            # 判断是否使用字典方式放在列表中
+            _use_dict = False
+            for _node in item_dict_nodes:
+                if _node is node:
+                    _use_dict = True
+                    break
+            # 列表处理
+            for childnode in node.getchildren():
+                _child_key, _child_value = self._xml_node_to_dict_value(
+                    childnode, item_dict_nodes=item_dict_nodes)
+                if _use_dict:
+                    # 列表项按字典处理
+                    _child_value = {_child_key: _child_value}
+                # 加入列表中
+                _value.append(_child_value)
+
+        # 返回自身的key值和Value值
+        if _value is None:
+            _value = ''
+        return _key, _value
+
     #############################
     # 文件操作
     #############################
+
     def save(self, file=None, encoding=None, **kwargs):
         """
         保存文件
@@ -230,6 +325,11 @@ class SimpleXml(object):
         _node = None
         if xpath is None:
             _node = self.root
+        else:
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+            if len(_nodes) > 0:
+                _node = _nodes[0]
+
         return ET.tostring(
             _node, encoding=self.encoding,
             method="xml" if 'method' not in kwargs.keys() else kwargs['method'],
@@ -246,9 +346,51 @@ class SimpleXml(object):
             strip_text=False if 'strip_text' not in kwargs.keys() else kwargs['strip_text']
         ).decode(encoding=self.encoding)
 
+    def to_dict(self, xpath=None, namespaces=None, **kwargs):
+        """
+        输出xml节点为字典(dict)
+        注：该函数不支持处理xml中的属性值
+
+        @param {string} xpath=None - 符合XPath语法的搜索路径，空代表根节点
+        @param {dict} namespaces=None - 命名空间
+        @param {**kwargs} kwargs - 扩展的参数，包括:
+            item_dict_xpaths = None - {dict} - 指定list和tuple情况下，使用字典作为列表项的节点xPath路径
+                key - 节点对应的xPath，value - 搜索命名空间，值为None或dict
+                注：xPath为列表节点的路径（非列表项节点路径）; xPath的路径从根节点开始查找
+
+        @return {dict} - 转换后的字典对象
+            注：包含节点自身，例如<data><a>val1</a><b>val2</b></data>转换后的字典应该通过dict['data']开始访问
+        """
+        # 生成item_dict_nodes参数
+        _item_dict_nodes = None
+        if 'item_dict_xpaths' in kwargs.keys() and kwargs['item_dict_xpaths'] is not None:
+            _item_dict_nodes = list()
+            for _get_xpath in kwargs['item_dict_xpaths'].keys():
+                _get_nodes = self.root.xpath(_get_xpath,
+                                             namespaces=kwargs['item_dict_xpaths'][_get_xpath])
+                # 合并列表
+                _item_dict_nodes = _item_dict_nodes + _get_nodes
+
+        # 获取要处理的节点列表
+        _roots = [self.root]
+        if xpath is not None:
+            # 获取全部匹配节点
+            _roots = self.root.xpath(xpath, namespaces=namespaces)
+
+        # 生成字典
+        _dict = dict()
+        for _root in _roots:
+            if _root is not None:
+                _key, _value = self._xml_node_to_dict_value(_root, item_dict_nodes=_item_dict_nodes)
+                if _key is not None:
+                    _dict[_key] = _value
+        # 返回结果
+        return _dict
+
     #############################
     # 节点操作
     #############################
+
     def get_nodes(self, xpath, namespaces=None):
         """
         获取xpath指定的节点清单
@@ -299,10 +441,17 @@ class SimpleXml(object):
         # 从第一级开始找以及新增
         _node = self.root
         for _tag in _tag_list:
-            _new_node = _node.find(_tag[0], namespaces=None)
+            _new_node = _node.find(_tag[0], namespaces=namespaces)
             if _new_node is None:
                 # 没有节点，新增
-                _new_node = ET.Element(_tag[0])
+                _new_node = None
+                if ':' in _tag[0]:
+                    # 有命名空间的处理
+                    _prefix, _tag = _tag[0].split(':', 1)
+                    _tag = '{' + namespaces[_prefix] + '}' + _tag
+                    _new_node = ET.Element(_tag, nsmap=namespaces)
+                else:
+                    _new_node = ET.Element(_tag[0])
                 _node.append(_new_node)
             # 当前节点设置为新增的节点
             _node = _new_node
@@ -320,7 +469,7 @@ class SimpleXml(object):
 
         @return {Element} - 返回匹配到的节点
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) > 0:
             return _nodes[0].append(node)
         else:
@@ -357,12 +506,12 @@ class SimpleXml(object):
         @param {dict} namespaces=None - 命名空间
         @param {bool} hold_tail=False - 是否保留上一节点的tail信息
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         for _node in _nodes:
             self.remove_node(_node, hold_tail=hold_tail)
 
     #############################
-    # 根节点值处理
+    # 节点值处理
     #############################
     def get_value(self, xpath, default='', namespaces=None):
         """
@@ -381,7 +530,7 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的文本值，如果没有找到匹配节点，返回''
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             return default
         else:
@@ -405,7 +554,7 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的指定属性文本值，如果没有找到匹配节点或属性，返回''
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             return default
         else:
@@ -431,7 +580,7 @@ class SimpleXml(object):
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             if auto_create:
                 # 找不到节点，尝试自动创建节点
@@ -465,7 +614,7 @@ class SimpleXml(object):
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
         """
-        _nodes = self.root.xpath(xpath, namespaces=None)
+        _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             if auto_create:
                 # 找不到节点，尝试自动创建节点
@@ -492,7 +641,7 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的文本值，如果没有找到匹配节点，返回''
         """
-        _nodes = node.xpath(xpath, namespaces=None)
+        _nodes = node.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             return default
         else:
@@ -511,7 +660,7 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的指定属性文本值，如果没有找到匹配节点或属性，返回''
         """
-        _nodes = node.xpath(xpath, namespaces=None)
+        _nodes = node.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             return default
         else:

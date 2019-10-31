@@ -45,7 +45,7 @@ class TestSimpleXml(unittest.TestCase):
         """
         pass
 
-    def test_xml_prop(self):
+    def test_xml_gbk(self):
         """
         测试SimpleXml
         """
@@ -93,6 +93,54 @@ class TestSimpleXml(unittest.TestCase):
         print('测试SimpleXml - 保存文件')
         _file = _TEMP_DIR + '/encode_gbk_temp.xml'
         _pfile.save(file=_file, encoding='utf-8', xml_declaration=True, pretty_print=True)
+
+    def test_xml_namespace(self):
+        """
+        测试带命名空间的处理
+        """
+        print('测试命名空间处理')
+        print('测试命名空间处理 - 装载文件并访问信息')
+        _file = self.file_path + '/with_namespace.xml'
+        _pfile = SimpleXml(_file, obj_type=EnumXmlObjType.File, encoding=None,
+                           use_chardet=True, remove_blank_text=True)
+        ns = {
+            'people': 'http://people.example.com',
+            'role': 'http://characters.example.com'
+        }
+        _text = _pfile.get_value('people:actor[1]/people:name', default='None', namespaces=ns)
+        self.assertTrue(_text == 'John Cleese - 中文',
+                        '失败：测试命名空间处理 - 装载文件并访问信息 - 步骤1获取值错误：%s' % _text)
+        _text = _pfile.get_value(
+            '/people:actors/people:actor[1]/role:character[1]', default='None', namespaces=ns)
+        self.assertTrue(_text == 'Lancelot',
+                        '失败：测试命名空间处理 - 装载文件并访问信息 - 步骤2获取值错误：%s' % _text)
+
+        print('测试命名空间处理 - 新增节点')
+        _pfile.set_value('people:test/role:myname', '新值', namespaces=ns)
+        _text = _pfile.get_value('people:test/role:myname',
+                                 default='None', namespaces=ns)
+        self.assertTrue(_text == '新值',
+                        '失败：测试命名空间处理 - 新增节点 - 值错误：%s' % _text)
+
+    def test_xml_to_dict(self):
+        """
+        测试xml转换为字典的情况
+        """
+        print('测试SimpleXml - to_dict')
+        _file = self.file_path + '/to_dict.xml'
+        _pfile = SimpleXml(_file, obj_type=EnumXmlObjType.File, encoding=None,
+                           use_chardet=True, remove_blank_text=True)
+        _item_dict_xpaths = {
+            '/data/country[2]/list': None
+        }
+        _dict = _pfile.to_dict(item_dict_xpaths=_item_dict_xpaths)
+        print(_dict)
+        self.assertTrue(_dict['data'][0][0] == 2,
+                        '失败：测试SimpleXml - to_dict - 检查1：%d' % _dict['data'][0][0])
+        self.assertTrue(_dict['data'][0][3][3] is True,
+                        '失败：测试SimpleXml - to_dict - 检查2：%s' % str(_dict['data'][0][3][3]))
+        self.assertTrue(_dict['data'][1]['list'][0]['b1'] == 'b1',
+                        '失败：测试SimpleXml - to_dict - 检查3：%s' % str(_dict['data'][1]['list'][0]['b1']))
 
 
 if __name__ == '__main__':
