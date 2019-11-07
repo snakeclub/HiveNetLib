@@ -671,6 +671,19 @@ class SimpleXml(object):
             # 返回属性值
             return _nodes[0].get(attr_name, default=default)
 
+    @staticmethod
+    def get_childnodes_on_node(node, xpath, namespaces=None):
+        """
+        获取xpath指定的子节点(从节点开始检索)
+
+        @param {Element} node - 开始检索的节点
+        @param {string} xpath - - 符合XPath语法的搜索路径
+        @param {dict} namespaces=None - 命名空间
+
+        @return {list} - 获取到的节点列表
+        """
+        return node.xpath(xpath, namespaces=namespaces)
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
