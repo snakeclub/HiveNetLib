@@ -21,6 +21,11 @@ import re
 import platform
 import subprocess
 import shutil
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+import HiveNetLib.base_tools.myzipfile as zipfile
+
 
 __MOUDLE__ = 'file_tool'  # 模块名
 __DESCRIPT__ = u'文件处理工具'  # 模块描述
@@ -338,6 +343,126 @@ class FileTool(object):
         """
         with open(filename, 'rt', encoding=encoding) as f:
             return f.read()
+
+    #############################
+    # zip文件处理
+    #############################
+    @staticmethod
+    def zip(src_path, dest_path=None, dest_filename=None, mode='w',
+            compression=zipfile.ZIP_DEFLATED, allowZip64=True, **kwargs):
+        """
+        压缩指定文件或路径
+
+        @param {string} src_path - 要压缩的文件或目录
+        @param {string} dest_path=None - 处理后的压缩包存放路径, None代表存放在src_path所在的目录下
+        @param {string} dest_filename=None - 处理后的压缩包文件名, None代表使用对应的文件或目录名(增加.zip)
+        @param {string} mode='w' - 打开zip文件的模式
+            'w' - 表示新建一个zip文档或覆盖一个已经存在的zip文档
+            'a' - 表示将数据附加到一个现存的zip文档中
+        @param {int} compression=zipfile.ZIP_DEFLATED - 压缩方法，可以选的值包括：
+            zipfile.ZIP_STORED = 0 - 仅打包存储（不压缩）
+            zipfile.ZIP_DEFLATED = 8 - 压缩存储
+        @param {bool} allowZip64=True - 当要处理的压缩包大于2G时，建议打开该开关
+        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+
+        @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
+        """
+        if not os.path.exists(src_path):
+            raise FileNotFoundError('file or dir [%s] not found!' % src_path)
+
+        # 处理目标文件路径
+        _src_realpath = os.path.realpath(src_path)
+        _src_path, _src_file = os.path.split(_src_realpath)
+        if dest_path is None:
+            dest_path = _src_path
+        if dest_filename is None:
+            dest_filename = _src_file + '.zip'
+
+        # 创建zip文件
+        _zip = zipfile.ZipFile(os.path.join(dest_path, dest_filename), mode=mode,
+                               compression=compression, allowZip64=compression)
+
+        if os.path.isfile(src_path):
+            # 文件
+            _zip.write(os.path.realpath(src_path), _src_file)
+        else:
+            # 遍历目录并写入文件
+            _src_realpath = _src_realpath.replace('\\', '/')
+            for root, dirs, files in os.walk(src_path):
+                # 获取相对路径
+                _abs_path = root.replace('\\', '/').replace(_src_realpath, '', 1)
+
+                # 确保相对路径不能是'/'开头，否则解压检索的文件信息会有问题
+                if len(_abs_path) > 0 and _abs_path[0] == '/':
+                    _abs_path = _abs_path[1:]
+
+                if len(files) == 0:
+                    # 空目录，写入目录信息
+                    _zip.writestr(_abs_path + '/', '')
+
+                # 写入文件
+                for filename in files:
+                    _zip.write(os.path.join(root, filename), _abs_path + '/' + filename)
+
+        # 保存压缩包
+        _zip.close()
+
+    @staticmethod
+    def unzip(filename, dest_path=None, members=None, pwd=None, **kwargs):
+        """
+        解压缩文件到指定路径
+
+        @param {string} filename - 要解压缩的文件
+        @param {string} dest_path=None - 解压后目标路径
+            注：为None时解压至文件所在路径，放入与文件名（去掉扩展名）相同的目录中
+        @param {tuple|list}} members=None - 指定单独解压的文件清单(注意路径分隔符为'/')，不支持解压缩指定目录
+            示例: members=['a.txt', 'path/b.txt']
+        @param {bytes} pwd=None - 解压密码
+            示例：pwd='123456'.encode('utf-8')
+        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+
+        @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
+        """
+        if not os.path.exists(filename):
+            raise FileNotFoundError('file [%s] not found!' % filename)
+
+        # 处理路径
+        _src_path, _src_file = os.path.split(os.path.realpath(filename))
+        if dest_path is None:
+            _file_no_ext = _src_file
+            _dot_index = _file_no_ext.rfind(".")
+            if _dot_index != -1:
+                _file_no_ext = _file_no_ext[0: _dot_index]
+            dest_path = _src_path + '/' + _file_no_ext
+
+        # 读取文件
+        _zip = zipfile.ZipFile(filename)
+        _zip.extractall(dest_path, members=members, pwd=pwd)
+        _zip.close()
+
+    @staticmethod
+    def read_zip_file(filename, member, pwd=None, **kwargs):
+        """
+        读取压缩包中的某个文件的二进制数据
+
+        @param {string} filename - 要处理的压缩文件
+        @param {string} member - 要读取的包内文件名
+        @param {bytes} pwd=None - 解压密码
+            示例：pwd='123456'.encode('utf-8')
+        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+
+        @return {bytes} - 读取到文件的二进制数据
+
+        @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
+        """
+        if not os.path.exists(filename):
+            raise FileNotFoundError('file [%s] not found!' % filename)
+
+        # 读取文件
+        _zip = zipfile.ZipFile(filename)
+        _bytes = _zip.read(member, pwd=pwd)
+        _zip.close()
+        return _bytes
 
 
 if __name__ == '__main__':
