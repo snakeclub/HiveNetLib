@@ -247,7 +247,8 @@ class SimpleI18N(object):
         # 替换占位符
         i = 1  # 记录是第几个
         for para in replace_para:
-            s = re.sub(r'\$' + str(i), str(para), s)
+            if s.find('$' + str(i)) >= 0:
+                s = re.sub(r'\$' + str(i), str(para), s)
             i = i + 1
         # 处理完成
         return s

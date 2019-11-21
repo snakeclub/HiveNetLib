@@ -16,6 +16,10 @@
     "0408": "grpc call failure,  status code: [$1], details: [$2]",
     "0599": "other network failure",
     "0799": "other database failure",
+    "0801": "dir or file [$1] not exists",
+    "0802": "[$1] is not a dir",
+    "0803": "[$1] is not a file",
+    "0999": "other system failure",
     "1001": "unsupport argument",
     "1002": "can't find operate object",
     "1003": "argument consistency error",
@@ -31,5 +35,6 @@
     "1599": "other application failure",
     "3001": "[$1] is existed",
     "3002": "[$1] is not existed",
-    "4999": "other business failure"
+    "4999": "other business failure",
+    "9999": "unknow error"
 }

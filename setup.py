@@ -38,7 +38,7 @@ DEPENDENCIES = [
     'grpcio',
     'googleapis-common-protos',
     'jsonpath-rw',
-    'netifaces>=0.10.9'，
+    'netifaces>=0.10.9',
     'chardet',
 ]
 

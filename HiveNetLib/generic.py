@@ -181,7 +181,9 @@ class CResult(NullObj):
                 # 替换占位参数
                 i = 1  # 记录是第几个
                 for para in self.i18n_msg_paras:
-                    self.msg = re.sub(r'\$' + str(i), str(para), self.msg)
+                    if self.msg.find('$' + str(i)) >= 0:
+                        # 找到需要替换才处理，提升效率
+                        self.msg = re.sub(r'\$' + str(i), str(para), self.msg)
                     i = i + 1
             # 补充错误类型位
             if self.i18n_error_type_msg_id != '':

@@ -33,5 +33,9 @@
     "service name \"[$1]\" is not existed": "服务名\"[$1]\"不存在",
     "execute raise exception, type \"[$1]\"": "执行抛出异常，异常类型\"[$1]\"",
     "grpc call failure,  status code: [$1], details: [$2]": "grpc调用失败，状态码: [$1]，详细信息: [$2]",
-    "remote function execute raise exception, type \"[$1]\"": "远程函数执行抛出异常，异常类型\"[$1]\""
+    "remote function execute raise exception, type \"[$1]\"": "远程函数执行抛出异常，异常类型\"[$1]\"",
+    "dir or file [$1] not exists": "路径或文件 [$1] 不存在",
+    "[$1] is not a dir": "[$1] 不是一个路径",
+    "[$1] is not a file": "[$1] 不是一个文件",
+    "unknow error": "未知错误"
 }
