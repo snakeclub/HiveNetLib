@@ -170,10 +170,10 @@ _result1 = ValidateTool.check_by_rule(
 
 ```
 # 可通过And、Or指令组合对象
-_rule6 = ('And', (_rule1, _rule2, _rule3, ), )  # _rule1等变量的格式参见上1章节
+_rule6 = ('And', [_rule1, _rule2, _rule3, ], )  # _rule1等变量的格式参见上1章节
 
 # And和Or可以嵌套形成更复杂的规则，例如
-_rule7 = ('Or', (_rule3, _rule4, ('And', (_rule2, _rule5), ), ), )
+_rule7 = ('Or', [_rule3, _rule4, ('And', [_rule2, _rule5], ), ], )
 ```
 
 （3）列表形式的校验规则验证列表对象
