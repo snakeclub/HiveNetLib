@@ -1529,23 +1529,34 @@ class PromptPlus(object):
             # 处理输入
             if len(_cmd_str) > 0:
                 _print_str = self._call_on_cmd(message=_message, cmd_str=_cmd_str)
-                if type(_print_str) == CResult:
-                    # 如果返回的结果是CResult，则按CResult进行控制
-                    _result = _print_str
-                    _print_str = _result.msg
 
         # 打印信息，返回结果
-        if not hasattr(_print_str, '__iter__'):
-            # 字符串
+        if _result.code == '29999':
+            # 执行函数出现异常
+            _print_str = _result.trace_str
+
+        if type(_print_str) == CResult:
+            # 如果返回的结果是CResult，则按CResult进行控制
+            _result = _print_str
+            _print_str = _result.msg
+
+        if type(_print_str) == str or not hasattr(_print_str, '__iter__'):
+            # 字符串或非迭代对象
+            _print_str = str(_print_str)
             if _print_str is not None and len(_print_str) > 0:
                 if self._prompt_init_para['logger'] is None:
                     print('%s\r\n' % _print_str)  # 没有日志类，直接输出
                 else:
                     self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
         else:
-            # 执行函数通过yield方式返回迭代器
+            # 执行函数通过yield方式返回迭代器，增加对CResult对象的支持
             try:
                 for _str in _print_str:
+                    if type(_str) == CResult:
+                        _result = _str
+                        _str = _result.msg
+                    else:
+                        _str = str(_str)
                     if len(_str) > 0:
                         if self._prompt_init_para['logger'] is None:
                             sys.stdout.write('%s' % _str)  # 没有日志类，直接输出

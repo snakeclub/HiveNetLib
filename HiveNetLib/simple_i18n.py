@@ -248,7 +248,7 @@ class SimpleI18N(object):
         i = 1  # 记录是第几个
         for para in replace_para:
             if s.find('$' + str(i)) >= 0:
-                s = re.sub(r'\$' + str(i), str(para), s)
+                s = re.sub(r'\$' + str(i), str(para).replace('\\', '\\\\'), s)  # 如果字符串有'\'会抛异常
             i = i + 1
         # 处理完成
         return s
