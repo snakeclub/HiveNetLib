@@ -32,7 +32,7 @@ DEPENDENCIES = [
     'affinity>=0.1.0',
     'dicttoxml>=1.7.4',
     'grpcio>=1.21.1',
-    'grpcio-health-checking>=1.21.1'
+    'grpcio-health-checking>=1.21.1',
     'lxml',
     'affinity',
     'grpcio',
@@ -46,7 +46,7 @@ DEPENDENCIES = [
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.7.1'
+VERSION = '0.7.2'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(
