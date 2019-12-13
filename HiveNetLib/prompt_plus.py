@@ -23,6 +23,7 @@ import time
 import sys
 import os
 from queue import Queue
+from collections import Iterator
 import asyncio
 # from prompt_toolkit import prompt, Prompt
 from prompt_toolkit import prompt
@@ -1540,7 +1541,7 @@ class PromptPlus(object):
             _result = _print_str
             _print_str = _result.msg
 
-        if type(_print_str) == str or not hasattr(_print_str, '__iter__'):
+        if not isinstance(_print_str, Iterator):
             # 字符串或非迭代对象
             _print_str = str(_print_str)
             if _print_str is not None and len(_print_str) > 0:

@@ -21,6 +21,10 @@ import re
 import platform
 import subprocess
 import shutil
+try:
+    import chardet
+except:
+    pass
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -97,6 +101,60 @@ class FileTool(object):
 
         """
         return os.path.split(os.path.realpath(sys.argv[0]))[0]
+
+    @staticmethod
+    def get_file_name(file):
+        """
+        获得执行指定文件的文件名（不含路径，含扩展名）
+
+        @param {string} file - 文件路径
+
+        @returns {string} - 文件名（不含路径，含扩展名）
+        """
+        return os.path.split(os.path.realpath(file))[1]
+
+    @staticmethod
+    def get_file_name_no_ext(file):
+        """
+        获得指定文件的文件名（不含路径，不含扩展名）
+
+        @param {string} file - 文件路径
+
+        @returns {string} - 文件名（不含路径，不含扩展名）
+        """
+        _filename = os.path.split(os.path.realpath(file))[1]
+        _dot_index = _filename.rfind(".")
+        if _dot_index == -1:
+            return _filename
+        else:
+            return _filename[0: _dot_index]
+
+    @staticmethod
+    def get_file_ext(file):
+        """
+        获得指定文件的扩展名
+
+        @param {string} file - 文件路径
+
+        @returns {string} - 文件扩展名
+        """
+        _dot_index = file.rfind(".")
+        if _dot_index == -1:
+            return ''
+        else:
+            return file[_dot_index + 1:]
+
+    @staticmethod
+    def get_file_path(file):
+        """
+        获得指定文件的路径（不含文件名）
+
+        @param {string} file - 文件路径
+
+        @returns {string} - 程序路径（不含文件名，最后一个字符不为路径分隔符）
+
+        """
+        return os.path.split(os.path.realpath(file))[0]
 
     @staticmethod
     def get_dir_name(path):
@@ -338,11 +396,23 @@ class FileTool(object):
 
         @param {string} filename - 要获取的文件名（含路径）
         @param {string} encoding='utf-8' - 文件内容的编码
+            注：如果将encoding设置为None，将使用chardet判断编码
 
         @return {string} - 返回全部文件内容
         """
-        with open(filename, 'rt', encoding=encoding) as f:
-            return f.read()
+        if encoding is not None:
+            with open(filename, 'rt', encoding=encoding) as f:
+                return f.read()
+        else:
+            # 使用chardet判断编码
+            with open(filename, 'rb') as f:
+                _bytes = f.read()
+                _encoding = chardet.detect(_bytes)['encoding']
+                if _encoding is None:
+                    _encoding = 'utf-8'
+                elif _encoding.startswith('ISO-8859'):
+                    _encoding = 'gbk'
+                return str(_bytes, encoding=_encoding)
 
     #############################
     # zip文件处理
