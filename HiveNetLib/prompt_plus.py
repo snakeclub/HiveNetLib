@@ -857,8 +857,12 @@ class PromptPlus(object):
                             # 为独立的参数
                             _list.append(['', _word])
                     else:
-                        # 有标签
-                        _list.append([_para_tag, _word])
+                        # 有标签，如果标签和后面的word都是-开头，要分开处理
+                        if _para_tag[0: 1] == '-' and _word[0: 1] == '-':
+                            _list.append([_para_tag, ''])
+                            _list.append([_word, ''])
+                        else:
+                            _list.append([_para_tag, _word])
                         _para_tag = ''
                     # 清空词并重新开始
                     _word = ''
