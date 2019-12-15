@@ -1470,6 +1470,49 @@ class PromptPlus(object):
         self._prompt_init_para.update(kwargs)  # 将传入的参数合并到默认参数中
         self._init_prompt_instance()
 
+    def call_cmd_directly(self, cmd_str):
+        """
+        外部直接使用实例执行命令, 不通过命令行获取
+
+        @param {string} cmd_str - 要实行的命令(含命令本身和参数)
+        """
+        if len(cmd_str) == 0:
+            return
+
+        # 执行命令
+        _print_str = self._call_on_cmd(message=self._message, cmd_str=cmd_str)
+
+        if type(_print_str) == CResult:
+            # 如果返回的结果是CResult，则按CResult进行控制
+            _print_str = _print_str.msg
+
+        if not isinstance(_print_str, Iterator):
+            # 字符串或非迭代对象
+            _print_str = str(_print_str)
+            if _print_str is not None and len(_print_str) > 0:
+                if self._prompt_init_para['logger'] is None:
+                    print('%s\r\n' % _print_str)  # 没有日志类，直接输出
+                else:
+                    self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
+        else:
+            # 执行函数通过yield方式返回迭代器，增加对CResult对象的支持
+            for _str in _print_str:
+                if type(_str) == CResult:
+                    _str = _str.msg
+                else:
+                    _str = str(_str)
+                if len(_str) > 0:
+                    if self._prompt_init_para['logger'] is None:
+                        sys.stdout.write('%s' % _str)  # 没有日志类，直接输出
+                    else:
+                        self._prompt_init_para['logger'].info('%s' % _str)
+
+            # 增加一个换行调整
+            if self._prompt_init_para['logger'] is None:
+                sys.stdout.write('\r\n')  # 没有日志类，直接输出
+            else:
+                self._prompt_init_para['logger'].info('\r\n')
+
     def prompt_once(self, message=None, default='', **kwargs):
         """
         处理一次命令输入

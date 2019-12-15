@@ -115,6 +115,10 @@ pip install recommonmark
 
 [simple_grpc](simple_grpc/simple_grpc.md)库对Google的GRpc库进行了封装，简化Python实现rpc调用的编码方式。
 
+#### simple_console
+
+[simple_console](simple_console.md)是简单的命令行执行框架，可在该框架上基于xml配置文件扩展增加不同的命令支持。
+
 
 
 ### 其他模块

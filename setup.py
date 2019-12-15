@@ -46,7 +46,7 @@ DEPENDENCIES = [
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.7.2'
+VERSION = '0.7.3'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(
@@ -67,7 +67,7 @@ setup(
     packages=find_packages(),
     install_requires=DEPENDENCIES,
     tests_require=TEST_DEPENDENCIES,
-    package_data={'': ['*.json']},  # 这里将打包所有的json文件
+    package_data={'': ['*.json', '*.xml']},  # 这里将打包所有的json文件
     classifiers=[
         'Operating System :: OS Independent',
         'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
