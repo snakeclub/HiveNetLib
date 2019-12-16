@@ -151,6 +151,7 @@ class ConsoleServer(object):
     _import_object_dict = None  # 登记已经导入的对象字典
     _CMD_HELP_INFO = None
     _CMD_PARA = None
+    _CMD_LIST = None
 
     #############################
     # 构造函数
@@ -220,11 +221,17 @@ class ConsoleServer(object):
         ).cmd_dealfun
 
         # 遍历参数装载
+        self._is_fw_help_command = False
         self._init_cmd_paras()
 
         # 加入到CONSOLE_GLOBAL_PARA参数中
         self._console_global_para['CMD_PARA'] = self._CMD_PARA
         self._console_global_para['CMD_HELP_INFO'] = self._CMD_HELP_INFO
+        self._console_global_para['CMD_LIST'] = self._CMD_LIST
+
+        # 检查help命令是否框架自带的，如果是则增加提示帮助
+        if self._is_fw_help_command:
+            self._CMD_PARA['help']['word_para'] = self._CMD_LIST
 
         # 控制台启动时的提示语言
         self._CONSOLE_TIPS = StringTool.json_to_object(self._config_dict['start_tips'])
@@ -336,6 +343,11 @@ class ConsoleServer(object):
         初始化控制台参数
         实现self._CMD_HELP_INFO和self._CMD_PARA字典的装载
         """
+        if self._CMD_LIST is None:
+            self._CMD_LIST = dict()
+        else:
+            self._CMD_LIST.clear()
+
         if self._CMD_HELP_INFO is None:
             self._CMD_HELP_INFO = dict()
         else:
@@ -348,6 +360,13 @@ class ConsoleServer(object):
 
         # 遍历cmd_list进行装载命令参数
         for _item in self._config_dict['cmd_list']:
+            # 检查help命令是否自带命令
+            if _item['command'] == 'help' and _item['module_name'] == 'HiveNetLib.simple_console.base_cmd':
+                self._is_fw_help_command = True
+
+            # 命令清单
+            self._CMD_LIST[_item['command']] = None
+
             try:
                 # 帮助信息
                 self._CMD_HELP_INFO[_item['command']] = StringTool.json_to_object(_item['help'])
