@@ -859,11 +859,12 @@ class PromptPlus(object):
                     else:
                         # 有标签，如果标签和后面的word都是-开头，要分开处理
                         if _para_tag[0: 1] == '-' and _word[0: 1] == '-':
-                            _list.append([_para_tag, ''])
-                            _list.append([_word, ''])
+                            _list.append([_para_tag, ''])  # 把标签加到清单中
+                            # 下一个词要变成标签
+                            _para_tag = _word
                         else:
                             _list.append([_para_tag, _word])
-                        _para_tag = ''
+                            _para_tag = ''
                     # 清空词并重新开始
                     _word = ''
                     _last_char = ''
