@@ -37,5 +37,6 @@
   "dir or file [$1] not exists": "dir or file [$1] not exists",
   "[$1] is not a dir": "[$1] is not a dir",
   "[$1] is not a file": "[$1] is not a file",
-  "unknow error": "unknow error"
+  "unknow error": "unknow error",
+  "unsupport command \"[$1]\"": "unsupport command \"[$1]\""
 }

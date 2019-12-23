@@ -37,5 +37,6 @@
     "dir or file [$1] not exists": "路径或文件 [$1] 不存在",
     "[$1] is not a dir": "[$1] 不是一个路径",
     "[$1] is not a file": "[$1] 不是一个文件",
-    "unknow error": "未知错误"
+    "unknow error": "未知错误",
+    "unsupport command \"[$1]\"": "不支持的命令\"[$1]\""
 }

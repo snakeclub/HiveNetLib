@@ -22,12 +22,14 @@ import copy
 import time
 import sys
 import os
+import logging
 from queue import Queue
 from collections import Iterator
 import asyncio
 # from prompt_toolkit import prompt, Prompt
 from prompt_toolkit import prompt
 from prompt_toolkit import PromptSession  # 动态对象要用到，所以不能删除
+from prompt_toolkit import print_formatted_text as prompt_toolkit_print
 # from prompt_toolkit.key_binding import KeyBindings
 # from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
@@ -36,6 +38,8 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.shortcuts import ProgressBar
+from prompt_toolkit.formatted_text import HTML
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import CResult
@@ -55,12 +59,16 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
     key为命令标识
     value同样为dict()，value的key为参数名，参数名与参数值的定义如下:
         deal_fun (匹配到命令要执行的函数) : fun 函数定义（function类型）
-            函数固定入参为fun(message='', cmd='', cmd_para='')
+            函数固定入参为fun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs)
                 @param {string} message - prompt提示信息
                 @param {string} cmd - 执行的命令key值
                 @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
-                @returns {string|string_iter|CResult} - 执行命令完成后要输到屏幕的内容
-                如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
+                @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
+                @param {kwargs} - 扩展参数，建议带上以支持未来的扩展
+                @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过
+                    CResult对象的print_str属性要求框架进行打印处理
+                    注：控制台也支持处理函数返回string、iter这两类对象，框架将对这两类对象执行打印处理,
+                    但这种模式未来将不再支持，建议通过prompt_obj.prompt_print自行输出，或通过CResult的print_str属性进行打印
         name_para (para_name=para_value形式的参数) : dict(para_name: para_value_list)
             para_name {string} - 参数名
             para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
@@ -75,6 +83,36 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
             word_name {string} - 直接参数名
 
 """.strip()
+
+
+class __MemoryStringStream__(object):
+    """
+    内存中的字符串流定义类
+    用于将流内容输出到字符串中
+    """
+    def __init__(self, encoding=None):
+        """
+        构造函数
+        """
+        self._encoding = encoding
+        self._buff = ''
+
+    def write(self, out_stream):
+        """
+        将内容写入流
+
+        @param {string} out_stream - 要输出的流内容
+        """
+        if self._encoding is None:
+            self._buff += out_stream
+        else:
+            self._buff += str(out_stream, encoding=self._encoding)
+
+    def __str__(self):
+        """
+        输出内容
+        """
+        return self._buff
 
 
 class PromptPlusCmdParaLexer(Lexer):
@@ -914,25 +952,94 @@ class PromptPlus(object):
 
         @param {string} message='' - 获取输入的提示信息
         @param {function} deal_fun=None - 获取到输入后执行的处理函数fun(prompt_text='')，函数要求满足:
-            输入参数为prompt_text，返回值为string
+            输入参数为prompt_text，返回值类型按实际需要返回即可
         @param {kwargs} kwargs python-prompt-toolki的prompt参数:
             详细参数见python-prompt-toolki的官方文档，常用参数见类注释中的《python-prompt-toolki的prompt参数说明》
 
-        @returns {string} - 如果deal_fun为None，直接返回所获取到的输入值:
-            如果deal_fun不为None，则返回deal_fun的执行结果
+        @returns {string|object} - 如果deal_fun为None，直接返回所获取到的输入值;
+            如果deal_fun不为None，则返回deal_fun的执行返回值
 
         @throws {exception} - 可能会返回deal_fun执行中出现的各种异常
 
         """
         _prompt_text = prompt(message, **kwargs)
-        ret_str = ''
         if deal_fun is not None:
-            ret_str = deal_fun(_prompt_text)
-            if ret_str is None:
-                ret_str = ''
+            return deal_fun(_prompt_text)
         else:
-            ret_str = _prompt_text
-        return ret_str
+            return _prompt_text
+
+    @staticmethod
+    def format_html_text(text):
+        """
+        将html字符串格式化为打印对象
+
+        @param {string} text - 要格式化的html对象，例如:
+            '<u>This is underlined</u>'
+            '<ansired>This is red</ansired>'
+            '<aaa fg="ansiwhite" bg="ansigreen">White on green</aaa>'
+
+        @return {prompt_toolkit.formatted_text} - 格式化后的打印字符串
+        """
+        return HTML(text)
+
+    @staticmethod
+    def print_formatted_text(*args, **kwargs):
+        """
+        打印格式化后的文本(带颜色、字体等格式)
+        注：可以兼容print方法
+
+        @param {*args} - 要打印的内容值，可以传多个值进行打印
+        @param {*kwargs} - 打印参数，包括：
+            {string} sep=' ' - 多个内容的分隔符
+            {string} end='\n' - 结尾字符
+            {stream} file=None - 输出文件流
+            {bool} flush=False - 是否强制刷入缓存
+            {dict} style=None - 格式字典，例如以下字典指定两个格式类:
+                {
+                    'aaa': '#ff0066',
+                    'bbb': '#44ff00 italic',
+                }
+        """
+        # 处理style参数
+        if 'style' in kwargs.keys() and kwargs['style'] is not None:
+            kwargs['style'] = Style.from_dict(kwargs['style'])
+
+        # 格式化打印
+        prompt_toolkit_print(*args, **kwargs)
+
+    @staticmethod
+    def get_process_bar(**kwargs):
+        """
+        创建进度条对象
+
+        @param {kwargs} - 进度条扩展参数，参考prompt_toolkit.shortcuts.ProgressBar的初始化参数，部分参数说明如下:
+            title {string|function|formated text} : 进度条标题，可以为字符串、执行函数、HTML格式对象(可使用format_html_text生成)
+
+        @return {prompt_toolkit.shortcuts.ProgressBar} - 返回的进度条对象
+
+        @example
+        # 每隔0.01秒进度条加1
+        with PromptPlus.get_process_bar() as pb:
+            for i in pb(range(800)):
+                time.sleep(.01)
+
+        # 传入一个自定义的iter对象
+        def some_iterable():
+            yield ...
+
+        with PromptPlus.get_process_bar(title=title) as pb:
+            for i in pb(some_iterable, total=1000, label=label):
+                time.sleep(.01)
+
+        注：ProgressBar的__call__方法(pb)参数如下:
+            data=None, label='', remove_when_done=False, total=None
+            data {iter} - 可自定义iter函数，或则使用range生成一个区间的数字
+            label {string|formated text} - 进度条的标题文字，可以为字符串或HTML格式对象
+            remove_when_done {bool} - 如果为 `True`, 则再完成时隐藏该进度条
+            total {int} - 如果data不支持len函数，则通过该参数定义最大值
+
+        """
+        return ProgressBar(**kwargs)
 
     @staticmethod
     @StringStream.stream_decorator(is_sync=True)
@@ -1171,29 +1278,65 @@ class PromptPlus(object):
                 ret_key = cmd
         return ret_key
 
+    def _deal_run_result(self, run_result):
+        """
+        处理执行结果(打印和返回最终结果)
+
+        @param {CResult|iter|string}} run_result - 执行返回结果
+        """
+        _real_result = None
+        if type(run_result) == CResult:
+            # 标准返回结果
+            _real_result = _real_result
+            if hasattr(run_result, 'print_str') and run_result.print_str != '':
+                self.prompt_print(run_result.print_str)
+        elif isinstance(run_result, Iterator):
+            # 是迭代器，遍历处理，返回结果以最后一个为准
+            for _result in run_result:
+                if type(_result) == CResult:
+                    _real_result = _result
+                    if hasattr(_result, 'print_str') and _result.print_str != '':
+                        self.prompt_print(_result.print_str)
+                else:
+                    # 当作字符串处理
+                    _real_result = CResult(code='00000')
+                    if len(str(_result)) > 0:
+                        self.prompt_print(_result)
+        else:
+            # 都当字符串处理
+            _real_result = CResult(code='00000')
+            if len(str(run_result)) > 0:
+                self.prompt_print(run_result)
+
+        # 返回最终结果
+        return _real_result
+
     def _call_on_abort(self, message=''):
         """
         用户取消输入时执行函数
 
         @param {string} message='' - 传入的提示信息
 
-        @returns {string} - 返回执行函数的返回结果
-
+        @returns {CResult} - 返回执行函数的返回结果
         """
         if ('on_abort' in self._prompt_init_para.keys() and
                 self._prompt_init_para['on_abort'] is not None):
             try:
-                return self._prompt_init_para['on_abort'](message)
+                try:
+                    return self._prompt_init_para['on_abort'](message, prompt_obj=self)
+                except TypeError as error:
+                    if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
+                        # 兼容老模式
+                        return self._prompt_init_para['on_abort'](message)
+                    else:
+                        raise error
             except Exception:
                 _print_str = 'call on_abort exception: %s' % traceback.format_exc()
-                if self._prompt_init_para['logger'] is None:
-                    print(_print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].error(_print_str)
-                return ''
+                self.prompt_print(_print_str)
+                return CResult(code='29999')
         else:
-            # 没有处理，返回空字符
-            return ''
+            # 没有处理，返回用户取消的错误码
+            return CResult(code='10100', msg=u'get abort single(KeyboardInterrupt)')
 
     def _call_on_exit(self, message=''):
         """
@@ -1201,23 +1344,27 @@ class PromptPlus(object):
 
         @param {string} message='' - 传入的提示信息
 
-        @returns {string} - 返回执行函数的返回结果
+        @returns {CResult} - 返回执行函数的返回结果
 
         """
         if ('on_exit' in self._prompt_init_para.keys() and
                 self._prompt_init_para['on_exit'] is not None):
             try:
-                return self._prompt_init_para['on_exit'](message)
+                try:
+                    return self._prompt_init_para['on_exit'](message, prompt_obj=self)
+                except TypeError as error:
+                    if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
+                        # 兼容老模式
+                        return self._prompt_init_para['on_exit'](message)
+                    else:
+                        raise error
             except Exception:
                 _print_str = 'call on_exit exception: %s' % traceback.format_exc()
-                if self._prompt_init_para['logger'] is None:
-                    print(_print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].error(_print_str)
-                return ''
+                self.prompt_print(_print_str)
+                return CResult(code='29999')
         else:
-            # 没有处理，返回空字符
-            return ''
+            # 没有处理，返回用户退出的错误码
+            return CResult(code='10101', msg=u'get exit single(EOFError)')
 
     def _call_on_cmd(self, message='', cmd_str=''):
         """
@@ -1248,34 +1395,47 @@ class PromptPlus(object):
             if _match_cmd == '':
                 # 没有匹配上命令
                 if self._prompt_init_para['default_dealfun'] is not None:
-                    return self._prompt_init_para['default_dealfun'](message=message,
-                                                                     cmd=_cmd,
-                                                                     cmd_para=_cmd_para_str)
+                    try:
+                        return self._prompt_init_para['default_dealfun'](
+                            message=message, cmd=_cmd, cmd_para=_cmd_para_str,
+                            prompt_obj=self
+                        )
+                    except TypeError as error:
+                        if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
+                            # 兼容老模式
+                            return self._prompt_init_para['default_dealfun'](
+                                message=message, cmd=_cmd, cmd_para=_cmd_para_str
+                            )
+                        else:
+                            raise error
             else:
                 # 匹配到命令
                 if self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'] is not None:
-                    return self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'](
-                        message=message, cmd=_match_cmd, cmd_para=_cmd_para_str
-                    )
+                    try:
+                        return self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'](
+                            message=message, cmd=_match_cmd, cmd_para=_cmd_para_str,
+                            prompt_obj=self
+                        )
+                    except TypeError as error:
+                        if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
+                            # 兼容老模式
+                            return self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'](
+                                message=message, cmd=_match_cmd, cmd_para=_cmd_para_str,
+                            )
+                        else:
+                            raise error
         except KeyboardInterrupt:
             _print_str = '_call_on_cmd (cmd[%s] para[%s]) get KeyboardInterrupt: %s' % (
                 _cmd, _cmd_para_str, traceback.format_exc()
             )
-            if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].error(_print_str)
-            _print_str = ''
+            self.prompt_print(_print_str)
+            return CResult(code='10100')
         except Exception:
             _print_str = '_call_on_cmd (cmd[%s] para[%s]) exception: %s' % (
                 _cmd, _cmd_para_str, traceback.format_exc()
             )
-            if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].error(_print_str)
-            _print_str = ''
-        return _print_str
+            self.prompt_print(_print_str)
+            return CResult(code='29999')
 
     def _async_call_on_cmd(self, message='', cmd_str='', is_print_async_execute_info=True):
         """
@@ -1288,24 +1448,14 @@ class PromptPlus(object):
         """
         if is_print_async_execute_info:
             _print_str = 'begin execute (message[%s]): cmd[%s]' % (message, cmd_str)
-            if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].info(_print_str)
-        _print_str = self._call_on_cmd(message=message, cmd_str=cmd_str)
-        # 如果有值打印输出
-        if len(_print_str) > 0:
-            if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].info(_print_str)
+            self.prompt_print(_print_str)
+
+        _run_result = self._call_on_cmd(message=message, cmd_str=cmd_str)
+        self._deal_run_result(_run_result)
 
         if is_print_async_execute_info:
             _print_str = 'done execute (message[%s]): cmd[%s]' % (message, cmd_str)
-            if self._prompt_init_para['logger'] is None:
-                print(_print_str)  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].info(_print_str)
+            self.prompt_print(_print_str)
 
     async def _async_cmd_service(self):
         """
@@ -1314,31 +1464,23 @@ class PromptPlus(object):
 
         """
         while True:
-            _print_str = ''
+            _run_result = CResult(code='00000')
             _cmd_str = ''
-            _exit_code = '00000'
             _message = self._message
             try:
                 _cmd_str = await self._prompt_instance.prompt(message=_message, default=self._default, async_=True)
             except KeyboardInterrupt:
                 # 用户取消输入
                 # 执行on_abort函数
-                _exit_code = '10100'
-                _print_str = self._call_on_abort(message=_message)
+                _run_result = self._call_on_abort(message=_message)
             except EOFError:
                 # 用户退出处理
                 # 执行on_exit函数
-                _exit_code = '10101'
-                _print_str = self._call_on_exit(message=_message)
+                _run_result = self._call_on_exit(message=_message)
 
-            # 如果有值打印输出
-            if len(_print_str) > 0:
-                if self._prompt_init_para['logger'] is None:
-                    print(_print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].info(_print_str)
+            _real_result = self._deal_run_result(_run_result)
 
-            if _exit_code == '10101':
+            if _real_result.code == '10101':
                 # 退出获取命令处理
                 return
 
@@ -1471,48 +1613,62 @@ class PromptPlus(object):
         self._prompt_init_para.update(kwargs)  # 将传入的参数合并到默认参数中
         self._init_prompt_instance()
 
+    def prompt_print(self, *args, sep=' ', end='\n', line_head=False, level=logging.INFO, format_print=False, style=None, flush=False):
+        """
+        使用内置打印函数进行输出打印
+
+        @param {*args} - 要打印的内容值，可以传多个值进行打印
+        @param {string} sep=' ' - 多个值之间的分隔符
+        @param {string} end='\n' - 打印值结尾追加的字符串，默认以'\n'换行
+        @param {bool} line_head=False - 是否将打印内容重置至行头(覆盖当行已打印的内容)
+            注: 该参数对于使用logger打印的情况无效，即初始化对象时定义了logger的情况
+        @param {int} level=logging.INFO - 输出日志级别，该参数仅对使用logger的情况有效
+        @param {bool} format_print=False - 是否格式化打印，对于使用logger打印的情况无效
+        @param {dict} style=None - 格式字符串的样式字典，例如以下字典指定两个格式类:
+                {
+                    'aaa': '#ff0066',
+                    'bbb': '#44ff00 italic',
+                }
+            然后再传入format_html_text(<aaa>Hello</aaa> <bbb>world</bbb>!)
+        """
+        if self._prompt_init_para['logger'] is None:
+            # 没有日志类，直接输出
+            if line_head and len(args) > 0:
+                args[0] = '\r%s' % str(args[0])
+            if format_print:
+                PromptPlus.print_formatted_text(*args, sep=sep, end=end, style=style, flush=flush)
+            else:
+                print(*args, sep=sep, end=end, flush=flush)
+        else:
+            _print_str = __MemoryStringStream__()
+            print(*args, sep=sep, end=end, file=_print_str, flush=flush)
+            self._prompt_init_para['logger'].log(level, _print_str)
+
     def call_cmd_directly(self, cmd_str):
         """
         外部直接使用实例执行命令, 不通过命令行获取
 
         @param {string} cmd_str - 要实行的命令(含命令本身和参数)
+
+        @return {CResult} - 执行返回结果
         """
+        _run_result = CResult(code='00000')
         if len(cmd_str) == 0:
-            return
+            return _run_result
 
-        # 执行命令
-        _print_str = self._call_on_cmd(message=self._message, cmd_str=cmd_str)
+        try:
+            # 执行命令
+            _run_result = self._call_on_cmd(message=self._message, cmd_str=cmd_str)
+        except:
+            # 其他异常
+            _run_result = CResult(
+                code='29999', error=str(sys.exc_info()), trace_str=traceback.format_exc()
+            )
+            self.prompt_print('prompt_once run exception (%s):\r\n%s' % (_run_result.error, _run_result.trace_str))
 
-        if type(_print_str) == CResult:
-            # 如果返回的结果是CResult，则按CResult进行控制
-            _print_str = _print_str.msg
+        _real_result = self._deal_run_result(_run_result)
 
-        if not isinstance(_print_str, Iterator):
-            # 字符串或非迭代对象
-            _print_str = str(_print_str)
-            if _print_str is not None and len(_print_str) > 0:
-                if self._prompt_init_para['logger'] is None:
-                    print('%s\r\n' % _print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
-        else:
-            # 执行函数通过yield方式返回迭代器，增加对CResult对象的支持
-            for _str in _print_str:
-                if type(_str) == CResult:
-                    _str = _str.msg
-                else:
-                    _str = str(_str)
-                if len(_str) > 0:
-                    if self._prompt_init_para['logger'] is None:
-                        sys.stdout.write('%s' % _str)  # 没有日志类，直接输出
-                    else:
-                        self._prompt_init_para['logger'].info('%s' % _str)
-
-            # 增加一个换行调整
-            if self._prompt_init_para['logger'] is None:
-                sys.stdout.write('\r\n')  # 没有日志类，直接输出
-            else:
-                self._prompt_init_para['logger'].info('\r\n')
+        return _real_result
 
     def prompt_once(self, message=None, default='', **kwargs):
         """
@@ -1529,14 +1685,12 @@ class PromptPlus(object):
             '10101' - 用户退出应用（Ctrl + D）
 
         """
-        _result = CResult(code='00000', msg=u'success')
-        _print_str = ''
+        _run_result = CResult(code='00000', msg=u'success')  # 执行某个方法的结果
         _message = message
         if message is None:
             _message = self._message
 
-        with ExceptionTool.ignored_cresult(result_obj=_result,
-                                           self_log_msg=u'prompt deal exception:'):
+        try:
             _cmd_str = ''
             # 不确定参数数量，因此用循环方式赋值
             _run_str = u'self._prompt_instance.prompt(message=_message, default=default'
@@ -1546,93 +1700,30 @@ class PromptPlus(object):
             _run_str = u'%s)' % _run_str
 
             # 执行获取输入
-            try:
-                _cmd_str = eval(_run_str)
-            except KeyboardInterrupt:
-                # 执行on_abort函数
-                _print_str = self._call_on_abort(message=_message)
-                if type(_print_str) == CResult:
-                    # 如果返回的结果是CResult，则按CResult进行控制
-                    _result = _print_str
-                    _print_str = _result.msg
-                else:
-                    # 用户取消输入
-                    _result.code = '10100'
-                    _result.msg = u'get abort single(KeyboardInterrupt)'
-                    _result.error = str(sys.exc_info()[0])
-                    _result.trace_str = traceback.format_exc()
-            except EOFError:
-                # 执行on_exit函数
-                _print_str = self._call_on_exit(message=_message)
-                if type(_print_str) == CResult:
-                    # 如果返回的结果是CResult，则按CResult进行控制
-                    _result = _print_str
-                    _print_str = _result.msg
-                else:
-                    # 用户退出处理
-                    _result.code = '10101'
-                    _result.msg = u'get exit single(EOFError)'
-                    _result.error = str(sys.exc_info()[0])
-                    _result.trace_str = traceback.format_exc()
+            _cmd_str = eval(_run_str)
 
             # 处理输入
             if len(_cmd_str) > 0:
-                _print_str = self._call_on_cmd(message=_message, cmd_str=_cmd_str)
-
-        # 打印信息，返回结果
-        if _result.code == '29999':
-            # 执行函数出现异常
-            _print_str = _result.trace_str
-
-        if type(_print_str) == CResult:
-            # 如果返回的结果是CResult，则按CResult进行控制
-            _result = _print_str
-            _print_str = _result.msg
-
-        if not isinstance(_print_str, Iterator):
-            # 字符串或非迭代对象
-            _print_str = str(_print_str)
-            if _print_str is not None and len(_print_str) > 0:
-                if self._prompt_init_para['logger'] is None:
-                    print('%s\r\n' % _print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].info('%s\r\n' % _print_str)
-        else:
-            # 执行函数通过yield方式返回迭代器，增加对CResult对象的支持
-            try:
-                for _str in _print_str:
-                    if type(_str) == CResult:
-                        _result = _str
-                        _str = _result.msg
-                    else:
-                        _str = str(_str)
-                    if len(_str) > 0:
-                        if self._prompt_init_para['logger'] is None:
-                            sys.stdout.write('%s' % _str)  # 没有日志类，直接输出
-                        else:
-                            self._prompt_init_para['logger'].info('%s' % _str)
-            except Exception:
-                _print_str = 'prompt_once stdout exception: %s' % (
-                    traceback.format_exc()
-                )
-                if self._prompt_init_para['logger'] is None:
-                    print(_print_str)  # 没有日志类，直接输出
-                else:
-                    self._prompt_init_para['logger'].error(_print_str)
-
-                # 认为执行异常
-                _result.code = '11399'
-                _result.msg = u'function call other failure'
-                _result.error = str(sys.exc_info()[0])
-                _result.trace_str = traceback.format_exc()
-
-            # 增加一个换行调整
-            if self._prompt_init_para['logger'] is None:
-                sys.stdout.write('\r\n')  # 没有日志类，直接输出
+                _run_result = self._call_on_cmd(message=_message, cmd_str=_cmd_str)
             else:
-                self._prompt_init_para['logger'].info('\r\n')
+                self.prompt_print('')
+                return CResult(code='00000')
+        except KeyboardInterrupt:
+            # 执行on_abort函数
+            _run_result = self._call_on_abort(message=_message)
+        except EOFError:
+            # 执行on_exit函数
+            _run_result = self._call_on_exit(message=_message)
+        except:
+            # 其他异常
+            _run_result = CResult(
+                code='29999', error=str(sys.exc_info()), trace_str=traceback.format_exc()
+            )
+            self.prompt_print('prompt_once run exception (%s):\r\n%s' % (_run_result.error, _run_result.trace_str))
 
-        return _result
+        _real_result = self._deal_run_result(_run_result)
+
+        return _real_result
 
     # FIXME(黎慧剑): 异步模式，当任务进程有输出时命令行不能固定在最后一行
     def start_prompt_service(
@@ -1652,7 +1743,7 @@ class PromptPlus(object):
 
         """
         # 先打印提示信息
-        print(tips)
+        self.prompt_print(tips)
         if not is_async:
             # 非异步模式，按部就班完成处理
             while True:
@@ -1687,3 +1778,4 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+

@@ -19,6 +19,7 @@ simple_console是简单的命令行执行框架，可在该框架上基于xml配
 可以基于CmdBaseFW自行开发扩展命令，示例如下：
 
 ```
+from HiveNetLib.generic import CResult
 from HiveNetLib.simple_i18n import _
 from HiveNetLib.simple_console.base_cmd import CmdBaseFW
 
@@ -34,14 +35,15 @@ class YourClass(CmdBaseFW):
         """
         您的自定义初始化内容...
         
-    def _cmd_dealfun(self, message='', cmd='', cmd_para='', **kwargs):
+    def _cmd_dealfun(self, message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
         """
         实现类需要覆盖实现的命令处理函数
         @param {string} message='' - prompt提示信息
         @param {string} cmd - 执行的命令key值
         @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
+        @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
         @param {kwargs} - 传入的主进程的初始化kwargs对象
-        @return {string|iter_string} - 执行命令完成后要输到屏幕的内容，可以是iter对象（yield返回）
+        @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的print_str属性要求框架进行打印处理
         """
         您自己的处理函数内容
 ```

@@ -209,6 +209,7 @@ cresult_obj.net_info = [socket, id]
 | 1401   | service start failure - service have been started | 服务启动失败-服务已启动 |      |
 | 1402   | service stop failure - service have been shutdown | 服务停止失败-服务已关闭 |      |
 | 1403   | service name "[$1]" is not existed                | 服务名"[$1]"不存在      |      |
+| 1404   | unsupport command "[$1]"                          | 不支持的命令"[$1]"      |      |
 | 1599   | other application failure                         | 应用服务处理其他失败    |      |
 
 

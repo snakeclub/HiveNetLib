@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 import HiveNetLib.simple_log as simple_log
 from HiveNetLib.prompt_plus import PromptPlus
+from HiveNetLib.generic import CResult
 
 
 #############################
@@ -20,45 +21,67 @@ _logger = simple_log.Logger()
 #############################
 
 
-def on_abort(message=''):
+def on_abort(message='', prompt_obj=None, **kwargs):
     """Ctrl + C : abort,取消本次输入"""
-    print('on_abort: %s' % message)
-    return 'on_abort done!'
+    if prompt_obj is not None:
+        prompt_obj.prompt_print('on_abort: %s' % message)
+    _result = CResult()
+    _result.print_str = 'on_abort done!'
+    return _result
 
 
-def on_exit(message=''):
+def on_exit(message='', prompt_obj=None, **kwargs):
     """Ctrl + D : exit,关闭命令行"""
-    print('on_exit: %s' % message)
-    return 'on_exit done!'
+    if prompt_obj is not None:
+        prompt_obj.prompt_print('on_exit: %s' % message)
+    _result = CResult(code='10100')
+    _result.print_str = 'on_exit done!'
+    return _result
 
 
-def default_cmd_dealfun(message='', cmd='', cmd_para=''):
+def default_cmd_dealfun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
     """默认命令处理函数"""
-    print('cmd not define: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
-    return 'default_cmd_dealfun done!'
+    if prompt_obj is not None:
+        prompt_obj.prompt_print(
+            'cmd not define: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
+    _result = CResult()
+    _result.print_str = 'default_cmd_dealfun done!'
+    return _result
 
 
-def dir_cmd_dealfun(message='', cmd='', cmd_para=''):
+def dir_cmd_dealfun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
     """dir命令的处理函数"""
-    print('dir: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
-    return 'dir_cmd_dealfun done!'
+    if prompt_obj is not None:
+        prompt_obj.prompt_print(
+            'dir: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
+    _result = CResult()
+    _result.print_str = 'dir_cmd_dealfun done!'
+    return _result
 
 
-def common_cmd_dealfun(message='', cmd='', cmd_para=''):
+def common_cmd_dealfun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
     """通用命令处理函数，持续10秒每秒输出一个wait的信息"""
-    print('common: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
+    if prompt_obj is not None:
+        prompt_obj.prompt_print(
+            'common: message[%s], cmd[%s], cmd_para[%s]' % (message, cmd, cmd_para))
+
     if cmd == 'wait':
         _i = 0
         while _i < 10:
             _logger.info('wait ' + str(_i))
             _i = _i + 1
             time.sleep(1)
-    return 'common_cmd_dealfun done!'
+
+    _result = CResult()
+    _result.print_str = 'common_cmd_dealfun done!'
+    return _result
 
 
-def help_cmd_dealfun(message='', cmd='', cmd_para=''):
+def help_cmd_dealfun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
     """帮助命令，输出提示信息"""
-    return cmd_para_descript
+    if prompt_obj is not None:
+        prompt_obj.prompt_print(cmd_para_descript)
+    return CResult()
 
 
 #############################

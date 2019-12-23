@@ -79,6 +79,12 @@ print('html return :' + result3 + '\n')
 
 要实现命令行交互控制台，步骤是先进行PromptPlus 类的实例化`prompt_obj = PromptPlus(...)` ，然后通过实例的prompt_once或start_prompt_service方法来实现交互处理。
 
+### 通过函数返回值确定退出控制台
+
+可以通过执行的函数（包括deal_fun、default_dealfun、on_abort、on_exit）的返回值控制是否退出控制台，当遇到返回值为CResult类型，且错误码为10101时，将退出控制台。
+
+
+
 ### 部分重要参数
 
 #### cmd_para
@@ -88,14 +94,16 @@ print('html return :' + result3 + '\n')
 - key为命令标识
 
 - value仍为dict()，value的key为参数名，参数名与参数值的定义如下:
-  - **deal_fun** (匹配到命令要执行的函数) : fun 函数定义（function类型），函数固定入参为fun(message='', cmd='', cmd_para='')
+  - **deal_fun** (匹配到命令要执行的函数) : fun 函数定义（function类型），函数固定入参为fun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs)
 
        ```
        @param {string} message - prompt提示信息
        @param {string} cmd - 执行的命令key值
        @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
-       @returns {string|string_iter|CResult} - 执行命令完成后要输到屏幕的内容
-       	注：如果是执行完再返回打印，则直接在函数结尾返回string即可；但如果希望一边执行一边输出，则可在函数中通过yield替代return进行迭代器的返回，实时打印相关执行信息；如果结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
+       @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
+       @param {kwargs} - 扩展参数，建议带上以支持未来的扩展
+     @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的print_str属性要求框架进行打印处理
+     	注：控制台也支持处理函数返回string、iter这两类对象，框架将对这两类对象执行打印处理, 但这种模式未来将不再支持，建议通过prompt_obj.prompt_print自行输出，或通过CResult的print_str属性进行打印
      ```
      
   - **name_para** (para_name=para_value形式的参数) : dict(para_name: para_value_list)
@@ -110,14 +118,12 @@ print('html return :' + result3 + '\n')
   
   - **long_para** (-para_name para_value形式的参数) : dict(para_name, para_value_list)
   
-      
+    
       para_name {string} - 参数名（可以多字符，不带-）
       para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
   - **word_para** (直接一个词形式的参数) : dict(word_name, '')
   
-  ```
-  word_name {string} - 直接参数名
-  ```
+  ​       word_name {string} - 直接参数名
   
   
   
@@ -156,31 +162,33 @@ print('html return :' + result3 + '\n')
       ```
 #### default_dealfun
 
-在命令处理函数字典中没有匹配到的命令，默认执行的处理函数。函数的定义为fun(message='', cmd='', cmd_para='')，返回值为string，是执行命令函数要输出的内容。
+在命令处理函数字典中没有匹配到的命令，默认执行的处理函数。函数的定义为fun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs)，返回值为CResult，是执行命令函数处理结果，可以通过CResult的print_str属性控制框架进行打印。
 
 ```
-def default_cmd_dealfun(message='', cmd='', cmd_para=''):
+def default_cmd_dealfun(message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
     """默认命令处理函数"""
     # 这里做您希望的处理代码
-    return '返回在命令行显示的结果信息'
+    Cresult(code='00000')
+    Cresult.print_str = '您要打印的内容'
+    return Cresult
 ```
 
 #### on_abort /on_exit
 
-on_abort 是当用户取消输入（Ctrl + C）时执行的函数 ；on_exit 是当用户退出（Ctrl + D）时执行的函数（**注意如果已输入部分内容，Ctrl + D将不生效**）。两类函数的定义一样，为fun(message='')，返回值为string，是执行命令函数要输出的内容。
+on_abort 是当用户取消输入（Ctrl + C）时执行的函数 ；on_exit 是当用户退出（Ctrl + D）时执行的函数（**注意如果已输入部分内容，Ctrl + D将不生效**）。两类函数的定义一样，为fun(message='', prompt_obj=None, **kwargs)，返回值为CResult，是执行命令函数处理结果，可以通过CResult的print_str属性控制框架进行打印。
 
-注：如果返回结果为CResult，实际打印内容为CResult.msg, 并可通过错误码10101退出命令行
+注：可通过错误码10101退出命令行
 
 ```
-def on_abort(message=''):
+def on_abort(message='', prompt_obj=None, **kwargs):
     """Ctrl + C : abort,取消本次输入"""
     # 这里做您希望的处理代码
-    return '返回在命令行显示的结果信息'
+    return CResult(code='00000')
 
-def on_exit(message=''):
+def on_exit(message='', prompt_obj=None, **kwargs):
     """Ctrl + D : exit,关闭命令行"""
     # 这里做您希望的处理代码
-    return '返回在命令行显示的结果信息'
+    return CResult(code='10100', msg=u'get abort single(KeyboardInterrupt)')
 ```
 
 ### 1. 实例化PromptPlus
@@ -237,6 +245,31 @@ prompt1.start_prompt_service(
 其中is_async控制是否异步模式，即在命令执行完成前就可以接收下一个命令输入，否则等待命令结束后才接收下一个命令输入。
 
 注：异步模式还有一个bug未解决，就是如果执行的函数有屏幕输出，会导致自己输入的内容显示不到最后一行，信息会乱掉，所以使用时要注意，最好将异步模式的输出打印在后台日志中，结束时一次性显示即可。
+
+## 直接执行命令
+
+有些情况需要在后台代码中直接执行指定的命令，可以通过执行call_cmd_directly函数进行处理，定义如下：
+
+```
+def call_cmd_directly(self, cmd_str):
+    """
+    外部直接使用实例执行命令, 不通过命令行获取
+    @param {string} cmd_str - 要实行的命令(含命令本身和参数)
+    @return {CResult} - 执行返回结果
+    """
+```
+
+
+
+## 控制打印输出
+
+推荐的打印输出模式如下：
+
+1、在调用命令函数时会传入prompt_obj对象，建议直接通过prompt_obj.prompt_print进行打印；
+
+2、如果希望返回再打印，可以通过返回的CResult的print_str属性进行打印处理;
+
+
 
 ## 自定义配色方案
 

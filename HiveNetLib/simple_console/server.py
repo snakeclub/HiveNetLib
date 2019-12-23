@@ -131,7 +131,10 @@ class ConsoleServer(object):
                 _cmd_list = [_cmd_opts['shell_cmd']]
             # 逐个命令执行
             for _cmd in _cmd_list:
-                _server.call_cmd_directly(_cmd)
+                _result = _server.call_cmd_directly(_cmd)
+                if not _result.is_success():
+                    # 执行有错误，不继续执行
+                    return
         elif 'shell_cmdfile' in _cmd_opts.keys():
             _file_encoding = None
             if 'cmdfile_encoding' in _cmd_opts.keys() and _cmd_opts['cmdfile_encoding'] != '':
@@ -141,7 +144,10 @@ class ConsoleServer(object):
             _cmd_list = _cmd_text.split('\n')
             # 逐个命令执行
             for _cmd in _cmd_list:
-                _server.call_cmd_directly(_cmd)
+                _result = _server.call_cmd_directly(_cmd)
+                if not _result.is_success():
+                    # 执行有错误，不继续执行
+                    return
         else:
             _server.start_console()
 
@@ -283,8 +289,8 @@ class ConsoleServer(object):
 
         @param {string} cmd_str - 要实行的命令(含命令本身和参数)
         """
-        print(_('call cmd by shell mode: $1', cmd_str))
-        self._prompt.call_cmd_directly(cmd_str)
+        self._prompt.prompt_print(_('call cmd by shell mode: $1', cmd_str))
+        return self._prompt.call_cmd_directly(cmd_str)
 
     #############################
     # 内部函数
