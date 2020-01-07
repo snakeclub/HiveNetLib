@@ -11,5 +11,7 @@
     "Command execute in bg, exit monitor!": "命令后台执行中，退出执行监控！",
     "Command done, exit code": "命令执行完成，退出代码",
     "Current work path is: $1": "当前工作目录是: $1",
-    "language must be not null": "设置的语言不能为空"
+    "language must be not null": "设置的语言不能为空",
+    "auto run: $1": "自动运行: $1",
+    "auto run exception [$1]": "自动运行异常[$1]"
 }

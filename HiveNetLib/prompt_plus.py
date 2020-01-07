@@ -1323,7 +1323,7 @@ class PromptPlus(object):
                 self._prompt_init_para['on_abort'] is not None):
             try:
                 try:
-                    return self._prompt_init_para['on_abort'](message, prompt_obj=self)
+                    return self._prompt_init_para['on_abort'](message, cmd='{{on_abort}}', prompt_obj=self)
                 except TypeError as error:
                     if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
                         # 兼容老模式
@@ -1351,7 +1351,7 @@ class PromptPlus(object):
                 self._prompt_init_para['on_exit'] is not None):
             try:
                 try:
-                    return self._prompt_init_para['on_exit'](message, prompt_obj=self)
+                    return self._prompt_init_para['on_exit'](message, cmd='{{on_exit}}', prompt_obj=self)
                 except TypeError as error:
                     if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
                         # 兼容老模式
@@ -1613,7 +1613,8 @@ class PromptPlus(object):
         self._prompt_init_para.update(kwargs)  # 将传入的参数合并到默认参数中
         self._init_prompt_instance()
 
-    def prompt_print(self, *args, sep=' ', end='\n', line_head=False, level=logging.INFO, format_print=False, style=None, flush=False):
+    def prompt_print(self, *args, sep=' ', end='\n', line_head=False, level=logging.INFO,
+                    format_print=False, style=None, flush=False, force_logging=False):
         """
         使用内置打印函数进行输出打印
 
@@ -1630,8 +1631,9 @@ class PromptPlus(object):
                     'bbb': '#44ff00 italic',
                 }
             然后再传入format_html_text(<aaa>Hello</aaa> <bbb>world</bbb>!)
+        @param {bool} force_logging=False - 是否强制使用日志打印, 默认都是通过print输出
         """
-        if self._prompt_init_para['logger'] is None:
+        if self._prompt_init_para['logger'] is None or not force_logging:
             # 没有日志类，直接输出
             if line_head and len(args) > 0:
                 args[0] = '\r%s' % str(args[0])

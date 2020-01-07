@@ -12,15 +12,37 @@
         message : 命令行的开头提示信息
         shell_cmd_help : 命令行直接执行的帮助信息(json)
         start_tips : 启动时提示的信息(json)
+        auto_run : 启动时自动执行的命令配置
+            module_name : 模块名，注意应包含包路径
+            class_name : 处理类名
+            extend_path : 如果模块不在标准python搜索路径中，应传入搜索该模块的路径
+            init_para : 处理类初始化传入的JSON参数(字典形式)
+            as_name : 增加该参数项并设置不同的值，让同一个类实例化为多个对象进行执行(例如初始化参数不一样)
+                注：如果不设置该参数，一个类只会实例化一次
+            run_cmd : 要执行的cmd命令
+            run_cmd_para : 要执行的cmd命令参数
         default_dealfun : 默认处理函数配置（匹配不到命令的时候执行）
         on_abort : Ctrl + C 取消本次输入执行函数
         on_exit : Ctrl + D 关闭命令行执行函数
+        logger : 控制台的日志配置，如果不需要配置日志，可删除整个配置节点
+            conf_file_name : 日志配置文件路径和文件名
+            logger_name : 输出日志类型：Console_输出到屏幕,File_输出到文件,ConsoleAndFile_同时输出到屏幕和文件
+                注：根据日志具体配置，也可以在配置中自定义输出日志类型，例如myLoggerName
+            logfile_path : 日志输出文件的路径（含文件名），如果已有配置文件的情况下该参数无效，不传值时代表使用'log/程序名.log'来定义输出文件的路径
+            config_type : 日志配置文件方式: JSON_FILE _ JSON格式配置文件，INI_FILE _ INI格式配置文件，JSON_STR _ JSON字符串，XML_FILE _ XML格式配置文件
+                注：如果是文件类型，指定conf_file_name的配置文件格式
+            json_str : config_type为JSON_STR时，相应的JSON格式的配置信息内容
+            auto_create_conf : 是否自动创建配置文件（找不到指定的配置文件时）
+            is_create_logfile_by_day : 指定是否按天生成新的日志文件
+            call_fun_level : 指定log函数输出文件名和函数名的层级
         cmd_list : 嵌入的命令参数，每一个cmd标签就是一个命令配置
             command : cmd命令
             module_name : 模块名，注意应包含包路径
             class_name : 处理类名
             extend_path : 如果模块不在标准python搜索路径中，应传入搜索该模块的路径
             init_para : 处理类初始化传入的JSON参数(字典形式)
+            as_name : 增加该参数项并设置不同的值，让同一个类实例化为多个对象进行执行(例如初始化参数不一样)
+                注：如果不设置该参数，一个类只会实例化一次
             cmd_para : 命令控制参数字典，如果只有命令无参数该字段可空，具体参数含义见HiveNetLib的prompt_plus手册
             help : 命令帮助信息，是一个json格式的字典，key为帮助信息对应的语言，value为显示的多行数组
                 注：如果在字典里找不到对应的语言，则默认取第一个显示
@@ -92,6 +114,15 @@
         ]
     }
     </start_tips>
+    <auto_run>
+        <module_name></module_name>
+        <class_name></class_name>
+        <extend_path></extend_path>
+        <init_para></init_para>
+        <as_name></as_name>
+        <run_cmd></run_cmd>
+        <run_cmd_para></run_cmd_para>
+    </auto_run>
     <default_dealfun>
         <module_name>HiveNetLib.simple_console.base_cmd</module_name>
         <class_name>CmdDefault</class_name>
@@ -110,6 +141,46 @@
         <extend_path></extend_path>
         <init_para></init_para>
     </on_exit>
+    <logger>
+        <conf_file_name></conf_file_name>
+        <logger_name>Console</logger_name>
+        <logfile_path></logfile_path>
+        <config_type>JSON_STR</config_type>
+        <json_str>{
+                    "version": 1,
+                    "disable_existing_loggers": false,
+                    "formatters": {
+                        "simpleFormatter": {
+                            "format": "[%(asctime)s.%(millisecond)s][%(levelname)s][PID:%(process)d][TID:%(thread)d][FILE:%(filename)s][FUN:%(funcName)s]%(message)s",
+                            "datefmt": "%Y_%m_%d %H:%M:%S"
+                        }
+                    },
+
+                    "handlers": {
+                        "ConsoleHandler": {
+                            "class": "logging.StreamHandler",
+                            "level": "DEBUG",
+                            "formatter": "simpleFormatter",
+                            "stream": "ext://sys.stdout"
+                        }
+                    },
+
+                    "loggers": {
+                        "Console": {
+                            "level": "DEBUG",
+                            "handlers": ["ConsoleHandler"]
+                        }
+                    },
+
+                    "root": {
+                        "level": "DEBUG",
+                        "handlers": []
+                    }
+                }</json_str>
+        <auto_create_conf>true</auto_create_conf>
+        <is_create_logfile_by_day>true</is_create_logfile_by_day>
+        <call_fun_level>0</call_fun_level>
+    </logger>
     <cmd_list type="list">
         <cmd>
             <command>help</command>

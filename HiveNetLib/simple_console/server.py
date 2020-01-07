@@ -11,6 +11,7 @@ import os
 import copy
 import subprocess
 import time
+import traceback
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -21,6 +22,7 @@ from HiveNetLib.prompt_plus import PromptPlus
 from HiveNetLib.base_tools.import_tool import ImportTool
 from HiveNetLib.simple_i18n import _, SimpleI18N, set_global_i18n
 from HiveNetLib.simple_xml import SimpleXml
+from HiveNetLib.simple_log import Logger
 
 
 """
@@ -207,7 +209,8 @@ class ConsoleServer(object):
             _temp_dict['module_name'],
             _temp_dict['class_name'],
             _temp_dict['extend_path'],
-            _temp_dict['init_para']
+            _temp_dict['init_para'],
+            as_name='' if 'as_name' not in _temp_dict.keys() else _temp_dict['as_name']
         ).cmd_dealfun
 
         _temp_dict = self._config_dict['on_abort']
@@ -215,7 +218,8 @@ class ConsoleServer(object):
             _temp_dict['module_name'],
             _temp_dict['class_name'],
             _temp_dict['extend_path'],
-            _temp_dict['init_para']
+            _temp_dict['init_para'],
+            as_name='' if 'as_name' not in _temp_dict.keys() else _temp_dict['as_name']
         ).cmd_dealfun
 
         _temp_dict = self._config_dict['on_exit']
@@ -223,7 +227,8 @@ class ConsoleServer(object):
             _temp_dict['module_name'],
             _temp_dict['class_name'],
             _temp_dict['extend_path'],
-            _temp_dict['init_para']
+            _temp_dict['init_para'],
+            as_name='' if 'as_name' not in _temp_dict.keys() else _temp_dict['as_name']
         ).cmd_dealfun
 
         # 遍历参数装载
@@ -242,6 +247,17 @@ class ConsoleServer(object):
         # 控制台启动时的提示语言
         self._CONSOLE_TIPS = StringTool.json_to_object(self._config_dict['start_tips'])
 
+        # 日志对象
+        _logger = None
+        if 'logger' in self._config_dict.keys():
+            _logger = Logger.create_logger_by_dict(
+                self._config_dict['logger'])
+
+        # 执行命令处理类的后初始化函数
+        for _key in self._import_object_dict.keys():
+            if hasattr(self._import_object_dict[_key], 'init_after_console_init'):
+                self._import_object_dict[_key].init_after_console_init()
+
         # 初始化命令行工具对象
         self._prompt = PromptPlus(
             message=self._config_dict['message'],
@@ -249,7 +265,8 @@ class ConsoleServer(object):
             cmd_para=self._CMD_PARA,  # 命令定义参数
             default_dealfun=self._default_cmd_dealfun,  # 默认处理函数
             on_abort=self._on_abort,  # Ctrl + C 取消本次输入执行函数
-            on_exit=self._on_exit  # Ctrl + D 关闭命令行执行函数
+            on_exit=self._on_exit,  # Ctrl + D 关闭命令行执行函数
+            logger=_logger,  # 日志
         )
 
     #############################
@@ -271,14 +288,42 @@ class ConsoleServer(object):
         else:
             _tips = self._CONSOLE_TIPS[self._CONSOLE_TIPS.keys()[0]]
 
+        _tips_str = '\r\n'.join(_tips).replace(
+            '{{VERSION}}', self._config_dict['version']
+        ).replace(
+            '{{NAME}}', self._config_dict['name']
+        ).replace(
+            '{{SHELL_CMD_NAME}}', self._config_dict['shell_cmd_name']
+        )
+
+        if self._auto_run_fun is not None:
+            # 自动执行一个命令
+            self._prompt.prompt_print(_('auto run: $1', '"%s.%s.cmd_dealfun(cmd=\'%s\', cmd_para=\'%s\')"' % (
+                self._config_dict['auto_run']['module_name'],
+                self._config_dict['auto_run']['class_name'],
+                self._config_dict['auto_run']['run_cmd'],
+                self._config_dict['auto_run']['run_cmd_para'],
+            )))
+
+            try:
+                # 执行
+                self._auto_run_fun(
+                    message='',
+                    cmd=self._config_dict['auto_run']['run_cmd'],
+                    cmd_para=self._config_dict['auto_run']['run_cmd_para'],
+                    prompt_obj=self._prompt
+                )
+            except:
+                self._prompt.prompt_print(
+                    '%s:\n%s' % (
+                        _('auto run exception [$1]', str(sys.exc_info()[0])),
+                        traceback.format_exc()
+                    )
+                )
+
+        # 启动控制台服务
         self._prompt.start_prompt_service(
-            tips='\r\n'.join(_tips).replace(
-                '{{VERSION}}', self._config_dict['version']
-            ).replace(
-                '{{NAME}}', self._config_dict['name']
-            ).replace(
-                '{{SHELL_CMD_NAME}}', self._config_dict['shell_cmd_name']
-            ),
+            tips=_tips_str,
             is_async=False,
             is_print_async_execute_info=True
         )
@@ -295,7 +340,7 @@ class ConsoleServer(object):
     #############################
     # 内部函数
     #############################
-    def _import_and_init_class(self, module_name, class_name, extend_path, init_para):
+    def _import_and_init_class(self, module_name, class_name, extend_path, init_para, as_name=''):
         """
         装载并初始化对象返回（如果对象已存在则直接返回）
 
@@ -303,13 +348,18 @@ class ConsoleServer(object):
         @param {string} class_name - 处理类名
         @param {string} extend_path - 模块所在搜索路径
         @param {string} init_para - 初始化的json字符串
+        @param {string} as_name - 对象别名，可以设置不一样的值让类可以多次实例化
 
         @return {object} - 初始化后的模块对象
 
         @throws {ImportError} - 初始化失败返回该异常
         """
         # 检查对象是否已存在
-        _key = '%s.%s' % (module_name, class_name)
+        _key = as_name
+        _class_tag = '%s.%s' % (module_name, class_name)
+        if as_name == '':
+            _key = _class_tag
+
         if self._import_object_dict is None:
             self._import_object_dict = dict()
         if _key in self._import_object_dict.keys():
@@ -335,7 +385,7 @@ class ConsoleServer(object):
             )
 
         if _class is None:
-            raise ImportError(_("config file error: can't import module: $1!", (_key, )))
+            raise ImportError(_("config file error: can't import module: $1!", (_class_tag, )))
 
         # 初始化对象并返回
         _init_para = dict()
@@ -363,6 +413,18 @@ class ConsoleServer(object):
             self._CMD_PARA = dict()
         else:
             self._CMD_PARA.clear()
+
+        self._auto_run_fun = None
+        if 'auto_run' in self._config_dict.keys() and self._config_dict['auto_run']['class_name'] != '':
+            # 装载执行函数
+            self._auto_run_fun = self._import_and_init_class(
+                self._config_dict['auto_run']['module_name'],
+                self._config_dict['auto_run']['class_name'],
+                self._config_dict['auto_run']['extend_path'],
+                self._config_dict['auto_run']['init_para'],
+                as_name='' if 'as_name' not in self._config_dict.keys(
+                ) else self._config_dict['as_name']
+            ).cmd_dealfun
 
         # 遍历cmd_list进行装载命令参数
         for _item in self._config_dict['cmd_list']:
@@ -392,7 +454,8 @@ class ConsoleServer(object):
                 _item['module_name'],
                 _item['class_name'],
                 _item['extend_path'],
-                _item['init_para']
+                _item['init_para'],
+                as_name='' if 'as_name' not in _item.keys() else _item['as_name']
             ).cmd_dealfun
 
 

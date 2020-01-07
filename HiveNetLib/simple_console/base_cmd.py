@@ -89,6 +89,13 @@ class CmdBaseFW(object):
 
         yield _real_result
 
+    def init_after_console_init(self):
+        """
+        simple_console初始化完成后执行的处理类初始化操作
+        例如增加一些提示信息
+        """
+        self._init_after_console_init()
+
     #############################
     # 内部处理函数
     #############################
@@ -165,6 +172,12 @@ class CmdBaseFW(object):
         @param {kwargs} - 传入初始化参数字典（config.xml的init_para字典）
 
         @throws {exception-type} - 如果初始化异常应抛出异常
+        """
+        pass
+
+    def _init_after_console_init(self):
+        """
+        实现类需要覆盖实现的simple_console初始化后要执行的函数
         """
         pass
 
