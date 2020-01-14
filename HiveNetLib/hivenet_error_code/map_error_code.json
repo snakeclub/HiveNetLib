@@ -36,6 +36,8 @@
     "1599": "other application failure",
     "3001": "[$1] is existed",
     "3002": "[$1] is not existed",
+    "3003": "validators failed",
+    "3004": "get info failed",
     "4999": "other business failure",
     "9999": "unknow error"
 }

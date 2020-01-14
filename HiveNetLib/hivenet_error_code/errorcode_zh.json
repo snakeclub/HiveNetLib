@@ -38,5 +38,7 @@
     "[$1] is not a dir": "[$1] 不是一个路径",
     "[$1] is not a file": "[$1] 不是一个文件",
     "unknow error": "未知错误",
-    "unsupport command \"[$1]\"": "不支持的命令\"[$1]\""
+    "unsupport command \"[$1]\"": "不支持的命令\"[$1]\"",
+    "validators failed": "校验失败",
+    "get info failed": "获取信息失败"
 }

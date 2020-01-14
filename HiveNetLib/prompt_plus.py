@@ -32,7 +32,10 @@ from prompt_toolkit import PromptSession  # 动态对象要用到，所以不能
 from prompt_toolkit import print_formatted_text as prompt_toolkit_print
 # from prompt_toolkit.key_binding import KeyBindings
 # from prompt_toolkit.enums import EditingMode
-from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+try:
+    from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+except:
+    pass
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.styles import Style
@@ -1614,7 +1617,7 @@ class PromptPlus(object):
         self._init_prompt_instance()
 
     def prompt_print(self, *args, sep=' ', end='\n', line_head=False, level=logging.INFO,
-                    format_print=False, style=None, flush=False, force_logging=False):
+                    format_print=False, style=None, flush=False, force_logging=False, my_logger=None):
         """
         使用内置打印函数进行输出打印
 
@@ -1632,8 +1635,12 @@ class PromptPlus(object):
                 }
             然后再传入format_html_text(<aaa>Hello</aaa> <bbb>world</bbb>!)
         @param {bool} force_logging=False - 是否强制使用日志打印, 默认都是通过print输出
+        @param {logger} my_logger=None - 如果该参数传入值，则使用该日志对象进行打印
         """
-        if self._prompt_init_para['logger'] is None or not force_logging:
+        _logger = self._prompt_init_para['logger']
+        if my_logger is not None:
+            _logger = my_logger
+        if _logger is None or not force_logging:
             # 没有日志类，直接输出
             if line_head and len(args) > 0:
                 args[0] = '\r%s' % str(args[0])
@@ -1644,7 +1651,7 @@ class PromptPlus(object):
         else:
             _print_str = __MemoryStringStream__()
             print(*args, sep=sep, end=end, file=_print_str, flush=flush)
-            self._prompt_init_para['logger'].log(level, _print_str)
+            _logger.log(level, _print_str)
 
     def call_cmd_directly(self, cmd_str):
         """
@@ -1758,7 +1765,11 @@ class PromptPlus(object):
                 time.sleep(0.1)
         else:
             # 异步模式，通知prompt_toolkit使用asyncio event loop
-            use_asyncio_event_loop()
+            try:
+                use_asyncio_event_loop()
+            except:
+                # 兼容3.0的处理
+                pass
             with patch_stdout():  # 支持重定向屏幕输出，保证命令行一直在最下面
                 shell_task = asyncio.ensure_future(self._async_cmd_service())
                 background_task = asyncio.gather(
@@ -1780,4 +1791,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-

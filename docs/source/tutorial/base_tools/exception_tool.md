@@ -80,7 +80,7 @@ with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'
 
 重要参数定义：
 
-(result_obj=None, error_map={}, expect=(), expect_no_log=False, expect_use_error_map=True, logger=None, self_log_msg='', force_log_level=None, i18n_obj=None)
+(result_obj=None, error_map={}, expect=(), expect_no_log=False, expect_use_error_map=True, logger=None, self_log_msg='', force_log_level=None, i18n_obj=None, i18n_msg_paras=())
 
 ​	    @param {CResult} result_obj=None - 需要设置的错误类对象(对象值会被修改)
 
@@ -92,6 +92,10 @@ with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'
 
 ​            3、应有一个'SUCESS'的key，代表成功的映射，默认value为('00000', None)
 
+​			注：value也可以为(code, msg, i18n_msg_paras)的错误码、错误描述、国际化替换参数三元组,
+
+​        		i18n_msg_paras为tuple类型, 使用该模式支持CResult的国际化处理
+
 ​        @param {tuple} expect=() - 需要忽略的异常列表，例如(ZeroDivisionError, ValueError)
 
 ​        @param {bool} expect_no_log=False - 忽略异常列表是否不打印日志
@@ -101,6 +105,8 @@ with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'
 ​            如果在映射表中匹配上则返回映射表的错误码；匹配不上则返回成功
 
 ​        @param {object} i18n_obj=None - 国际化类的实例对象，该对象需实现translate方法
+
+​		@param {tuple} i18n_msg_paras=() - 与self_log_msg配套使用，当使用国际化时，可以传入变量，用于替换self_log_msg中的$1占位符
 
 使用示例：
 
