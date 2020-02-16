@@ -630,6 +630,23 @@ class SimpleXml(object):
             # 设置节点属性值
             _node.set(attr_name, value)
 
+    def set_value_by_dict(self, xpath: str, value_dict: dict):
+        """
+        将字典值写入xml对象中
+
+        @param {str} xpath - 要写入的初始xpath
+        @param {dict} value_dict - 值字典，key写入tag名(将与参数的xpath组合)，value为写入值
+        """
+        _xpath = '' if xpath == '' else xpath + '/'
+        for _key in value_dict.keys():
+            _value = value_dict[_key]
+            if type(_value) == dict:
+                # 如果值为字典，按下一个层级处理
+                self.set_value_by_dict('%s%s' % (_xpath, _key), _value)
+            else:
+                # 按字符串处理
+                self.set_value('%s%s' % (_xpath, _key), str(_value))
+
     #############################
     # 特定节点的值处理，静态函数
     #############################
