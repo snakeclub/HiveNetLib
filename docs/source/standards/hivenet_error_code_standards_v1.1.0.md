@@ -222,4 +222,5 @@ cresult_obj.net_info = [socket, id]
 | 3002   | [$1] is not existed    | [$1]不存在   |      |
 | 3003   | validators failed      | 校验失败     |      |
 | 3004   | get info failed        | 获取信息失败 |      |
+| 3005   | control check failed   | 控制检查失败 |      |
 | 4999   | other business failure | 其他业务失败 |      |

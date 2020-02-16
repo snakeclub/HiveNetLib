@@ -34,45 +34,45 @@ class ImportTool(object):
     """
 
     @staticmethod
-    def check_moudle_imported(moudle_name):
+    def check_module_imported(module_name):
         """
         检查指定模块名是否已导入
 
-        @param {string} moudle_name - 要检查的模块名，形式有以下几种:
+        @param {string} module_name - 要检查的模块名，形式有以下几种:
             (1)基础库的情况，例如'sys'
             (2)子库情况，例如'simple_log.Logger'
 
         @returns {bool} - True-模块已导入，False-模块未导入
         """
-        return moudle_name in sys.modules.keys()
+        return module_name in sys.modules.keys()
 
     @staticmethod
-    def get_imported_moudle(moudle_name):
+    def get_imported_module(module_name):
         """
         根据模块名称获取已导入的模块，如果模块不存在返回None
 
-         @param {string} moudle_name - 要获取的模块名，形式有以下几种:
+         @param {string} module_name - 要获取的模块名，形式有以下几种:
             (1)基础库的情况，例如'sys'
             (2)子库情况，例如'simple_log.Logger'
 
-        @returns {Moudle} - 已导入的模块对象，可以直接引用该对象执行操作
+        @returns {Module} - 已导入的模块对象，可以直接引用该对象执行操作
         """
-        if ImportTool.check_moudle_imported(moudle_name):
-            return sys.modules[moudle_name]
+        if ImportTool.check_module_imported(module_name):
+            return sys.modules[module_name]
         else:
             return None
 
     @staticmethod
-    def get_member_from_moudle(moudle, member_name):
+    def get_member_from_module(module, member_name):
         """
         从指定模块中获取成员对象（例如类）
 
-        @param {Moudle} moudle - 要处理的模块对象
+        @param {Module} module - 要处理的模块对象
         @param {string} member_name - 成员对象名
 
         @return {object} - 返回成员对象
         """
-        return getattr(moudle, member_name)
+        return getattr(module, member_name)
 
     @staticmethod
     def import_module(module_name, as_name=None, extend_path=None, import_member=None, is_force=False):
@@ -88,14 +88,14 @@ class ImportTool(object):
             效果如from module_name import import_member
         @param {bool} is_force=False - 是否强制执行导入的命令动作，True-强制再执行导入命令，Fasle-如果模块已存在则不导入
 
-        @returns {Moudle} - 已导入的模块对象，可以直接引用该对象执行操作
+        @returns {Module} - 已导入的模块对象，可以直接引用该对象执行操作
 
         @example
             lib_obj = ImportTools.import_module('os')
             print(lib_obj.path.realpath(''))
 
         """
-        if is_force or not ImportTool.check_moudle_imported(module_name):
+        if is_force or not ImportTool.check_module_imported(module_name):
             # 模块未导入，导入模块
             if extend_path is not None:
                 # 指定了路径，组装路径
@@ -120,11 +120,21 @@ class ImportTool(object):
         return sys.modules[module_name]
 
     @staticmethod
+    def unimport_module(module_name):
+        """
+        卸载已导入的模块
+
+        @param {string} module_name - 要卸载的模块名
+        """
+        if module_name in sys.modules.keys():
+            del sys.modules[module_name]
+
+    @staticmethod
     def has_attr(module_obj, attr_name):
         """
         检查模块或对象是否有指定名称的属性
 
-        @param {Moudle} module_obj - 模块对象
+        @param {Module} module_obj - 模块对象
         @param {string} attr_name - 属性名（类名/函数名/属性名)
 
         @returns {bool} - 是否包含属性，True-包含，False-不包含
@@ -137,7 +147,7 @@ class ImportTool(object):
         """
         获取对象的指定属性（直接使用）
 
-        @param {Moudle} module_obj - 模块对象
+        @param {Module} module_obj - 模块对象
         @param {string} attr_name - 属性名（类名/函数名/属性名)
 
         @returns {object} - 具体属性引用，可以直接使用
@@ -146,11 +156,11 @@ class ImportTool(object):
         return getattr(module_obj, attr_name)
 
     @staticmethod
-    def get_moudle_name(module_obj):
+    def get_module_name(module_obj):
         """
         获取模块名，如果模块是包中，模块名会包括包路径
 
-        @param {Moudle} module_obj - 模块对象
+        @param {Module} module_obj - 模块对象
 
         @returns {string} - 模块对象的名称
 

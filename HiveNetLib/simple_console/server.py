@@ -368,15 +368,15 @@ class ConsoleServer(object):
 
         # 装载模块
         _class = None
-        if ImportTool.check_moudle_imported(module_name):
+        if ImportTool.check_module_imported(module_name):
             # 模块已存在
-            _class = ImportTool.get_member_from_moudle(
-                ImportTool.get_imported_moudle(module_name),
+            _class = ImportTool.get_member_from_module(
+                ImportTool.get_imported_module(module_name),
                 class_name
             )
         else:
             # 动态装载模块
-            _class = ImportTool.get_member_from_moudle(
+            _class = ImportTool.get_member_from_module(
                 ImportTool.import_module(
                     module_name,
                     extend_path=extend_path

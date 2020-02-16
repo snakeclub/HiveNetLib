@@ -405,7 +405,7 @@ class RunTool(object):
         return obj.__class__.__name__
 
     @staticmethod
-    def get_object_moudle_name(obj):
+    def get_object_module_name(obj):
         """
         获取对象的模块名
 
@@ -443,9 +443,9 @@ class RunTool(object):
         _name = ''
         if is_with_module:
             # 含模块名
-            _moudle_name = inspect.getmodule(fun_object).__name__  # 获取函数对象的所属模块
-            if _moudle_name not in ['__main__', 'builtins']:
-                _name = _moudle_name + '.' + fun_object.__qualname__
+            _module_name = inspect.getmodule(fun_object).__name__  # 获取函数对象的所属模块
+            if _module_name not in ['__main__', 'builtins']:
+                _name = _module_name + '.' + fun_object.__qualname__
             else:
                 _name = fun_object.__qualname__
         elif is_with_class:

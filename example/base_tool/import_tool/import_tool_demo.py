@@ -3,7 +3,7 @@
 
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/'+'../../..'))
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/' + '../../..'))
 from HiveNetLib.base_tools.import_tool import ImportTool
 
 
@@ -16,11 +16,11 @@ __PUBLISH__ = '2018.10.02'  # 发布日期
 
 if __name__ == '__main__':
     # 示例1，导入公共库
-    print('datetime库导入状态：%s' % (str(ImportTool.check_moudle_imported('datetime'))))
+    print('datetime库导入状态：%s' % (str(ImportTool.check_module_imported('datetime'))))
     _datetime = ImportTool.import_module('datetime')  # 导入公共库
     # 执行公共库
     print('当前时间为：%s' % (str(_datetime.datetime.now())))
-    print('datetime库导入状态：%s' % (str(ImportTool.check_moudle_imported('datetime'))))
+    print('datetime库导入状态：%s' % (str(ImportTool.check_module_imported('datetime'))))
 
     # 示例2，导入模块
     _generic = ImportTool.import_module('HiveNetLib.generic')
@@ -32,4 +32,3 @@ if __name__ == '__main__':
     _CResult = ImportTool.import_module('HiveNetLib.generic', import_member='CResult')
     _result1 = ImportTool.get_attr(_CResult, 'CResult')('29999')
     print('\nCResult: %s' % (str(_result1)))
-

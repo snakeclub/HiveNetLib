@@ -38,6 +38,8 @@
     "3002": "[$1] is not existed",
     "3003": "validators failed",
     "3004": "get info failed",
+    "3005": "control check failed",
+    "3006": "user confirmation required",
     "4999": "other business failure",
     "9999": "unknow error"
 }

@@ -254,6 +254,17 @@ class FileTool(object):
         return _dirlist
 
     @staticmethod
+    def get_parent_dir(path):
+        """
+        获取指定路径或文件的上级路径
+
+        @param {str} path - 路径或文件
+
+        @retrun {str} - 上级路径
+        """
+        return os.path.abspath(os.path.join(path, '..'))
+
+    @staticmethod
     def remove_dir(path):
         """
         删除指定目录（及目录下的所有文件及目录）

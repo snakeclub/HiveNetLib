@@ -38,7 +38,7 @@ class ValueTool(object):
         获取字典指定值
 
         @param {object} key - 字典key值
-        @param {object} dict_obj - 要查的字典
+        @param {dict} dict_obj - 要查的字典
         @param {object} default_value=None - 如果取不到的默认值
 
         @returns {object} - 去到值
@@ -48,6 +48,35 @@ class ValueTool(object):
         if key in dict_obj.keys():
             _value = dict_obj[key]
         return _value
+
+    @staticmethod
+    def set_dict_nest_value(dict_obj, *args):
+        """
+        按嵌套方式设置字典的值
+        （第一个）
+
+        @param {dict} dict_obj - 要设置的字典
+        @param {*args} - 每一个
+
+        @return {dict} - 返回当前字典对象
+        """
+        _len = len(args)
+        if _len < 2:
+            # 没有具体设置值，不处理
+            return dict_obj
+
+        # 遍历进行处理
+        _dict = dict_obj
+        _i = 0
+        while _i < _len - 2:
+            _dict.setdefault(args[_i], {})
+            _dict = _dict[args[_i]]
+            _i += 1
+
+        # 最后一个为值
+        _dict[args[_i]] = args[_i + 1]
+
+        return dict_obj
 
 
 if __name__ == '__main__':

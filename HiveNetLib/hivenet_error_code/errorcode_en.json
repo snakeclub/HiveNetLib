@@ -40,5 +40,7 @@
   "unknow error": "unknow error",
   "unsupport command \"[$1]\"": "unsupport command \"[$1]\"",
   "validators failed": "validators failed",
-  "get info failed": "get info failed"
+  "get info failed": "get info failed",
+  "control check failed": "control check failed",
+  "user confirmation required": "user confirmation required"
 }

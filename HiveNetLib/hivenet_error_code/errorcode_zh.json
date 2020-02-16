@@ -40,5 +40,7 @@
     "unknow error": "未知错误",
     "unsupport command \"[$1]\"": "不支持的命令\"[$1]\"",
     "validators failed": "校验失败",
-    "get info failed": "获取信息失败"
+    "get info failed": "获取信息失败",
+    "control check failed": "控制检查失败",
+    "user confirmation required": "需要用户确认"
 }
