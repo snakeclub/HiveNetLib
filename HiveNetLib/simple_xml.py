@@ -435,7 +435,7 @@ class SimpleXml(object):
         # 检查是否有不符合的情况
         _replace_reg = re.compile(r'{[\S\s]+?}')
         _check_str = _replace_reg.sub('X', path)
-        if re.search('^/|/$|//|\\*|\\.|\\[*\\]', _check_str, flags=re.M) is not None:
+        if re.search('/$|//|\\*|\\.|\\[*\\]', _check_str, flags=re.M) is not None:
             # 不符合搜索路径的条件，抛出异常
             raise AttributeError('path must just with tag')
 
