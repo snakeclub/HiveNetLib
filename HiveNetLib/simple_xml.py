@@ -758,7 +758,7 @@ class SimpleXml(object):
             _tag = _tag.replace(_key, _replace_dict[_key])
 
         # 第一位不能为数字
-        if _tag[0] in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
+        if _tag[0] in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
             _tag = '_%s' % _tag
 
         return _tag
@@ -771,3 +771,6 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+    print(
+        SimpleXml.get_legal_tag_name('99770_0001_15847_JPG')
+    )
