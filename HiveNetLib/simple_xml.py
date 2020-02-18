@@ -701,6 +701,60 @@ class SimpleXml(object):
         """
         return node.xpath(xpath, namespaces=namespaces)
 
+    @staticmethod
+    def get_legal_tag_name(tag_name: str):
+        """
+        获取合法的标签名
+
+        @param {str} tag_name - 要处理的标签名
+
+        @return {str} - 转换以后的标签名
+        """
+        # 替换标点符号
+        _replace_dict = {
+            '~': '_a',
+            '`': '_b',
+            '!': '_c',
+            '@': '_d',
+            '#': '_e',
+            '$': '_f',
+            '%': '_g',
+            '^': '_h',
+            '&': '_i',
+            '*': '_j',
+            '(': '_k',
+            ')': '_l',
+            '+': '_m',
+            '=': '_n',
+            '{': '_o',
+            '}': '_p',
+            '|': '_q',
+            '[': '_r',
+            ']': '_s',
+            '\\': '_t',
+            ':': '_u',
+            '"': '_v',
+            ';': '_w',
+            '\'': '_x',
+            '<': '_y',
+            '>': '_z',
+            '?': '_A',
+            ',': '_B',
+            '.': '_C',
+            '/': '_D',
+            ' ': '_E'
+        }
+
+        _tag = tag_name
+        for _key in _replace_dict.keys():
+            _tag = _tag.replace(_key, _replace_dict[_key])
+
+        # 第一位不能为数字
+        if _tag[0] in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
+            _tag = '_%s' % _tag
+
+        return _tag
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
