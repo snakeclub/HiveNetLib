@@ -443,6 +443,9 @@ class SimpleXml(object):
         _node_reg = re.compile(r'(({[\S\s]+?}){0,}[^/]+)')
         _tag_list = _node_reg.findall(path)
         # 从第一级开始找以及新增
+        if path.startswith('/'):
+            # 带了根节点, 忽略第一个节点
+            del _tag_list[0]
         _node = self.root
         for _tag in _tag_list:
             _new_node = _node.find(_tag[0], namespaces=namespaces)
@@ -771,6 +774,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-    print(
-        SimpleXml.get_legal_tag_name('99770_0001_15847_JPG')
-    )
