@@ -565,7 +565,7 @@ class SimpleXml(object):
             # 返回属性值
             return _nodes[0].get(attr_name, default=default)
 
-    def set_value(self, xpath, value, namespaces=None, auto_create=True):
+    def set_value(self, xpath, value, namespaces=None, auto_create=True, debug=False):
         """
         设置指定节点的值
 
@@ -580,23 +580,31 @@ class SimpleXml(object):
                     'role': 'http://characters.example.com'
                 }
         @param {bool} auto_create=True - 节点不存在的时候是否自动创建节点
+        @param {bool} debug=False - 如果出现不可预知的异常时，打印入参
 
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
-        if len(_nodes) == 0:
-            if auto_create:
-                # 找不到节点，尝试自动创建节点
-                _node = self.append_path_node(xpath, namespaces=namespaces)
-                _node.text = value
+        try:
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+            if len(_nodes) == 0:
+                if auto_create:
+                    # 找不到节点，尝试自动创建节点
+                    _node = self.append_path_node(xpath, namespaces=namespaces)
+                    _node.text = value
+                else:
+                    # 不创建节点，抛出异常
+                    raise NameError('can\'t find node by xpath')
             else:
-                # 不创建节点，抛出异常
-                raise NameError('can\'t find node by xpath')
-        else:
-            for _node in _nodes:
-                # 设置节点值
-                _node.text = value
+                for _node in _nodes:
+                    # 设置节点值
+                    _node.text = value
+        except:
+            if debug:
+                # 打印入参
+                print('set_value error, para:[xpath=%s][value=%s][namespaces=%s][auto_create=%s]' % (
+                    xpath, value, namespaces, auto_create))
+            raise
 
     def set_attr(self, xpath, attr_name, value, namespaces=None, auto_create=True):
         """
@@ -630,7 +638,7 @@ class SimpleXml(object):
             # 设置节点属性值
             _node.set(attr_name, value)
 
-    def set_value_by_dict(self, xpath: str, value_dict: dict):
+    def set_value_by_dict(self, xpath: str, value_dict: dict, debug=False):
         """
         将字典值写入xml对象中
 
@@ -642,10 +650,10 @@ class SimpleXml(object):
             _value = value_dict[_key]
             if type(_value) == dict:
                 # 如果值为字典，按下一个层级处理
-                self.set_value_by_dict('%s%s' % (_xpath, _key), _value)
+                self.set_value_by_dict('%s%s' % (_xpath, _key), _value, debug=debug)
             else:
                 # 按字符串处理
-                self.set_value('%s%s' % (_xpath, _key), str(_value))
+                self.set_value('%s%s' % (_xpath, _key), str(_value), debug=debug)
 
     #############################
     # 特定节点的值处理，静态函数
