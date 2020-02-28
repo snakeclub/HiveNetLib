@@ -40,6 +40,7 @@ DEPENDENCIES = [
     'jsonpath-rw',
     'netifaces>=0.10.9',
     'chardet',
+    'selenium',
 ]
 
 # DEPENDENCIES = []

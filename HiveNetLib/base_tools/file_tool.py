@@ -18,6 +18,7 @@
 import sys
 import os
 import re
+from enum import Enum
 import platform
 import subprocess
 import shutil
@@ -36,6 +37,18 @@ __DESCRIPT__ = u'文件处理工具'  # 模块描述
 __VERSION__ = '0.1.0'  # 版本
 __AUTHOR__ = u'黎慧剑'  # 作者
 __PUBLISH__ = '2018.08.29'  # 发布日期
+
+
+class EnumFileSizeUnit(Enum):
+    """
+    文件大小单位
+    @enum {int}
+    """
+    B = 1
+    KB = 1024
+    MB = 1024 * 1024
+    GB = 1024 * 1024 * 1024
+    TB = 1024 * 1024 * 1024 * 1024
 
 
 class FileTool(object):
@@ -424,6 +437,41 @@ class FileTool(object):
                 elif _encoding.startswith('ISO-8859'):
                     _encoding = 'gbk'
                 return str(_bytes, encoding=_encoding)
+
+    @staticmethod
+    def create_fix_size_file(filename: str, size: int, unit=EnumFileSizeUnit.B):
+        """
+        生成指定大小的文件
+
+        @param {str} filename - 要生成的文件
+        @param {int} size - 大小
+        @param {EnumFileSizeUnit} unit=EnumFileSizeUnit.B - 单位
+        """
+        with open(filename, 'w') as _file:
+            _file.seek(size * unit.value - 1)   # 跳到指定位置
+            _file.write('\x00')  # 一定要写入一个字符，否则无效
+            _file.flush()
+
+    @staticmethod
+    def write_bytes_to_file(filename: str, data: bytes, position=0, file_obj=None):
+        """
+        在文件指定位置写入字节数组
+
+        @param {str} filename - 要写入的文件
+        @param {bytes} data - 写入数据
+        @param {int} position=0 - 写入位置
+        @param {object} file_obj=None - 已打开的文件对象，如果传入则代表使用该文件对象执行文件处理
+        """
+        if file_obj is not None:
+            # 使用文件对象处理
+            file_obj.seek(position)
+            file_obj.write(bytes)
+            file_obj.flush()
+        else:
+            with open(filename, 'wb') as _file:
+                _file.seek(position)
+                _file.write(bytes)
+                _file.flush()
 
     #############################
     # zip文件处理
