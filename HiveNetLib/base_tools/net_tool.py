@@ -368,11 +368,14 @@ class NetTool(object):
         )
         if 'content-range' in _res.headers.keys():
             _content_range = _res.headers['content-range']
-            if _content_range.find('/') >= 0:
+            try:
                 _total_size = int(re.match(r'^bytes 0-4/(\d+)$', _content_range).group(1))
                 _support_continue = True
-            else:
-                _total_size = int(_content_range)
+            except:
+                try:
+                    _total_size = int(_content_range)
+                except:
+                    pass
 
         # 返回结果
         return {
