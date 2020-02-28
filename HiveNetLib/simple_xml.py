@@ -541,7 +541,10 @@ class SimpleXml(object):
         if len(_nodes) == 0:
             return default
         else:
-            return _nodes[0].text
+            if _nodes[0].text is None:
+                return default
+            else:
+                return _nodes[0].text
 
     def get_attr(self, xpath, attr_name, default='', namespaces=None):
         """
@@ -641,22 +644,45 @@ class SimpleXml(object):
             # 设置节点属性值
             _node.set(attr_name, value)
 
-    def set_value_by_dict(self, xpath: str, value_dict: dict, debug=False):
+    def set_value_by_dict(self, xpath: str, value_dict: dict, ignore_exception=False, debug=False):
         """
         将字典值写入xml对象中
 
         @param {str} xpath - 要写入的初始xpath
         @param {dict} value_dict - 值字典，key写入tag名(将与参数的xpath组合)，value为写入值
+        @param {bool} ignore_exception=False - 如果出现不可预知的异常，忽略继续处理下一个
+        @param {bool} debug=False - 如果出现不可预知的异常时，打印入参
+
+        @return {list} - 当ignore_exception=True时返回，异常时的信息
         """
         _xpath = '' if xpath == '' else xpath + '/'
+        _exception_list = None
+        if ignore_exception:
+            _exception_list = list()
+
         for _key in value_dict.keys():
             _value = value_dict[_key]
             if type(_value) == dict:
                 # 如果值为字典，按下一个层级处理
-                self.set_value_by_dict('%s%s' % (_xpath, _key), _value, debug=debug)
+                _sub_exception_list = self.set_value_by_dict(
+                    '%s%s' % (_xpath, _key), _value,
+                    ignore_exception=ignore_exception, debug=debug
+                )
+                if _sub_exception_list is not None:
+                    _exception_list = _exception_list + _sub_exception_list
             else:
                 # 按字符串处理
-                self.set_value('%s%s' % (_xpath, _key), str(_value), debug=debug)
+                try:
+                    self.set_value('%s%s' % (_xpath, _key), str(_value), debug=debug)
+                except:
+                    if not ignore_exception:
+                        raise
+                    else:
+                        _exception_list.append(
+                            'set_value error: [xpath=%s%s][value=%s]' % (_xpath, _key, str(_value))
+                        )
+
+        return _exception_list
 
     #############################
     # 特定节点的值处理，静态函数
