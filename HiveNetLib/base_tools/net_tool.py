@@ -232,7 +232,7 @@ class NetTool(object):
         @param {dict} common_options=None - 通用参数
             headless {bool} True - 是否无界面模式(部分浏览器不支持)
             timeout {float} 10 - 等待超时时间，单位为秒
-            wait_all_loaded {bool} True - 是否等待所有页面元素加载完
+            wait_all_loaded {bool} True - 是否等待所有页面元素加载完，如果不传代表不做等待特殊处理
             until_menthod {function} - 如果不等待所有页面加载完，判断函数，函数应返回True/False
             until_message {str} - 传入判断函数的信息
         @param {EnumWebDriverType} webdriver_type=EnumWebDriverType.Chrome - 浏览器驱动类型
@@ -258,7 +258,7 @@ class NetTool(object):
         _common_options = {
             'headless': True,
             'timeout': 10,
-            'wait_all_loaded': True,
+            'wait_all_loaded': None,
             'until_menthod': None,
             'until_message': ''
         }
@@ -313,14 +313,14 @@ class NetTool(object):
                 raise AttributeError('not support webdriver type: %s' % str(webdriver_type))
 
         # 设置等待全部页面加载完成
-        if _common_options['wait_all_loaded']:
+        if _common_options['wait_all_loaded'] is not None and _common_options['wait_all_loaded']:
             # 全部页面加载完成
             _browser.implicitly_wait(_common_options['timeout'])
 
         # 打开网页
         _browser.get(url)
 
-        if not _common_options['wait_all_loaded']:
+        if _common_options['wait_all_loaded'] is not None and not _common_options['wait_all_loaded']:
             # 按条件等待加载
             _wait = WebDriverWait(_browser, _common_options['timeout'], 0.5)
             _wait.until(_common_options['until_menthod'], _common_options['until_message'])

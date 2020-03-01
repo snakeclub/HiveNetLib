@@ -352,32 +352,42 @@ class FileTool(object):
             FileTool.remove_file(_file)
 
     @staticmethod
-    def remove_all_with_path(path='', regex_str=''):
+    def remove_all_with_path(path='', regex_str='', with_sub_path=False):
         """
         删除指定文件夹下的所有文件及文件夹
 
         @param {string} path='' - 要处理的文件夹
         @param {string} regex_str='' - 文件名匹配的正则表达式
-
+        @param {bool} with_sub_path=False - 是否包含子目录
         """
         _pattern = None
-        _path = os.path.realpath(path)
-        _file_names = os.listdir(_path)
         if regex_str != "":
             _pattern = re.compile(regex_str)
+
+        _path = os.path.realpath(path)
+        _file_names = os.listdir(_path)
+
         for fn in _file_names:
+            _match = True
             if _pattern is not None:
                 if not _pattern.match(fn):
-                    # 获取下一个
-                    continue
+                    # 没有匹配上
+                    _match = False
 
             _full_filename = os.path.join(_path, fn)
             if os.path.isfile(_full_filename):
-                # 删除文件
-                FileTool.remove_file(_full_filename)
+                if _match:
+                    # 匹配上删除文件
+                    FileTool.remove_file(_full_filename)
             else:
-                # 删除文件夹
-                FileTool.remove_dir(_full_filename)
+                if _match:
+                    # 匹配上，直接删除文件夹
+                    FileTool.remove_dir(_full_filename)
+                elif with_sub_path:
+                    # 处理子文件夹
+                    FileTool.remove_all_with_path(
+                        path=_full_filename, regex_str=regex_str, with_sub_path=with_sub_path
+                    )
 
     @staticmethod
     def copy_all_with_path(src_path='', dest_path='', regex_str=''):
