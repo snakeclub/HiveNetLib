@@ -187,11 +187,12 @@ class FileTool(object):
         return _path
 
     @staticmethod
-    def create_dir(path):
+    def create_dir(path, exist_ok=False):
         """
         创建指定的路径
 
         @param {string} path - 需要创建的路径
+        @param {bool} exist_ok=False - 如果路径存在是否不抛异常
 
         @throws {FileExistsError} - 路径存在的情况抛出文件存在异常
 
@@ -199,7 +200,7 @@ class FileTool(object):
             FileTool.create_dir("c:/test/")
 
         """
-        os.makedirs(path)
+        os.makedirs(path, exist_ok=exist_ok)
 
     @staticmethod
     def get_filelist(path='', regex_str='', is_fullname=True):

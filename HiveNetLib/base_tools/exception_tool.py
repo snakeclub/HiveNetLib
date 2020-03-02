@@ -44,7 +44,7 @@ class ExceptionTool(object):
 
     @staticmethod
     @contextmanager
-    def ignored(expect=(), logger=None, self_log_msg='', force_log_level=None):
+    def ignored(expect=(), logger=None, self_log_msg='', force_log_level=None, debug=False):
         """
         忽略指定异常，简化异常捕获代码，利用该函数忽略指定的异常，详细说明如下：
             1、对于指定忽略的异常，忽略不处理（如果指定logger则会进行日志输出，使用WARNING级别）
@@ -58,6 +58,7 @@ class ExceptionTool(object):
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
         @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
+        @param {bool} - debug=False - 是否调试模式，如果是调试模式，当没有logger时使用print输出堆栈信息
 
         @example
             with ignored((ZeroDivisionError, ValueError), logger, '执行XX出现异常'):
@@ -73,7 +74,7 @@ class ExceptionTool(object):
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), self_log_msg),
-                                      trace_str=traceback.format_exc(), log_level=_log_level)
+                                      trace_str=traceback.format_exc(), log_level=_log_level, debug=debug)
             pass
         except Exception as e:
             # 其他异常，输出日志并抛出异常
@@ -81,12 +82,12 @@ class ExceptionTool(object):
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
-                                      trace_str=traceback.format_exc(), log_level=_log_level)
+                                      trace_str=traceback.format_exc(), log_level=_log_level, debug=debug)
             raise sys.exc_info()[1]
 
     @staticmethod
     @contextmanager
-    def ignored_all(unexpect=(), logger=None, self_log_msg='', force_log_level=None):
+    def ignored_all(unexpect=(), logger=None, self_log_msg='', force_log_level=None, debug=False):
         """
         忽略除指定以外的所有异常,简化异常捕获代码，利用该函数忽略指定以外的所有异常，详细说明如下：
             1、对于指定以外的异常，忽略不处理（如果指定logger则会进行日志输出，使用WARNING级别）
@@ -99,6 +100,7 @@ class ExceptionTool(object):
             2、自定义的日志类对象，但应实现warning、error的标准方法
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
         @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
+        @param {bool} - debug=False - 是否调试模式，如果是调试模式，当没有logger时使用print输出堆栈信息
 
         @example
             with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'):
@@ -114,7 +116,7 @@ class ExceptionTool(object):
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ue)), self_log_msg),
-                                      trace_str=traceback.format_exc(), log_level=_log_level)
+                                      trace_str=traceback.format_exc(), log_level=_log_level, debug=debug)
             raise sys.exc_info()[1]
         except Exception as e:
             # 其他异常，输出日志并忽略
@@ -122,13 +124,14 @@ class ExceptionTool(object):
             if force_log_level is not None:
                 _log_level = force_log_level
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), self_log_msg),
-                                      trace_str=traceback.format_exc(), log_level=_log_level)
+                                      trace_str=traceback.format_exc(), log_level=_log_level, debug=debug)
             pass
 
     @staticmethod
     @contextmanager
     def ignored_cresult(result_obj=None, error_map={}, expect=(), expect_no_log=False, expect_use_error_map=True,
-                        logger=None, self_log_msg='', force_log_level=None, i18n_obj=None, i18n_msg_paras=()):
+                        logger=None, self_log_msg='', force_log_level=None, i18n_obj=None,
+                        i18n_msg_paras=(), debug=False):
         """
         忽略异常并设置CResult对象,简化异常捕获代码，利用该函数忽略指定的异常，并设置传入的通用结果对象，详细说明如下：
             1、对于指定忽略的异常，忽略不处理，结果为成功（如果指定logger则会进行日志输出，使用WARNING级别）
@@ -154,6 +157,7 @@ class ExceptionTool(object):
         @param {int} force_log_level=None - 强制遇到所有异常统一按指定的日志级别输出(logging.INFO/...)
         @param {object} i18n_obj=None - 国际化类的实例对象，该对象需实现translate方法
         @param {tuple} i18n_msg_paras=() - 与self_log_msg配套使用，当使用国际化时，可以传入变量，用于替换self_log_msg中的$1占位符
+        @param {bool} - debug=False - 是否调试模式，如果是调试模式，当没有logger时使用print输出堆栈信息
 
         @example
             result = CResult()
@@ -188,7 +192,7 @@ class ExceptionTool(object):
                 else:
                     _self_log_msg = _(self_log_msg, *i18n_msg_paras)
                 ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(ex)), _self_log_msg),
-                                          trace_str=traceback.format_exc(), log_level=_log_level)
+                                          trace_str=traceback.format_exc(), log_level=_log_level, debug=debug)
             # 按成功处理
             _error = sys.exc_info()
             _trace_str = traceback.format_exc()
@@ -246,11 +250,11 @@ class ExceptionTool(object):
             else:
                 _self_log_msg = _(self_log_msg, *i18n_msg_paras)
             ExceptionTool.__print_log(logger=logger, self_log_msg='[EX:%s]%s' % (str(type(e)), _self_log_msg),
-                                      trace_str=result_obj.trace_str, log_level=_log_level)
+                                      trace_str=result_obj.trace_str, log_level=_log_level, debug=debug)
 
     # 内部函数定义
     @staticmethod
-    def __print_log(logger=None, self_log_msg='', trace_str='', log_level=logging.WARNING):
+    def __print_log(logger=None, self_log_msg='', trace_str='', log_level=logging.WARNING, debug=False):
         """
         内部进行日志输出处理， 调用日志对象进行日志输出处理
 
@@ -260,17 +264,21 @@ class ExceptionTool(object):
         @param {string} self_log_msg='' - 需要输出的自定义日志信息
         @param {string} trace_str='' - 错误追踪堆栈日志，异常时的traceback.format_exc()
         @param {int} log_level=logging.WARNING - 需要输出的自定义日志级别
+        @param {bool} - debug=False - 是否调试模式，如果是调试模式，当没有logger时使用print输出堆栈信息
 
         """
-        if logger is not None:
+        if logger is not None or debug:
             # 要输出的日志内容
             _log_str = ''
             if len(self_log_msg) > 0:
                 _log_str = self_log_msg + '\n' + trace_str
             else:
                 _log_str = trace_str
-            # 输出日志
-            logger.log(log_level, _log_str, extra={'callFunLevel': 3})
+            if logger is not None:
+                # 输出日志
+                logger.log(log_level, _log_str, extra={'callFunLevel': 3})
+            else:
+                print(_log_str)
 
 
 if __name__ == '__main__':

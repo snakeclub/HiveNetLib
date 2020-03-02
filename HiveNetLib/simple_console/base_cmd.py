@@ -139,14 +139,15 @@ class CmdBaseFW(object):
             return CResult(code='00000')
 
     @classmethod
-    def _cmd_para_to_dict(cls, cmd_para):
+    def _cmd_para_to_dict(cls, cmd_para, name_with_sign=True):
         """
         将参数转换为字典格式
 
         @param {string} cmd_para - 命令参数
+        @param {bool} name_with_sign=True - 参数名是否带标识(长短参数带-，名字参数带=)
 
         @return {dict} - 参数字典，获取规则说明如下:
-            长短参数、名字参数: key为参数名（长短参数带-，名字参数带=）, value为参数值
+            长短参数、名字参数: key为参数名（如果name_with_sign为True，长短参数带-，名字参数带=）, value为参数值
             其他参数: key为'{para}序号', value为参数值, 序号从1开始
         """
         # 获取命令执行参数
@@ -155,7 +156,15 @@ class CmdBaseFW(object):
         _seq = 1
         for _item in _cmd_list:
             if _item[0] != '':
-                _dict[_item[0]] = _item[1].strip("'")
+                _para_name = _item[0]
+                if not name_with_sign:
+                    # 去掉参数名标识
+                    if _para_name.startswith('-'):
+                        _para_name = _para_name[1:]
+                    elif _para_name.endswith('='):
+                        _para_name = _para_name[0: -1]
+
+                _dict[_para_name] = _item[1].strip("'")
             else:
                 _dict['{para}%d' % _seq] = _item[1].strip("'")
                 _seq += 1

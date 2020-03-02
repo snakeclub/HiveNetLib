@@ -27,6 +27,7 @@ import time
 from enum import Enum
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import selenium.webdriver.chrome.options
 import selenium.webdriver.firefox.options
 
@@ -222,17 +223,16 @@ class NetTool(object):
 
     @staticmethod
     def get_web_page_dom_code(url: str, browser=None, common_options=None,
-                              webdriver_type=EnumWebDriverType.Chrome, driver_options=None):
+                              webdriver_type=EnumWebDriverType.Chrome, driver_options={}):
         """
         获取页面加载后的动态html
 
         @param {str} url - 要访问的url
-
         @param {WebDriver} browser=None - 要使用的浏览器，如果为None则会创建一个新的
         @param {dict} common_options=None - 通用参数
             headless {bool} True - 是否无界面模式(部分浏览器不支持)
             timeout {float} 10 - 等待超时时间，单位为秒
-            wait_all_loaded {bool} True - 是否等待所有页面元素加载完，如果不传代表不做等待特殊处理
+            wait_all_loaded {bool} True - 是否等待所有页面元素加载完
             until_menthod {function} - 如果不等待所有页面加载完，判断函数，函数应返回True/False
             until_message {str} - 传入判断函数的信息
         @param {EnumWebDriverType} webdriver_type=EnumWebDriverType.Chrome - 浏览器驱动类型
@@ -250,7 +250,7 @@ class NetTool(object):
             common_options = {
                 'timeout': 10,
                 'wait_all_loaded': False,
-                'until_menthod': EC.presence_of_element_located((By.ID, "kw"),
+                'until_menthod': EC.presence_of_element_located((By.ID, "kw")),
                 'until_message': ''
             }
         """
@@ -258,7 +258,7 @@ class NetTool(object):
         _common_options = {
             'headless': True,
             'timeout': 10,
-            'wait_all_loaded': None,
+            'wait_all_loaded': True,
             'until_menthod': None,
             'until_message': ''
         }
@@ -267,6 +267,7 @@ class NetTool(object):
 
         # 创建浏览器
         _browser = browser
+        _desired_capabilities = None
         if browser is None:
             # 创建新的浏览器
             if webdriver_type == EnumWebDriverType.Chrome:
@@ -285,7 +286,14 @@ class NetTool(object):
                     driver_options['chrome_options'].add_argument('--headless')
                     driver_options['chrome_options'].add_argument('--disable-gpu')
 
-                _browser = webdriver.Chrome(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.CHROME
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.Chrome(
+                    desired_capabilities=_desired_capabilities, **driver_options
+                )
             elif webdriver_type == EnumWebDriverType.Firefox:
                 if driver_options is not None:
                     if 'firefox_options' not in driver_options or driver_options['firefox_options'] is None:
@@ -300,30 +308,68 @@ class NetTool(object):
                     # 无浏览器模式
                     driver_options['firefox_options'].add_argument('-headless')
 
-                _browser = webdriver.Firefox(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.FIREFOX
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.Firefox(
+                    desired_capabilities=_desired_capabilities, **driver_options
+                )
             elif webdriver_type == EnumWebDriverType.Ie:
-                _browser = webdriver.Ie(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.FIREFOX
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.Ie(
+                    desired_capabilities=_desired_capabilities,
+                    **driver_options
+                )
             elif webdriver_type == EnumWebDriverType.Edge:
-                _browser = webdriver.Edge(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.FIREFOX
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.Edge(
+                    capabilities=_desired_capabilities,
+                    **driver_options
+                )
             elif webdriver_type == EnumWebDriverType.PhantomJS:
-                _browser = webdriver.PhantomJS(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.FIREFOX
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.PhantomJS(
+                    desired_capabilities=_desired_capabilities,
+                    **driver_options
+                )
             elif webdriver_type == EnumWebDriverType.PhantomJS:
-                _browser = webdriver.Safari(**driver_options)
+                if not _common_options['wait_all_loaded']:
+                    # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
+                    _desired_capabilities = DesiredCapabilities.FIREFOX
+                    _desired_capabilities["pageLoadStrategy"] = "none"
+
+                _browser = webdriver.Safari(
+                    desired_capabilities=_desired_capabilities,
+                    **driver_options
+                )
             else:
                 raise AttributeError('not support webdriver type: %s' % str(webdriver_type))
-
-        # 设置等待全部页面加载完成
-        if _common_options['wait_all_loaded'] is not None and _common_options['wait_all_loaded']:
-            # 全部页面加载完成
-            _browser.implicitly_wait(_common_options['timeout'])
 
         # 打开网页
         _browser.get(url)
 
-        if _common_options['wait_all_loaded'] is not None and not _common_options['wait_all_loaded']:
-            # 按条件等待加载
-            _wait = WebDriverWait(_browser, _common_options['timeout'], 0.5)
-            _wait.until(_common_options['until_menthod'], _common_options['until_message'])
+        if not _common_options['wait_all_loaded']:
+            if _common_options['until_menthod'] is None:
+                # 没有检查方法，直接sleep等待超时
+                time.sleep(_common_options['timeout'])
+            else:
+                # 按条件等待加载
+                _wait = WebDriverWait(_browser, _common_options['timeout'], 0.5)
+                _wait.until(_common_options['until_menthod'], _common_options['until_message'])
 
         # 获取页面代码并返回
         return _browser.page_source
@@ -366,16 +412,20 @@ class NetTool(object):
             url, headers=_headers, timeout=connect_timeout,
             verify=verify, proxies=proxies, params=params, cookies=cookies
         )
-        if 'content-range' in _res.headers.keys():
-            _content_range = _res.headers['content-range']
-            try:
-                _total_size = int(re.match(r'^bytes 0-4/(\d+)$', _content_range).group(1))
-                _support_continue = True
-            except:
-                try:
-                    _total_size = int(_content_range)
-                except:
-                    pass
+        try:
+            if _res.status_code == 206:
+                # 服务器支持断点
+                if 'content-range' in _res.headers.keys():
+                    _content_range = _res.headers['content-range']
+                    try:
+                        _total_size = int(re.match(r'^bytes 0-4/(\d+)$', _content_range).group(1))
+                        _support_continue = True
+                    except:
+                        _total_size = int(_res.headers['content-length'])
+            else:
+                _total_size = int(_res.headers['content-length'])
+        except:
+            pass
 
         # 返回结果
         return {
@@ -387,7 +437,7 @@ class NetTool(object):
     @staticmethod
     def download_http_file(url: str, filename=None, path='', is_resume=False, headers={}, connect_timeout=None,
                            params={}, proxies={}, verify=True, cookies={},
-                           block_size=1024, retry=0):
+                           block_size=1024, retry=0, show_rate=False):
         """
         下载文件
 
@@ -407,32 +457,43 @@ class NetTool(object):
         @param {dict} cookies={} - cookies参数
         @param {int} block_size=1024 - 每次下载块大小，单位为byte
         @param {int} retry=0 - 自动重试次数
+        @param {bool} show_rate=False - 显示下载进度(仅wget模式支持)
         """
         _retry_time = 0
-        # 先尝试获取文件信息
         _fileinfo = None
-        while True:
-            try:
-                _fileinfo = NetTool.get_http_fileinfo(
-                    url, headers=headers, connect_timeout=connect_timeout)
-                break
-            except:
-                if _retry_time < retry:
-                    _retry_time += 1
-                    continue
-                else:
-                    raise
-
         _filename = filename
-        if filename is None:
-            _filename = _fileinfo['name']
+
+        # 只有需要断点续传的情况才获取文件信息
+        if is_resume:
+            while True:
+                try:
+                    _fileinfo = NetTool.get_http_fileinfo(
+                        url, headers=headers, connect_timeout=connect_timeout)
+                    break
+                except:
+                    if _retry_time < retry:
+                        _retry_time += 1
+                        continue
+                    else:
+                        raise
+
+            _filename = filename
+            if filename is None:
+                _filename = _fileinfo['name']
 
         # 加上路径
+        if _filename is None:
+            _filename = os.path.split(url)[1]
+
         _filename = os.path.join(path, _filename)
 
-        if not _fileinfo['support_continue'] or not is_resume:
-            # 不支持自动续传, 使用wget执行完整的下载
-            wget.download(url, out=_filename)
+        if not is_resume or not _fileinfo['support_continue']:
+            # 不需要续传，或不支持自动续传, 使用wget执行完整的下载, 但不显示下载进度
+            _bar = None
+            if show_rate:
+                _bar = wget.bar_adaptive
+
+            wget.download(url, out=_filename, bar=_bar)
         else:
             # 自动续传
             _headers = copy.deepcopy(headers)
