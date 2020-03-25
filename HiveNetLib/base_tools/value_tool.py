@@ -78,6 +78,30 @@ class ValueTool(object):
 
         return dict_obj
 
+    @staticmethod
+    def get_sorted_list_by_key(dict_obj: dict, reverse=False):
+        """
+        获取按key值排序后的key列表清单
+
+        @param {dict} dict_obj - 要处理的字典
+        @param {bool} reverse=False - 排序规则，reverse = True 降序 ， reverse = False 升序（默认）
+
+        @return {list} - 按key值排序后的key列表
+        """
+        return sorted(dict_obj, reverse=reverse)
+
+    @staticmethod
+    def get_sorted_list_by_value(dict_obj: dict, reverse=False):
+        """
+        获取按value值排序后的字典对象清单
+
+        @param {dict} dict_obj - 要处理的字典
+        @param {bool} reverse=False - 排序规则，reverse = True 降序 ， reverse = False 升序（默认）
+
+        @return {list} - 按key值排序后的对象清单[(key, value), (key, value), ...]
+        """
+        return sorted(dict_obj.items(), key=lambda kv: (kv[1], kv[0]), reverse=reverse)
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
