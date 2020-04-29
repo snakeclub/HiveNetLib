@@ -93,6 +93,7 @@ class __MemoryStringStream__(object):
     内存中的字符串流定义类
     用于将流内容输出到字符串中
     """
+
     def __init__(self, encoding=None):
         """
         构造函数
@@ -293,17 +294,17 @@ class PromptPlusCmdParaLexer(Lexer):
                     style_list[_last_index] = ('class:wrong_tip', _last_word)
                     info_list[_last_index][2] = 'wrong'
                 elif len(_last_word) > 2 and self._match_cmd_para_str(match_str=_last_word[1:], cmd=match_cmd,
-                                         match_type='long_para') == '':
+                                                                      match_type='long_para') == '':
                     # 不是短词，但也匹配不上长词
                     style_list[_last_index] = ('class:wrong_tip', _last_word)
                     info_list[_last_index][2] = 'wrong'
             elif current_info[6] and _last_word != '' and self._match_cmd_para_str(match_str=_last_word, cmd=match_cmd,
-                    match_type='word_para') != '':
+                                                                                   match_type='word_para') != '':
                 # 非name_para参数情况，匹配上词模式
                 style_list[_last_index] = ('class:word_para', _last_word)
                 info_list[_last_index][2] = 'word_para'
             elif not current_info[7] and self._match_cmd_para_str(match_str=_last_word, cmd=match_cmd,
-                    match_type='word_para') == '':
+                                                                  match_type='word_para') == '':
                 # 原来匹配到word_para但实际上最终不是
                 style_list[_last_index] = ('class:', _last_word)
                 info_list[_last_index][2] = ''
@@ -344,7 +345,7 @@ class PromptPlusCmdParaLexer(Lexer):
             # info_list.append([position + 1, position + 1, ''])
             # print('end %s: %s' % (deal_char, str(current_info)))
             return
-        elif deal_char == '=' and _last_word != '' and _last_word[0:1] != '-':
+        elif deal_char == '=' and _last_word != '' and (_last_word[0:1] != '-' and current_info[6]):
             # 遇到等号，则代表前面是name_para
             current_info[6] = False  # 标记后面一个词处于name_para模式
             if self._match_cmd_para_str(match_str=_last_word,
@@ -366,13 +367,13 @@ class PromptPlusCmdParaLexer(Lexer):
             if not current_info[2]:
                 _temp_para_str = cmd_para_str[current_info[3] + 1: position + 1]
                 if len(_temp_para_str) == 1 and self._match_cmd_para_str(match_str=_temp_para_str, cmd=match_cmd,
-                                            match_type='short_para') != '':
+                                                                         match_type='short_para') != '':
                     # 一个字符，按短参数匹配成功
                     style_list[_last_index] = ('class:short_para', '-' + _temp_para_str)
                     info_list[_last_index][1] = position + 1
                     info_list[_last_index][2] = 'short_para'
                 elif self._match_cmd_para_str_start(match_str=_temp_para_str, cmd=match_cmd,
-                        match_type='long_para') != '':
+                                                    match_type='long_para') != '':
                     # 匹配到长参数
                     style_list[_last_index] = ('class:long_para', '-' + _temp_para_str)
                     info_list[_last_index][1] = position + 1
@@ -391,7 +392,7 @@ class PromptPlusCmdParaLexer(Lexer):
             else:
                 # 正常字符增加，延续上一个的情况，判断是否word_para
                 if current_info[6] and self._match_cmd_para_str_start(match_str=_last_style_word + deal_char, cmd=match_cmd,
-                        match_type='word_para') != '':
+                                                                      match_type='word_para') != '':
                     style_list[_last_index] = ('class:word_para', _last_style_word + deal_char)
                     info_list[_last_index][2] = 'word_para'
                     current_info[7] = False
@@ -401,7 +402,8 @@ class PromptPlusCmdParaLexer(Lexer):
                     info_list[_last_index][2] = ''
                     current_info[7] = True
                 else:
-                    style_list[_last_index] = (style_list[_last_index][0], _last_style_word + deal_char)
+                    style_list[_last_index] = (style_list[_last_index][0],
+                                               _last_style_word + deal_char)
                     current_info[7] = True
                 info_list[_last_index][1] = position + 1
                 # print('end %s: %s' % (deal_char, str(current_info)))
@@ -436,7 +438,8 @@ class PromptPlusCmdParaLexer(Lexer):
             # 从缓存获取不到数据，将_cache_data设置为从0位置开始，cache的数据格式如下：
             # [current_position, last_current_info, last_style_list, last_info_list]
             if start_in_string:
-                _cache_data = [0, [False, 0, True, -1, False, 0, True, True], list(), list()]  # 从字符串开始行
+                _cache_data = [0, [False, 0, True, -1, False, 0, True, True], list(),
+                               list()]  # 从字符串开始行
             else:
                 _cache_data = [0, [True, 0, True, -1, False, 0, True, True], list(), list()]
         else:
@@ -1602,7 +1605,7 @@ class PromptPlus(object):
             'name_para': '#C19C00',  # key-value形式参数名
             'short_para': '#3B78FF',  # -char形式的短参数字符
             'long_para': '#FFFF00',  # -name形式的长参数字符
-            'word_para': '#C19C00', # word 形式的词字符
+            'word_para': '#C19C00',  # word 形式的词字符
             'wrong_tip': '#FF0000 bg:#303030',  # 错误的命令或参数名提示 #ff0000 bg:#ffffff reverse
 
             # prompt提示信息
@@ -1617,7 +1620,7 @@ class PromptPlus(object):
         self._init_prompt_instance()
 
     def prompt_print(self, *args, sep=' ', end='\n', line_head=False, level=logging.INFO,
-                    format_print=False, style=None, flush=False, force_logging=False, my_logger=None):
+                     format_print=False, style=None, flush=False, force_logging=False, my_logger=None):
         """
         使用内置打印函数进行输出打印
 
@@ -1673,7 +1676,8 @@ class PromptPlus(object):
             _run_result = CResult(
                 code='29999', error=str(sys.exc_info()), trace_str=traceback.format_exc()
             )
-            self.prompt_print('prompt_once run exception (%s):\r\n%s' % (_run_result.error, _run_result.trace_str))
+            self.prompt_print('prompt_once run exception (%s):\r\n%s' %
+                              (_run_result.error, _run_result.trace_str))
 
         _real_result = self._deal_run_result(_run_result)
 
@@ -1728,7 +1732,8 @@ class PromptPlus(object):
             _run_result = CResult(
                 code='29999', error=str(sys.exc_info()), trace_str=traceback.format_exc()
             )
-            self.prompt_print('prompt_once run exception (%s):\r\n%s' % (_run_result.error, _run_result.trace_str))
+            self.prompt_print('prompt_once run exception (%s):\r\n%s' %
+                              (_run_result.error, _run_result.trace_str))
 
         _real_result = self._deal_run_result(_run_result)
 
