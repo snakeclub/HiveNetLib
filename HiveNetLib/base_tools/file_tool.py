@@ -179,7 +179,7 @@ class FileTool(object):
         @returns {string} - 目录名
 
         """
-        _path = os.path.split(os.path.realpath(path))[0].rstrip('\\/').replace('\\', '/')
+        _path = os.path.realpath(path).rstrip('\\/').replace('\\', '/')
         _index = _path.rfind('/')
         if _index >= 0:
             return _path[_index + 1:]
