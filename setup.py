@@ -47,7 +47,7 @@ DEPENDENCIES = [
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.1'
+VERSION = '0.8.2'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

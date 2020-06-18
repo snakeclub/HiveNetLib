@@ -493,6 +493,7 @@ class RunTool(object):
                 'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
                 'has_default': True/False,  # 是否有默认值
                 'default': default_value  # 如果有默认值，值为多少
+                'annotation': annotation_type  # 参数声明类型，例如str
             }
             其中type的说明如下：
             POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
@@ -517,14 +518,16 @@ class RunTool(object):
                         'name': k,  # 参数名
                         'type': str(v.kind),  # 参数类型
                         'has_default': False,  # 是否有默认值
-                        'default': None  # 如果有默认值，值为多少
+                        'default': None,  # 如果有默认值，值为多少
+                        'annotation': v.annotation  # 参数声明类型
                     })
                 else:
                     _func_args.append({
                         'name': k,  # 参数名
                         'type': str(v.kind),  # 参数类型
                         'has_default': True,  # 是否有默认值
-                        'default': v.default  # 如果有默认值，值为多少
+                        'default': v.default,  # 如果有默认值，值为多少
+                        'annotation': v.annotation  # 参数声明类型
                     })
             else:
                 # kind为 VAR_POSITIONAL以及VAR_KEYWORD的情况
@@ -532,7 +535,8 @@ class RunTool(object):
                     'name': k,  # 参数名
                     'type': str(v.kind),  # 参数类型
                     'has_default': False,  # 是否有默认值
-                    'default': None  # 如果有默认值，值为多少
+                    'default': None,  # 如果有默认值，值为多少
+                    'annotation': v.annotation  # 参数声明类型
                 })
         # 返回调用参数定义
         return _func_args
