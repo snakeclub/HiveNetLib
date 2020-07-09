@@ -22,8 +22,13 @@ import urllib
 import copy
 import requests
 import re
+import json
 import time
 import datetime
+import collections
+import logging
+import traceback
+from io import BytesIO
 from enum import Enum
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -744,6 +749,154 @@ class NetTool(object):
 
             # 修改文件名
             os.rename(_temp_file, _filename)
+
+    #############################
+    # Restful Api相关
+    #############################
+    @staticmethod
+    def restful_api_call(url: str, method: str = 'get', back_type: str = 'json', encoding: str = None,
+                         block_size: int = 1024, save_file: str = None,
+                         raise_exception: bool = False, success_code: list = [200],
+                         logger=None, log_level: int = logging.DEBUG, **kwargs):
+        """
+        调用Restful Api
+
+        @param {str} url - 要调用的url地址
+        @param {str} method='get' - Http方法
+        @param {str} back_type='json' - 返回信息的类型
+            json - json对象(字典或列表)
+            text - 文本
+            file - 存入指定文件
+            bytes - 字节数组
+        @param {str} encoding=None - 编码，如果不传则使用返回http头的字符集
+        @param {int} block_size=1024 - 如果指定stream时，每次获取的数据块大小
+        @param {str} save_file=None - back_type为file时指定要存储的文件
+        @param {bool} raise_exception=False - 当出现异常时是否抛出异常
+        @param {list} success_code=[200] - 识别返回的status_code为成功的清单
+        @param {Logger} logger=None - 日志对象
+        @param {int} log_level=logging.DEBUG - 日志级别
+        @param {kwargs} - 扩展参数，参考requests.request的参数，主要参数如下：
+            headers {dict}  - 要带上的http协议头
+            params {dict} - 请求url的参数，拼接到url中，例如"https://www.baidu.com/s?wd=Python"
+            json {object} - 报文体内容，可以转换为json字符串的python对象，例如dict、list等
+            data {object} - 报文体内容，可以是字典，元组列表，字节或文件对象
+                注：json和data可选其中一种方式送入报文体中
+            timeout {float} - 超时时间(秒)
+            stream {bool} - 指示返回数据是否以流的方式处理
+            verify {bool} - ssl证书验证是否跳过，可设置为False跳过
+            allow_redirects {bool} - 是否允许重定向
+            proxies {dict} - 代理服务器，例如：
+                proxies={
+                    "http":"http://1.192.242.107:9999"
+                    # "https":"https://192.168.0.1:80"
+                }
+
+        @returns {dict} - 返回请求结果字典
+            {
+                'is_success': bool_是否成功,
+                'status_code': int_响应状态码,
+                'headers': dict_响应http头,
+                'back_object': object_返回对象，对应调用参数可以为dict、str、bytes、文件名,
+                'exception': 如果出现异常，异常对象,
+                'encoding': 字符集
+            }
+        """
+        # 开始先记录日志
+        if logger is not None:
+            _logger_error = False
+            _start_time = datetime.datetime.now()
+            _log_str = '[INF-SEND]%s %s' % (method, url)
+            if 'params' in kwargs.keys():
+                _log_str = '%s %s' % (_log_str, str(kwargs['params']))
+            if 'headers' in kwargs.keys():
+                _log_str = '%s\n%s' % (_log_str, str(kwargs['headers']))
+            if 'json' in kwargs.keys():
+                _log_str = '%s\n%s' % (_log_str, str(kwargs['json']))
+            if 'data' in kwargs.keys():
+                if type(kwargs['data']) == bytes:
+                    _log_str = '%s\n%s' % (_log_str, ' '.join(
+                        [hex(int(i)) for i in kwargs['data']]))
+                else:
+                    _log_str = '%s\n%s' % (_log_str, str(kwargs['data']))
+
+            logger.log(log_level, _log_str)
+
+        # 开始处理
+        _back = {
+            'is_success': True,
+            'status_code': -1,
+            'headers': None,
+            'back_object': None,
+            'exception': None,
+            'encoding': None
+        }
+        try:
+            _resp = requests.request(method, url, **kwargs)
+            _back['status_code'] = _resp.status_code
+            _back['is_success'] = (_resp.status_code in success_code)
+            _back['headers'] = _resp.headers
+            if _back['is_success']:
+                _encoding = _resp.encoding if encoding is None else encoding
+                _stream_io = None
+                _bytes = []
+                if back_type == 'file':
+                    _stream_io = open(save_file, 'wb')
+                    _back['back_object'] = save_file
+                else:
+                    _stream_io = BytesIO()
+
+                if kwargs.get('stream', False):
+                    # 流模式，通过IO获取内容，并保存
+                    try:
+                        for _chunk in _resp.iter_content(chunk_size=block_size):
+                            if _chunk:
+                                _stream_io.write(_chunk)
+                                _stream_io.flush()
+                                time.sleep(0.001)
+
+                        if back_type != 'file':
+                            # 非文件模式，转换为bytes数组
+                            _bytes = _stream_io.getvalue()
+                    finally:
+                        _stream_io.close()
+                else:
+                    _bytes = _resp.content
+
+                # 处理非file的存储
+                if back_type == 'json':
+                    _back['back_object'] = json.loads(_bytes, encoding=_encoding)
+                elif back_type == 'text':
+                    _back['back_object'] = str(_bytes, encoding=_encoding)
+                elif back_type != 'file':
+                    # 直接返回字节数组
+                    _back['back_object'] = _bytes
+        except:
+            if logger is not None:
+                _logger_error = True
+                _use = str((datetime.datetime.now() - _start_time).total_seconds())
+                _log_str = '[INF-SEND][USE:%ss][EX:%s]%s %s\n%s' % (
+                    _use, str(sys.exc_info()[0]), method, url, traceback.format_exc()
+                )
+                logger.log(logging.ERROR, _log_str)
+
+            if raise_exception:
+                # 抛出异常
+                raise
+            else:
+                _back['is_success'] = False
+                _back['exception'] = sys.exc_info()[1]
+
+        if logger is not None and not _logger_error:
+            _use = str((datetime.datetime.now() - _start_time).total_seconds())
+            _log_str = '[INF-BACK][USE:%ss]%s %s %s\n%s\n%s' % (
+                _use, method, url, str(_back['status_code']), str(_back['headers']),
+                str(_back['back_object']) if type(_back['back_object']) != bytes else ' '.join(
+                    [hex(int(i)) for i in _back['back_object']])
+            )
+            logger.log(log_level, _log_str)
+
+        # 返回结果
+        return _back
 
 
 if __name__ == '__main__':

@@ -881,6 +881,10 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
+
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
+
         self.log(DEBUG, msg=msg, *args, **kwargs)
 
     def warning(self, msg, *args, **kwargs):
@@ -908,6 +912,9 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
+
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
 
         self.log(WARNING, msg=msg, *args, **kwargs)
 
@@ -938,6 +945,9 @@ class Logger(object):
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
 
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
+
         self.log(ERROR, msg=msg, *args, **kwargs)
 
     def critical(self, msg, *args, **kwargs):
@@ -967,6 +977,9 @@ class Logger(object):
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
 
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
+
         self.log(CRITICAL, msg=msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
@@ -995,6 +1008,9 @@ class Logger(object):
             kwargs['extra'] = dict()
         if 'callFunLevel' not in kwargs['extra'].keys():
             kwargs['extra']['callFunLevel'] = self.__call_fun_level
+
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
 
         self.log(INFO, msg=msg, *args, **kwargs)
 
