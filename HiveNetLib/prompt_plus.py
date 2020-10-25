@@ -319,7 +319,7 @@ class PromptPlusCmdParaLexer(Lexer):
             else:
                 # 原来已经有词，新开一个
                 style_list.append(('class:', ' '))
-                info_list.append([position, position+1, ''])
+                info_list.append([position, position + 1, ''])
             # 初始化下一个词的处理
             style_list.append(('class:', ''))
             info_list.append([position + 1, position + 1, ''])
@@ -334,7 +334,7 @@ class PromptPlusCmdParaLexer(Lexer):
             current_info[1] = position
             # print('end %s: %s' % (deal_char, str(current_info)))
             return
-        elif deal_char == '-' and (position == 0 or cmd_para_str[position-1:position] == ' '):
+        elif deal_char == '-' and (position == 0 or cmd_para_str[position - 1:position] == ' '):
             # 短参数匹配，且是在词的开始位置
             style_list[_last_index] = ('class:short_para', '-')
             info_list[_last_index][1] = position + 1
@@ -450,7 +450,7 @@ class PromptPlusCmdParaLexer(Lexer):
         _str_len = len(line)
         while _position < _str_len:
             self._analyse_cmd_para_stream_dealer(
-                deal_char=line[_position: _position+1],
+                deal_char=line[_position: _position + 1],
                 position=_position,
                 cmd_para_str=line,
                 match_cmd=match_cmd,
@@ -470,9 +470,9 @@ class PromptPlusCmdParaLexer(Lexer):
         # 处理返回值
         _para_style = copy.deepcopy(_cache_data[2])
         _style_len = len(_para_style)
-        if _style_len > 0 and _para_style[_style_len-1][1] == '':
+        if _style_len > 0 and _para_style[_style_len - 1][1] == '':
             # 最后一个没有具体数据，删除
-            del _para_style[_style_len-1]
+            del _para_style[_style_len - 1]
         return _para_style
 
     def _get_lexer_tokens(self, lines=None):
@@ -735,8 +735,8 @@ class PromptPlusCompleter(Completer):
         _x, _y = document.cursor_position_row, document.cursor_position_col - \
             len(_word_before_cursor)
         _line = document.lines[_x]
-        while _y > 0 and _line[_y-1:_y] != ' ':
-            _word_before_cursor = _line[_y-1:_y] + _word_before_cursor
+        while _y > 0 and _line[_y - 1:_y] != ' ':
+            _word_before_cursor = _line[_y - 1:_y] + _word_before_cursor
             _y -= 1
 
         return _word_before_cursor
@@ -772,21 +772,21 @@ class PromptPlusCompleter(Completer):
             # key - value形式的参数
             if cmd_para[_cmd]['name_para'] is not None:
                 for _name_para_key in cmd_para[_cmd]['name_para'].keys():
-                    self._para_word[_cmd].append(_name_para_key+'=')
+                    self._para_word[_cmd].append(_name_para_key + '=')
                     if cmd_para[_cmd]['name_para'][_name_para_key] is not None:
                         for _name_para_value in cmd_para[_cmd]['name_para'][_name_para_key]:
                             self._para_word[_cmd].append(_name_para_key + '=' + _name_para_value)
             # 长短名
             if cmd_para[_cmd]['long_para'] is not None:
                 for _long_para_key in cmd_para[_cmd]['long_para'].keys():
-                    self._para_word[_cmd].append('-'+_long_para_key)
+                    self._para_word[_cmd].append('-' + _long_para_key)
                     if cmd_para[_cmd]['long_para'][_long_para_key] is not None:
                         for _long_para_value in cmd_para[_cmd]['long_para'][_long_para_key]:
                             self._para_word[_cmd].append(
                                 '-' + _long_para_key + ' ' + _long_para_value)
             if cmd_para[_cmd]['short_para'] is not None:
                 for _short_para_key in cmd_para[_cmd]['short_para'].keys():
-                    self._para_word[_cmd].append('-'+_short_para_key)
+                    self._para_word[_cmd].append('-' + _short_para_key)
                     if cmd_para[_cmd]['short_para'][_short_para_key] is not None:
                         for _short_para_value in cmd_para[_cmd]['short_para'][_short_para_key]:
                             self._para_word[_cmd].append(
@@ -1104,7 +1104,7 @@ class PromptPlus(object):
                 # 遇到空格且不在引号内，是参数名或参数值的结束
                 if para_list[_last_index][1] == '':
                     # 是参数名的结束，需要判断再下一个字符是否'-'
-                    if position+1 < len(str_obj) and str_obj[position+1: position+2] != '-':
+                    if position + 1 < len(str_obj) and str_obj[position + 1: position + 2] != '-':
                         # 后面不是新的参数，并且也没有到结尾，属于参数值，更新参数关联字符即可
                         para_list[_last_index][2] = ' '
                     else:
@@ -1155,7 +1155,7 @@ class PromptPlus(object):
         cls._analyse_para_stream_dealer(deal_obj=None, position=0,
                                         str_obj=cmd_para_str, para_list=_para_list)
         _len = len(_para_list)
-        if _len > 0 and not _para_list[_len-1][6]:
+        if _len > 0 and not _para_list[_len - 1][6]:
             # 没有结束，修正数据
             _para_list[_len - 1][6] = True
             _para_list[_len - 1][4] = _len
