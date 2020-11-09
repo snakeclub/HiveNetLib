@@ -28,8 +28,8 @@ pipeline模块提供一个易于使用的管道执行框架，支持快速实现
   - start_time {str} 开始时间，格式为'%Y-%m-%d %H:%M:%S.%f'
   - total {int} 节点运行进度总任务数
   - done {int} 节点运行进度当前完成数
-
 - checkpoint : 管道检查点，可以通过检查点保存当前管道的中间状态，并在后续加载重新执行
+- step_by_step ：管道逐步执行，可以在管道执行（start）中通过 is_step_by_step 参数指定管道逐步执行，每执行一步就将管道置为 pause 状态，通过调用 resume 执行下一步
 
 
 

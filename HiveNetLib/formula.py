@@ -237,7 +237,7 @@ class FormulaTool(object):
         _match_info.match_pos = match_pos
         _match_info.end_char = ''
         _match_info.end_pos = -1
-        compare_stack[match_str][front_char+str(start_pos)] = _match_info
+        compare_stack[match_str][front_char + str(start_pos)] = _match_info
 
     @staticmethod
     def __del_compare_stack(compare_stack, match_str, start_pos, front_char):
@@ -251,7 +251,7 @@ class FormulaTool(object):
 
         """
         if match_str in compare_stack.keys():
-            _key = front_char+str(start_pos)
+            _key = front_char + str(start_pos)
             if _key in compare_stack[match_str].keys():
                 del compare_stack[match_str][_key]
 
@@ -1285,7 +1285,7 @@ class FormulaTool(object):
         以字符串替换方式解析并执行公式计算
 
         @param {string} formula_str - 要处理的公式
-        @param {**kwargs} kwargs - 传入的公式处理参数集，动态key-value方式参数
+        @param {dict} kwargs - 传入的公式处理参数集，动态key-value方式参数
 
         @returns {StructFormula} - 解析出来的公式对象，并完成所有公式对象（含子对象）的formula_value计算
 

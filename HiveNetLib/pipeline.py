@@ -340,6 +340,7 @@ class Pipeline(object):
         #       job_msg {str} - 当前任务执行信息
         #   output {object} - 最终输出结果
         #   thread_running {bool} - 标识线程是否还在运行
+        #   is_step_by_step {bool} - 是否采取逐步执行的方式处理
         self._cache = OrderedDict()
 
         # 管道线程锁对象，主要目的是要将线程锁对象从缓存中剥离出来，保证缓存的可序列化
@@ -427,13 +428,14 @@ class Pipeline(object):
     #############################
     # 处理函数
     #############################
-    def start(self, input_data=None, context: dict = None, run_id: str = None):
+    def start(self, input_data=None, context: dict = None, run_id: str = None, is_step_by_step: bool = False):
         """
         执行管道(从第一个节点开始执行)
 
         @param {object} input_data=None - 初始输入数据值
         @param {dict} context=None - 初始上下文
         @param {str} run_id=None - 指定的管道运行ID
+        @param {bool} is_step_by_step=False - 是否逐步执行，即执行一步就pause，通过resume执行下一步
 
         @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回 run_id
 
@@ -454,7 +456,8 @@ class Pipeline(object):
                 'current_input': None,
                 'current_process_info': dict(),
                 'output': None,
-                'thread_running': False
+                'thread_running': False,
+                'is_step_by_step': is_step_by_step,
             }
             # 加入到清单
             self._cache[_run_id] = _run_cache
@@ -522,12 +525,13 @@ class Pipeline(object):
         # 记录日志
         self.log_info('Pipeline [%s] pause!' % self.name)
 
-    def resume(self, run_id: str = None):
+    def resume(self, run_id: str = None, run_to_end: bool = False):
         """
         从中断点重新执行
 
         @param {str} run_id=None - 要处理的管道运行ID
             注：如果不传入则获取最后执行的管道ID
+        @param {bool} run_to_end=False - 当设置了step_by_step模式时，可以通过该参数指定执行到结尾
 
         @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回 run_id
         """
@@ -546,6 +550,10 @@ class Pipeline(object):
 
         # 修改状态为运行中
         self._set_status('running', _run_id)
+
+        # 将step_by_step模式关闭
+        if run_to_end:
+            _run_cache['is_step_by_step'] = False
 
         # 恢复处理
         if self.is_asyn:
@@ -943,6 +951,7 @@ class Pipeline(object):
             # 更新临时变量
             _run_cache['context']['node_status'] = status
             _run_cache['current_input'] = output
+            _run_cache['output'] = output  # 中间步骤也放到output项中，供暂停时查看
 
             # 获取下一个节点
             if _router_name == '':
@@ -957,7 +966,6 @@ class Pipeline(object):
 
             # 判断是否完结
             if _next_id is None:
-                _run_cache['output'] = output
                 self._set_status('success', _run_id)
 
         # 异步情况通知结果
@@ -1006,14 +1014,20 @@ class Pipeline(object):
                 if _next_id is None:
                     # 已经是最后一个节点
                     break
-                elif _next_id == '':
-                    # 异步模式，直接退出线程处理
-                    break
                 else:
-                    # 设置上下文，执行下一个节点
-                    _run_cache['context']['node_id'] = _next_id
-                    _run_cache['context']['node_status'] = 'I'
-                    time.sleep(0.0001)
+                    # 判断是否要逐步执行
+                    if _run_cache['is_step_by_step']:
+                        # 执行一步就设置状态为暂停
+                        self._set_status('pause', _run_id)
+
+                    if _next_id == '':
+                        # 异步模式，直接退出线程处理
+                        break
+                    else:
+                        # 设置上下文，执行下一个节点
+                        _run_cache['context']['node_id'] = _next_id
+                        _run_cache['context']['node_status'] = 'I'
+                        time.sleep(0.0001)
         except:
             # 如果在线程中出了异常，结束掉执行
             _run_cache['context']['node_status'] = 'E'

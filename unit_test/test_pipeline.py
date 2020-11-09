@@ -273,6 +273,27 @@ class Test(unittest.TestCase):
             '%s: %s' % (_tips, self.pl_sync_asyn.context(_run_id))
         )
 
+        _tips = '测试同步管道 - 逐步执行'
+        _input_data = 20
+        print(_tips)
+        _run_id, _status, _output = self.pl_sync.start(input_data=_input_data, is_step_by_step=True)
+        self.assertEqual(_status, 'pause', '%s-状态应为pause: %s' %
+                         (_tips, self.pl_sync.context(_run_id)))
+        self.assertEqual(_output, _input_data - 10, '%s-第1步执行结果错误: %s' %
+                         (_tips, self.pl_sync.context(_run_id)))
+        _time = 0
+        while _status == 'pause':
+            _run_id, _status, _output = self.pl_sync.resume(_run_id)
+            _time += 1
+
+        self.assertEqual(_time, 4, '%s-暂停步数错误: %s' %
+                         (_tips, self.pl_sync.context(_run_id)))
+
+        self.assertEqual(
+            _output, (50 / (_input_data - 10) + 100) * 2 + 3,
+            '%s: %s' % (_tips, self.pl_sync.context(_run_id))
+        )
+
     def test_pl_asyn(self):
         _tips = '测试异步管道 - 正常'
         _input_data = 30
