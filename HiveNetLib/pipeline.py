@@ -98,21 +98,6 @@ class PipelineProcesser(object):
 
         @param {object} input_data - 处理器输入数据值，除第一个处理器外，该信息为上一个处理器的输出值
         @param {dict} context - 传递上下文，该字典信息将在整个管道处理过程中一直向下传递，可以在处理器中改变该上下文信息
-            上下文固有的信息包括：
-                trace_list {list} - 执行追踪列表，按顺序放入执行信息，每个执行信息包括
-                    node_id {str} 节点配置id
-                    node_name {str} 节点配置名
-                    processor_name {str} 处理器名
-                    start_time {str} 开始时间，格式为'%Y-%m-%d %H:%M:%S.%f'
-                    end_time {str} 结束时间，格式为'%Y-%m-%d %H:%M:%S.%f'
-                    status {str} 执行状态，'S' - 成功，'E' - 出现异常
-                    status_msg {str} 状态描述，当异常时送入异常信息
-                    router_name : 路由名(直线路由可以不设置路由器)
-                node_id {str} 当前节点配置id
-                node_status {str} I - 初始化，R - 正在执行, E - 执行失败， S-执行成功
-                start_time {str} 开始时间，格式为'%Y-%m-%d %H:%M:%S.%f'
-                total {int} 节点运行进度总任务数
-                done {int} 节点运行进度当前完成数
         @param {Pipeline} pipeline_obj - 管道对象，作用如下：
             1、更新执行进度
             2、输出执行日志
@@ -159,6 +144,78 @@ class PipelineRouter(object):
         @returns {str} - 下一节点的配置id，如果是最后的节点，返回None
         """
         raise NotImplementedError()
+
+
+class SubPipeLineProcesser(object):
+    """
+    子管道处理器
+    """
+    @classmethod
+    def initialize(cls):
+        """
+        初始化处理类，仅在装载的时候执行一次初始化动作
+        """
+        pass
+
+    @classmethod
+    def processer_name(cls) -> str:
+        """
+        处理器名称，唯一标识处理器
+
+        @returns {str} - 当前处理器名称
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def is_asyn(cls) -> bool:
+        """
+        是否异步处理
+
+        @returns {bool} - 标识处理器是否异步处理，返回Fasle代表管道要等待处理器执行完成
+        """
+        return False
+
+    @classmethod
+    def get_sub_pipeline(cls, input_data, context: dict, pipeline_obj, run_id: str, sub_pipeline_para: dict):
+        """
+        获取子管道对象的函数
+
+        @param {object} input_data - 处理器输入数据值，除第一个处理器外，该信息为上一个处理器的输出值
+        @param {dict} context - 传递上下文，该字典信息将在整个管道处理过程中一直向下传递，可以在处理器中改变该上下文信息
+        @param {Pipeline} pipeline_obj - 发起的管道对象
+        @param {str} run_id - 当前管道的运行id
+        @param {dict} sub_pipeline_para - 获取子管道对象的参数字典
+
+        @returns {Pipeline} - 返回获取到的子管道对象（注意该子管道对象的使用模式必须与is_asyn一致）
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def execute(cls, input_data, context: dict, pipeline_obj, run_id: str, sub_pipeline_obj,
+                is_step_by_step: bool = False,
+                is_resume: bool = False, run_to_end: bool = False):
+        """
+        执行处理
+
+        @param {object} input_data - 处理器输入数据值，除第一个处理器外，该信息为上一个处理器的输出值
+        @param {dict} context - 传递上下文，该字典信息将在整个管道处理过程中一直向下传递，可以在处理器中改变该上下文信息
+        @param {Pipeline} pipeline_obj - 发起的管道对象
+        @param {str} run_id - 当前管道的运行id
+        @param {Pipeline} sub_pipeline_obj - 要执行的子管道对象
+        @param {bool} is_step_by_step=False - 是否逐步执行，即执行一步就pause，通过resume执行下一步
+        @param {bool} is_resume=False - 是否恢复执行的模式
+        @param {bool} run_to_end=False - 当设置了step_by_step模式时，可以通过该参数指定执行到结尾
+
+        @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回的status为R
+        """
+        if is_resume:
+            # 恢复模式
+            return sub_pipeline_obj.resume(run_id=run_id, run_to_end=run_to_end)
+        else:
+            # 重新启动模式
+            return sub_pipeline_obj.start(
+                input_data=input_data, context=context, run_id=run_id, is_step_by_step=is_step_by_step
+            )
 
 
 class Pipeline(object):
@@ -277,6 +334,8 @@ class Pipeline(object):
                 "1": {
                     "name": "节点配置名",
                     "processor": "处理器名",
+                    "is_sub_pipeline": False,  # 该子节点处理器是否子管道处理器
+                    "sub_pipeline_para": {},  # 生成子管道的参数，由处理器具体实现来定义
                     "context": {},  # 要更新的上下文字典，执行处理器前将更新该上下文
                     "router": "",  # 路由器名，执行完将执行该路由器找下一个执行节点，置空或不设置值的情况直接按顺序找下一个节点
                     "router_para": {}, # 路由器的传入参数, 作为**kwargs传入路由器，置空或不设置值的情况传入{}
@@ -290,26 +349,29 @@ class Pipeline(object):
             }
         @param {bool} is_asyn=False - 是否异步返回结果
         @param {function} asyn_notify_fun=None - 异步结果通知函数，格式如下：
-            fun(name, run_id, status, context, output)
+            fun(name, run_id, status, context, output, pipeline)
                 name {str} - 管道名称
                 run_id {str} - 运行id
                 status {str} - 管道状态
                 context {dict} - 当前上下文
                 output {object} - 管道输出数据
+                pipeline {Pipeline} - 管道对象
         @param {function} running_notify_fun=None = 节点运行通知函数，格式如下：
-            fun(name, run_id, node_id, node_name)
+            fun(name, run_id, node_id, node_name, pipeline)
                 name {str} - 管道名称
                 run_id {str} - 运行id
                 node_id {str} - 运行节点id
                 node_name {str} - 运行节点配置名
+                pipeline {Pipeline} - 管道对象
         @param {function} end_running_notify_fun=None = 节点运行完成通知函数，格式如下：
-            fun(name, run_id, node_id, node_name, status, status_msg)
+            fun(name, run_id, node_id, node_name, status, status_msg, pipeline)
                 name {str} - 管道名称
                 run_id {str} - 运行id
                 node_id {str} - 运行节点id
                 node_name {str} - 运行节点配置名
                 status {str} 执行状态，'S' - 成功，'E' - 出现异常
                 status_msg {str} 状态描述，当异常时送入异常信息
+                pipeline {Pipeline} - 管道对象
         @param {Simple_log.Logger} logger=None - 日志对象
         """
         self.logger = logger
@@ -331,7 +393,7 @@ class Pipeline(object):
 
         # 管道状态及临时变量缓存字典（采取有序字典）, key为run_id, value为字典:
         #   status_lock {Lock} - 异步运行的线程锁，threading.Lock()
-        #   status {str} - 执行状态，默认为 'init'
+        #   status {str} - 执行状态，默认为 'I'
         #   context {dict} - 上下文对象
         #   current_input {object} - 当前执行环节输入数据
         #   current_process_info {dict} - 当前节点的运行状态
@@ -341,11 +403,32 @@ class Pipeline(object):
         #   output {object} - 最终输出结果
         #   thread_running {bool} - 标识线程是否还在运行
         #   is_step_by_step {bool} - 是否采取逐步执行的方式处理
+        #   running_sub_node_id {str} - 正在执行的子管道节点id
+        #   is_resume {bool} - 是否通过resume恢复执行
+        #   run_to_end {bool} - resume的run_to_end参数值
+        #   trace_list {list} - 执行追踪列表，按顺序放入执行信息，每个执行信息包括
+        #       node_id {str} 节点配置id
+        #       node_name {str} 节点配置名
+        #       processor_name {str} 处理器名
+        #       start_time {str} 开始时间，格式为'%Y-%m-%d %H:%M:%S.%f'
+        #       end_time {str} 结束时间，格式为'%Y-%m-%d %H:%M:%S.%f'
+        #       status {str} 执行状态，'S' - 成功，'E' - 出现异常
+        #       status_msg {str} 状态描述，当异常时送入异常信息
+        #       router_name : 路由名(直线路由可以不设置路由器)
+        #       is_sub_pipeline {bool} 是否子管道执行
+        #       sub_trace_list {list} 子管道执行的trace_list
+        #   node_id {str} 当前节点配置id
+        #   node_status {str} I-初始化，R-正在执行, E-执行失败， S-执行成功, P-子管道暂停
+        #   node_status_msg {str} - 当前节点执行状态信息
+        #   start_time {str} 当前节点执行开始时间，格式为'%Y-%m-%d %H:%M:%S.%f'
         self._cache = OrderedDict()
 
         # 管道线程锁对象，主要目的是要将线程锁对象从缓存中剥离出来，保证缓存的可序列化
         # key为run_id, value为异步运行的线程锁，threading.Lock()
         self._status_locks = dict()
+
+        # 缓存的正在执行的子管道对象, key为run_id，value为子管道对象
+        self.running_sub_pipeline = dict()
 
         # 最后一次执行的管道运行ID
         self._last_run_id = ''
@@ -361,7 +444,7 @@ class Pipeline(object):
         @param {str} run_id=None - 要获取的管道运行ID
             注：如果不传入则获取最后执行的管道ID
 
-        @returns {str} - 当前状态，init-初始化，pause-暂停，running-运行中，success-成功结束，exception-异常结束
+        @returns {str} - 当前状态，I-初始化，P-暂停，R-运行中，S-成功结束，E-异常结束
         """
         _run_id, _run_cache = self._get_run_cache(run_id)
         if _run_cache is None:
@@ -388,7 +471,7 @@ class Pipeline(object):
 
         self._status_locks[_run_id].acquire()
         try:
-            if _run_cache['status'] == 'success':
+            if _run_cache['status'] == 'S':
                 return _run_cache['output']
             else:
                 return None
@@ -423,7 +506,53 @@ class Pipeline(object):
         if _run_cache is None:
             raise RuntimeError("Run id not exists!")
 
-        return _run_cache['context']['trace_list']
+        return _run_cache['trace_list']
+
+    def current_node_id(self, run_id: str = None) -> str:
+        """
+        获取管道运行的当前节点ID
+
+        @param {str} run_id=None - 要获取的管道运行ID
+            注：如果不传入则获取最后执行的管道ID
+
+        @returns {str} - 当前运行的节点id
+        """
+        _run_id, _run_cache = self._get_run_cache(run_id)
+        if _run_cache is None:
+            raise RuntimeError("Run id not exists!")
+
+        return _run_cache.get('node_id', '')
+
+    def current_node_status(self, run_id: str = None) -> str:
+        """
+        获取管道运行的当前节点状态
+
+        @param {str} run_id=None - 要获取的管道运行ID
+            注：如果不传入则获取最后执行的管道ID
+
+        @returns {str} - 当前节点运行状态，I-初始化，R-正在执行, E-执行失败， S-执行成功, P-子管道暂停
+        """
+        _run_id, _run_cache = self._get_run_cache(run_id)
+        if _run_cache is None:
+            raise RuntimeError("Run id not exists!")
+
+        return _run_cache.get('node_status', '')
+
+    def current_node_status_msg(self, run_id: str = None) -> str:
+        """
+        获取管道运行的当前节点状态信息
+        异常时可以获取异常报错信息
+
+        @param {str} run_id=None - 要获取的管道运行ID
+            注：如果不传入则获取最后执行的管道ID
+
+        @returns {str} - 执行状态信息
+        """
+        _run_id, _run_cache = self._get_run_cache(run_id)
+        if _run_cache is None:
+            raise RuntimeError("Run id not exists!")
+
+        return _run_cache.get('node_status_msg', '')
 
     #############################
     # 处理函数
@@ -437,7 +566,7 @@ class Pipeline(object):
         @param {str} run_id=None - 指定的管道运行ID
         @param {bool} is_step_by_step=False - 是否逐步执行，即执行一步就pause，通过resume执行下一步
 
-        @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回 run_id
+        @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回status为R
 
         @throws {RuntimeError} - 当状态为running、pause时抛出异常
         """
@@ -449,15 +578,14 @@ class Pipeline(object):
         _temp_id, _run_cache = self._get_run_cache(_run_id)
         if _run_cache is None:
             _run_cache = {
-                'status': 'init',
-                'context': {
-                    'trace_list': list()
-                },
+                'status': 'I',
+                'context': {},
                 'current_input': None,
                 'current_process_info': dict(),
                 'output': None,
                 'thread_running': False,
                 'is_step_by_step': is_step_by_step,
+                'trace_list': list()
             }
             # 加入到清单
             self._cache[_run_id] = _run_cache
@@ -467,7 +595,7 @@ class Pipeline(object):
         # 初始化变量
         self._status_locks[_run_id].acquire()
         try:
-            if _run_cache['status'] in ('running', 'pause'):
+            if _run_cache['status'] in ('R', 'P'):
                 _msg = 'Pipeline [%s] is running!' % self.name
                 self.log_error('Error: ' % _msg)
                 raise RuntimeError(_msg)
@@ -479,18 +607,21 @@ class Pipeline(object):
                 _run_cache['context'] = dict()
             else:
                 _run_cache['context'] = copy.deepcopy(context)
-            _run_cache['context']['node_id'] = "1"
-            _run_cache['context']['node_status'] = 'I'
-            _run_cache['context']['trace_list'] = list()
+            _run_cache['node_id'] = "1"
+            _run_cache['node_status'] = 'I'
+            _run_cache['trace_list'] = list()
             _run_cache['output'] = None
-            _run_cache['status'] = 'running'
+            _run_cache['status'] = 'R'
+            _run_cache['running_sub_node_id'] = ''
+            _run_cache['is_resume'] = False
+            _run_cache['run_to_end'] = False
         finally:
             self._status_locks[_run_id].release()
 
         if self.is_asyn:
             # 异步执行，启动任务执行线程
             self._start_running_thread(_run_id)
-            return _run_id
+            return _run_id, 'R', None
         else:
             # 同步执行, 直接执行线程函数就好
             self._running_thread_fun(_run_id)
@@ -511,13 +642,20 @@ class Pipeline(object):
         if _run_cache is None:
             raise RuntimeError("Run id not exists!")
 
-        if _run_cache['status'] != 'running':
+        if _run_cache['status'] != 'R':
             _msg = 'Pipeline [%s] not running!' % self.name
             self.log_error('Error: ' % _msg)
             raise RuntimeError(_msg)
 
-        # 只要设置管道状态为 pause 即可
-        self._set_status('pause', run_id=_run_id)
+        # 只要设置管道状态为 P 即可
+        self._set_status('P', run_id=_run_id)
+        if self.pipeline[_run_cache['node_id']].get('is_sub_pipeline', False):
+            # 正在执行子管道, 对子管道也添加暂停的指令
+            try:
+                self.running_sub_pipeline[_run_id].pause(run_id=_run_id)
+            except:
+                pass
+
         while _run_cache['thread_running']:
             # 等待运行线程结束
             time.sleep(0.01)
@@ -533,23 +671,27 @@ class Pipeline(object):
             注：如果不传入则获取最后执行的管道ID
         @param {bool} run_to_end=False - 当设置了step_by_step模式时，可以通过该参数指定执行到结尾
 
-        @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回 run_id
+        @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回的status为R
         """
         _run_id, _run_cache = self._get_run_cache(run_id)
         if _run_cache is None:
             raise RuntimeError("Run id not exists!")
 
-        if _run_cache['status'] not in ['pause', 'exception']:
+        if _run_cache['status'] not in ['P', 'E']:
             _msg = 'Pipeline [%s] status is not pause or exception!' % self.name
             self.log_error('Error: ' % _msg)
             raise RuntimeError(_msg)
 
-        if _run_cache['status'] == 'exception':
+        if _run_cache['status'] == 'E':
             # 从异常的节点重新发起
-            _run_cache['context']['node_status'] = 'I'
+            _run_cache['node_status'] = 'I'
 
         # 修改状态为运行中
-        self._set_status('running', _run_id)
+        self._set_status('R', _run_id)
+
+        # 设置重新执行的标识
+        _run_cache['is_resume'] = True
+        _run_cache['run_to_end'] = run_to_end
 
         # 将step_by_step模式关闭
         if run_to_end:
@@ -560,7 +702,7 @@ class Pipeline(object):
             # 异步模式
             self._start_running_thread(_run_id)
             self.log_info('Pipeline [%s] resume!' % self.name)
-            return _run_id
+            return _run_id, 'R', None
         else:
             # 同步模式
             self._running_thread_fun(_run_id)
@@ -577,7 +719,7 @@ class Pipeline(object):
         if _run_cache is None:
             raise RuntimeError("Run id not exists!")
 
-        if _run_cache['status'] == 'running':
+        if _run_cache['status'] == 'R':
             _msg = 'Pipeline [%s] [%s] status is running!' % (self.name, _run_id)
             self.log_error('Error: ' % _msg)
             raise RuntimeError(_msg)
@@ -614,10 +756,16 @@ class Pipeline(object):
         # 进行转换处理
         _cache = OrderedDict()
         for _run_id in _run_id_list:
-            if self.status(_run_id) == 'running':
+            if self.status(_run_id) == 'R':
                 raise RuntimeError("Run id [%s] is running!" % _run_id)
 
             _cache[_run_id] = self._cache[_run_id]
+
+            # 增加对正在运行的子管道的保存
+            if self.running_sub_pipeline.get(_run_id, None) is not None:
+                _cache[_run_id]['running_sub_pipeline'] = self.running_sub_pipeline[_run_id].save_checkpoint(
+                    run_id=_run_id
+                )
 
         return json.dumps(_cache, ensure_ascii=False)
 
@@ -646,19 +794,35 @@ class Pipeline(object):
                 # 如果运行id已存在, 不处理
                 continue
 
+            # 正在运行的子管道支持
+            _sub_pipeline_json = _run_cache.get('running_sub_pipeline', None)
+            if _sub_pipeline_json is not None:
+                # 装载子管道
+                _node_config = self.pipeline[_run_cache['node_id']]
+                _processer = self.get_plugin('processer', _node_config['processor'])
+                _sub_pipeline = _processer.get_sub_pipeline(
+                    _run_cache['current_input'], _run_cache['context'], self, _run_id,
+                    _node_config.get('sub_pipeline_para', {})
+                )
+                _sub_pipeline.load_checkpoint(_sub_pipeline_json, ignore_exists)
+                self.running_sub_pipeline[_run_id] = _sub_pipeline
+
+                # 移除配置子管道配置
+                _run_cache.pop('running_sub_pipeline')
+
             self._cache[_run_id] = _run_cache
             self._status_locks[_run_id] = threading.Lock()
             self._change_last_run_id(_run_id)
 
     def asyn_node_feeback(self, run_id: str, node_id: str, output=None, status: str = 'S',
-                          status_msg: str = 'success', context: dict = {}):
+                          status_msg: str = 'S', context: dict = {}):
         """
         异步节点执行结果反馈
 
         @param {str} run_id - 运行id
         @param {str} node_id - 节点配置id
         @param {object} output=None - 节点执行输出结果
-        @param {str} status='S' - 节点运行状态，'S' - 成功，'E' - 出现异常
+        @param {str} status='S' - 节点运行状态，'S' - 成功，'E' - 出现异常, 'P' - 暂停
         @param {str} status_msg='success' - 运行状态描述
         @param {dict} context={} - 要修改的上下文信息
         """
@@ -668,7 +832,7 @@ class Pipeline(object):
             self.log_error('Error: ' % _msg)
             raise AttributeError(_msg)
 
-        if _run_cache['context']['node_id'] != node_id:
+        if _run_cache['node_id'] != node_id:
             _msg = '[Pipeline:%s] Not correct node id [%s]!' % (self.name, node_id)
             self.log_error('Error: ' % _msg)
             raise AttributeError(_msg)
@@ -678,11 +842,11 @@ class Pipeline(object):
                                     status=status, status_msg=status_msg)
         if _next_id is not None:
             # 设置上下文，执行下一个节点
-            _run_cache['context']['node_id'] = _next_id
-            _run_cache['context']['node_status'] = 'I'
+            _run_cache['node_id'] = _next_id
+            _run_cache['node_status'] = 'I'
 
             # 启动处理线程
-            if _run_cache['status'] == 'running':
+            if _run_cache['status'] == 'R':
                 self._start_running_thread(_run_id)
 
     def node_process_feeback(self, run_id: str, node_id: str,
@@ -703,7 +867,7 @@ class Pipeline(object):
             self.log_error('Error: ' % _msg)
             raise AttributeError(_msg)
 
-        if _run_cache['context']['node_id'] == node_id:
+        if _run_cache['node_id'] == node_id:
             if total is not None:
                 _run_cache['current_process_info']['total'] = total
             if done is not None:
@@ -734,7 +898,7 @@ class Pipeline(object):
             self.log_error('Error: ' % _msg)
             raise AttributeError(_msg)
 
-        if _run_cache['context']['node_id'] == node_id:
+        if _run_cache['node_id'] == node_id:
             _total = _run_cache['current_process_info'].get('total', 1)
             _done = _run_cache['current_process_info'].get('done', 0)
             _job_msg = _run_cache['current_process_info'].get('job_msg', '')
@@ -858,12 +1022,13 @@ class Pipeline(object):
         _node_config = self.pipeline[node_id]
         # 执行节点处理器
         try:
-            _run_cache['context']['node_id'] = node_id
-            _run_cache['context']['node_status'] = 'R'
-            _run_cache['context']['start_time'] = datetime.datetime.now().strftime(
+            _run_cache['node_id'] = node_id
+            _run_cache['node_status'] = 'R'
+            _run_cache['start_time'] = datetime.datetime.now().strftime(
                 '%Y-%m-%d %H:%M:%S.%f')
-            _run_cache['context']['total'] = 1
-            _run_cache['context']['done'] = 0
+            _run_cache['current_process_info']['total'] = 1
+            _run_cache['current_process_info']['done'] = 0
+            _run_cache['current_process_info']['job_msg'] = ''
 
             _processer: PipelineProcesser = self.get_plugin('processer', _node_config['processor'])
             _run_cache['context'].update(_node_config.get('context', {}))
@@ -872,19 +1037,61 @@ class Pipeline(object):
             self.log_debug('[Pipeline:%s] Start running [%s] node [%s]' %
                            (self.name, _run_id, node_id))
             if self.running_notify_fun is not None:
-                self.running_notify_fun(self.name, _run_id, node_id, _node_config.get('name', ''))
+                self.running_notify_fun(
+                    self.name, _run_id, node_id,
+                    _node_config.get('name', ''), self
+                )
 
             # 运行节点
-            if _processer.is_asyn():
-                # 异步处理，发起执行后直接返回''
-                _processer.execute(_run_cache['current_input'],
-                                   _run_cache['context'], self, _run_id)
-                return ''
+            if _node_config.get('is_sub_pipeline', False):
+                # 运行的是子管道, 首先获取当前管道对象，如果是已存在的管道对象，按恢复方式获取
+                _sub_pipeline = self.running_sub_pipeline.get(_run_id, None)
+                if _sub_pipeline is None:
+                    _sub_pipeline = _processer.get_sub_pipeline(
+                        _run_cache['current_input'], _run_cache['context'], self, _run_id,
+                        _node_config.get('sub_pipeline_para', {})
+                    )
+                    self.running_sub_pipeline[_run_id] = _sub_pipeline  # 缓存子管道
+
+                # 检查启动参数是否与当前节点一致，如果不一致修改为准确的值
+                if _run_cache.get('running_sub_node_id', '-1') != node_id:
+                    _run_cache['running_sub_node_id'] = node_id
+                    _run_cache['is_resume'] = False
+                    _run_cache['run_to_end'] = False
+
+                if _processer.is_asyn():
+                    # 异步处理，发起执行后直接返回''
+                    _processer.execute(
+                        _run_cache['current_input'], _run_cache['context'], self, _run_id,
+                        _sub_pipeline, is_step_by_step=_run_cache['is_step_by_step'],
+                        is_resume=_run_cache.get('is_resume', False),
+                        run_to_end=_run_cache.get('run_to_end', False)
+                    )
+                    return ''
+                else:
+                    # 同步处理，获取执行3个返回要素
+                    _, _status, _output = _processer.execute(
+                        _run_cache['current_input'], _run_cache['context'], self, _run_id,
+                        _sub_pipeline, is_step_by_step=_run_cache['is_step_by_step'],
+                        is_resume=_run_cache.get('is_resume', False),
+                        run_to_end=_run_cache.get('run_to_end', False)
+                    )
+                    return self._run_router(
+                        _run_id, node_id, output=_output, status=_status,
+                        status_msg=_sub_pipeline.current_node_status_msg(run_id=_run_id)
+                    )
             else:
-                # 同步处理
-                _output = _processer.execute(
-                    _run_cache['current_input'], _run_cache['context'], self, _run_id)
-                return self._run_router(_run_id, node_id, output=_output, status='S', status_msg='success')
+                # 运行当前管道任务
+                if _processer.is_asyn():
+                    # 异步处理，发起执行后直接返回''
+                    _processer.execute(_run_cache['current_input'],
+                                       _run_cache['context'], self, _run_id)
+                    return ''
+                else:
+                    # 同步处理
+                    _output = _processer.execute(
+                        _run_cache['current_input'], _run_cache['context'], self, _run_id)
+                    return self._run_router(_run_id, node_id, output=_output, status='S', status_msg='success')
         except:
             _status_msg = traceback.format_exc()
             self.log_warning('Warning: [Pipeline:%s] Running [%s] node [%s] error: %s' %
@@ -899,7 +1106,7 @@ class Pipeline(object):
         @param {str} run_id - 运行id
         @param {str} node_id - 当前运行的节点
         @param {object} output=None - 节点执行输出结果
-        @param {str} status='S' - 节点运行状态，'S' - 成功，'E' - 出现异常
+        @param {str} status='S' - 节点运行状态，'S' - 成功，'E' - 出现异常, 'P' - 子管道暂停
         @param {str} status_msg='success' - 运行状态描述
 
         @returns {str} - 返回下一节点ID，如果已是最后节点返回None
@@ -913,23 +1120,40 @@ class Pipeline(object):
         _node_config = self.pipeline[node_id]
         _router_name = ''
         _router_para = {}
-        if status != 'S' and _node_config.get('exception_router', '') != '':
+        if status == 'E' and _node_config.get('exception_router', '') != '':
             _router_name = _node_config['exception_router']
             _router_para = _node_config.get('exception_router_para', {})
         elif status == 'S':
             _router_name = _node_config.get('router', '')
             _router_para = _node_config.get('router_para', {})
 
+        # 对子管道执行进行处理
+        _is_sub_pipeline = _node_config.get('is_sub_pipeline', False)
+        _sub_trace_list = []
+        if _is_sub_pipeline:
+            _sub_trace_list = copy.deepcopy(
+                self.running_sub_pipeline[_run_id].trace_list(run_id=_run_id)
+            )
+            if status == 'S' or _router_name != '':
+                # 无需再使用子管道
+                self.running_sub_pipeline[_run_id].remove(run_id=_run_id)
+                self.running_sub_pipeline.pop(_run_id, None)
+                _run_cache['running_sub_node_id'] = node_id
+                _run_cache['is_resume'] = False
+                _run_cache['run_to_end'] = False
+
         # 登记记录
-        _run_cache['context']['trace_list'].append({
+        _run_cache['trace_list'].append({
             'node_id': node_id,
             'node_name': _node_config.get('name', ''),
             'processor_name': _node_config['processor'],
-            'start_time': _run_cache['context']['start_time'],
+            'start_time': _run_cache['start_time'],
             'end_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
             'status': status,
             'status_msg': status_msg,
-            'router_name': _router_name
+            'router_name': _router_name,
+            'is_sub_pipeline': _is_sub_pipeline,
+            'sub_trace_list': _sub_trace_list
         })
 
         # 通知运行结束节点
@@ -937,19 +1161,19 @@ class Pipeline(object):
                        (self.name, _run_id, node_id, status, status_msg))
         if self.end_running_notify_fun is not None:
             self.end_running_notify_fun(
-                self.name, _run_id, node_id, _node_config.get('name', ''), status, status_msg
+                self.name, _run_id, node_id, _node_config.get('name', ''), status, status_msg, self
             )
 
         # 尝试获取下一个处理节点
         _next_id = None
         if status != 'S' and _router_name == '':
-            # 异常，结束管道运行
-            _run_cache['context']['node_status'] = 'E'
-            self._set_status('exception', _run_id)
+            # 异常或暂停，结束管道运行
+            _run_cache['node_status'] = status
+            self._set_status(status, _run_id)
             _run_cache['output'] = None
         else:
             # 更新临时变量
-            _run_cache['context']['node_status'] = status
+            _run_cache['node_status'] = status
             _run_cache['current_input'] = output
             _run_cache['output'] = output  # 中间步骤也放到output项中，供暂停时查看
 
@@ -966,12 +1190,14 @@ class Pipeline(object):
 
             # 判断是否完结
             if _next_id is None:
-                self._set_status('success', _run_id)
+                self._set_status('S', _run_id)
 
         # 异步情况通知结果
         if _next_id is None and self.is_asyn:
-            self.asyn_notify_fun(self.name, _run_id,
-                                 _run_cache['status'], _run_cache['context'], _run_cache['output'])
+            self.asyn_notify_fun(
+                self.name, _run_id,
+                _run_cache['status'], _run_cache['context'], _run_cache['output'], self
+            )
 
         return _next_id
 
@@ -1004,13 +1230,13 @@ class Pipeline(object):
 
         _run_cache['thread_running'] = True
         try:
-            while _run_cache['status'] == 'running':
-                if _run_cache['context']['node_status'] == 'R':
+            while _run_cache['status'] == 'R':
+                if _run_cache['node_status'] == 'R':
                     # 当前节点正在执行，未返回执行结果
                     break
 
                 # 执行当前节点
-                _next_id = self._run_node(_run_id, _run_cache['context']['node_id'])
+                _next_id = self._run_node(_run_id, _run_cache['node_id'])
                 if _next_id is None:
                     # 已经是最后一个节点
                     break
@@ -1018,20 +1244,20 @@ class Pipeline(object):
                     # 判断是否要逐步执行
                     if _run_cache['is_step_by_step']:
                         # 执行一步就设置状态为暂停
-                        self._set_status('pause', _run_id)
+                        self._set_status('P', _run_id)
 
                     if _next_id == '':
                         # 异步模式，直接退出线程处理
                         break
                     else:
                         # 设置上下文，执行下一个节点
-                        _run_cache['context']['node_id'] = _next_id
-                        _run_cache['context']['node_status'] = 'I'
+                        _run_cache['node_id'] = _next_id
+                        _run_cache['node_status'] = 'I'
                         time.sleep(0.0001)
         except:
             # 如果在线程中出了异常，结束掉执行
-            _run_cache['context']['node_status'] = 'E'
-            self._set_status('exception', _run_id)
+            _run_cache['node_status'] = 'E'
+            self._set_status('E', _run_id)
             _run_cache['output'] = None
             raise
         finally:

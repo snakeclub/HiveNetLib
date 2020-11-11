@@ -57,7 +57,7 @@ _logger_config = {
 LOGGER = Logger.create_logger_by_dict(_logger_config)
 
 
-def asyn_notify_fun(name, run_id, status, context, output):
+def asyn_notify_fun(name, run_id, status, context, output, pipeline_obj):
     """
     管道运行结果通知函数
     """
@@ -66,7 +66,7 @@ def asyn_notify_fun(name, run_id, status, context, output):
     ))
 
 
-def running_notify_fun(name, run_id, node_id, node_name):
+def running_notify_fun(name, run_id, node_id, node_name, pipeline_obj):
     """
     节点运行通知函数
     """
@@ -75,7 +75,7 @@ def running_notify_fun(name, run_id, node_id, node_name):
     ))
 
 
-def end_running_notify_fun(name, run_id, node_id, node_name, status, status_msg):
+def end_running_notify_fun(name, run_id, node_id, node_name, status, status_msg, pipeline_obj):
     """
     结束节点运行通知
     """
@@ -96,6 +96,15 @@ def setUpModule():
 
 def tearDownModule():
     print("test module end >>>>>>>>>>>>>>")
+
+
+TEST_SWITCH = {
+    'test_pl_sync': True,
+    'test_pl_asyn': True,
+    'test_pl_ex': True,
+    'test_checkpoint': True,
+    'test_sub': True,
+}
 
 
 class Test(unittest.TestCase):
@@ -233,10 +242,83 @@ class Test(unittest.TestCase):
             logger=LOGGER
         )
 
+        # 测试管道设置 - 子管道处理
+        self._pl_sub_config = {
+            '1': {
+                "name": "Minus10",
+                "processor": "ProcesserAdd",
+                "context": {'num': -10},
+                "router": "GoToNode",
+                "router_para": {'goto_node_id': '3'},
+            },
+            '2': {
+                "name": "NoExecute",
+                "processor": "ProcesserAdd",
+                "context": {'num': 10}
+            },
+            '3': {
+                "name": "DivideBy50",
+                "processor": "ProcesserDivideBy",
+                "context": {'num': 50},
+                "exception_router": "GoToNode",
+                "exception_router_para": {'goto_node_id': '5'}
+            },
+            '4': {
+                "name": "SubPipeline",
+                "processor": "ProcesserSubPipeline",
+                "is_sub_pipeline": True,
+                "sub_pipeline_para": {
+                    '1': {
+                        "name": "Add100",
+                        "processor": "ProcesserAdd",
+                        "context": {'num': 100},
+                        "router": "",
+                        "router_para": {},
+                        "exception_router": "",
+                        "exception_router_para": {}
+                    },
+                    '2': {
+                        "name": "Multiply2",
+                        "processor": "ProcesserMultiply",
+                        "context": {'num': 2}
+                    },
+                    '3': {
+                        "name": "Add0-1",
+                        "processor": "ProcesserAdd",
+                        "context": {'num': 0}
+                    },
+                    '4': {
+                        "name": "Add0-2",
+                        "processor": "ProcesserAdd",
+                        "context": {'num': 0}
+                    }
+                }
+            },
+            '5': {
+                "name": "Add3",
+                "processor": "ProcesserAdd",
+                "context": {'num': 3},
+                "router": "",
+                "router_para": {},
+                "exception_router": "",
+                "exception_router_para": {}
+            }
+        }
+
+        self.pl_sub = Pipeline('pl_sub', self._pl_sub_config, is_asyn=False, logger=LOGGER)
+        self.pl_sub_asyn = Pipeline(
+            'pl_sub_asyn', self._pl_sub_config, is_asyn=True, asyn_notify_fun=asyn_notify_fun,
+            running_notify_fun=running_notify_fun, end_running_notify_fun=end_running_notify_fun,
+            logger=LOGGER
+        )
+
     def tearDown(self):
         print("test case end -->")
 
     def test_pl_sync(self):
+        if not TEST_SWITCH['test_pl_sync']:
+            return
+
         _tips = '测试同步管道 - 同步正常'
         _input_data = 20
         print(_tips)
@@ -246,8 +328,8 @@ class Test(unittest.TestCase):
             '%s: %s' % (_tips, self.pl_sync.context(_run_id))
         )
 
-        _run_id = self.pl_sync_asyn.start(input_data=_input_data)
-        while self.pl_sync_asyn.status(run_id=_run_id) not in ['success', 'exception']:
+        _run_id, _status, _output = self.pl_sync_asyn.start(input_data=_input_data)
+        while self.pl_sync_asyn.status(run_id=_run_id) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
@@ -264,8 +346,8 @@ class Test(unittest.TestCase):
             '%s: %s' % (_tips, self.pl_sync.context(_run_id))
         )
 
-        _run_id = self.pl_sync_asyn.start(input_data=_input_data)
-        while self.pl_sync_asyn.status(run_id=_run_id) not in ['success', 'exception']:
+        _run_id, _status, _output = self.pl_sync_asyn.start(input_data=_input_data)
+        while self.pl_sync_asyn.status(run_id=_run_id) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
@@ -277,12 +359,12 @@ class Test(unittest.TestCase):
         _input_data = 20
         print(_tips)
         _run_id, _status, _output = self.pl_sync.start(input_data=_input_data, is_step_by_step=True)
-        self.assertEqual(_status, 'pause', '%s-状态应为pause: %s' %
+        self.assertEqual(_status, 'P', '%s-状态应为pause: %s' %
                          (_tips, self.pl_sync.context(_run_id)))
         self.assertEqual(_output, _input_data - 10, '%s-第1步执行结果错误: %s' %
                          (_tips, self.pl_sync.context(_run_id)))
         _time = 0
-        while _status == 'pause':
+        while _status == 'P':
             _run_id, _status, _output = self.pl_sync.resume(_run_id)
             _time += 1
 
@@ -295,11 +377,14 @@ class Test(unittest.TestCase):
         )
 
     def test_pl_asyn(self):
+        if not TEST_SWITCH['test_pl_asyn']:
+            return
+
         _tips = '测试异步管道 - 正常'
         _input_data = 30
         print(_tips)
-        _run_id = self.pl_asyn.start(input_data=_input_data)
-        while self.pl_asyn.status(run_id=_run_id) not in ['success', 'exception']:
+        _run_id, _status, _output = self.pl_asyn.start(input_data=_input_data)
+        while self.pl_asyn.status(run_id=_run_id) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
@@ -308,28 +393,33 @@ class Test(unittest.TestCase):
         )
 
     def test_pl_ex(self):
+        if not TEST_SWITCH['test_pl_ex']:
+            return
+
         _tips = '测试异常管道'
         _input_data = 10
         print(_tips)
         _run_id, _status, _output = self.pl_ex_sync.start(input_data=_input_data)
         self.assertEqual(
-            (_status, _output), ('exception', None),
+            (_status, _output), ('E', None),
             '%s失败: 应抛出异常' % _tips
         )
         print(self.pl_ex_sync.trace_list(_run_id))
 
-        _run_id = self.pl_ex_asyn.start(input_data=_input_data)
-        while self.pl_ex_asyn.status(run_id=_run_id) not in ['success', 'exception']:
+        _run_id, _status, _output = self.pl_ex_asyn.start(input_data=_input_data)
+        while self.pl_ex_asyn.status(run_id=_run_id) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
-            (self.pl_ex_asyn.status(_run_id), self.pl_ex_asyn.output(_run_id)), ('exception', None),
+            (self.pl_ex_asyn.status(_run_id), self.pl_ex_asyn.output(_run_id)), ('E', None),
             '%s失败: 应抛出异常' % _tips
         )
         print(self.pl_ex_asyn.trace_list(_run_id))
 
     def test_checkpoint(self):
-        print(LOGGER)
+        if not TEST_SWITCH['test_checkpoint']:
+            return
+
         _pl_asyn_config = {
             '1': {
                 "name": "Minus10",
@@ -363,11 +453,11 @@ class Test(unittest.TestCase):
             running_notify_fun=running_notify_fun, end_running_notify_fun=end_running_notify_fun,
             logger=LOGGER
         )
-        _run_id1 = _pl1.start(input_data=_input_data1)
-        _run_id2 = _pl1.start(input_data=_input_data2, run_id='1')
+        _run_id1, _, _ = _pl1.start(input_data=_input_data1)
+        _run_id2, _, _ = _pl1.start(input_data=_input_data2, run_id='1')
         _pl1.pause(_run_id2)
-        self.assertTrue(_pl1.status(_run_id2) == 'pause', '%s: status error!')
-        while _pl1.status(run_id=_run_id1) not in ['success', 'exception']:
+        self.assertTrue(_pl1.status(_run_id2) == 'P', '%s: status error!')
+        while _pl1.status(run_id=_run_id1) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
@@ -396,12 +486,92 @@ class Test(unittest.TestCase):
             'after load: %s: %s' % (_tips, _pl2.context(_run_id1))
         )
         _pl2.resume(_run_id2)
-        while _pl2.status(run_id=_run_id2) not in ['success', 'exception']:
+        while _pl2.status(run_id=_run_id2) not in ['S', 'E']:
             time.sleep(0.01)
 
         self.assertEqual(
             _pl2.output(run_id=_run_id2), (_input_data2 - 10) + 100 + 3,
             'after load: %s: %s' % (_tips, _pl2.context(_run_id2))
+        )
+
+    def test_sub(self):
+        if not TEST_SWITCH['test_sub']:
+            return
+
+        _tips = '测试子管道 - 正常'
+        _input_data = 20
+        print(_tips)
+        _run_id, _status, _output = self.pl_sub.start(input_data=_input_data)
+        self.assertEqual(
+            _output, (50 / (_input_data - 10) + 100) * 2 + 3,
+            '%s: %s' % (_tips, self.pl_sub.context(_run_id))
+        )
+
+        _run_id, _status, _output = self.pl_sub_asyn.start(input_data=_input_data, run_id='test')
+        while self.pl_sub_asyn.status(run_id=_run_id) not in ['S', 'E']:
+            time.sleep(0.01)
+
+        self.assertEqual(
+            self.pl_sub_asyn.output(run_id=_run_id), (50 / (_input_data - 10) + 100) * 2 + 3,
+            '%s: %s' % (_tips, self.pl_sub_asyn.context(_run_id))
+        )
+
+        _tips = '测试子管道 - 逐步执行'
+        _input_data = 20
+        print(_tips)
+        _run_id, _status, _output = self.pl_sub.start(input_data=_input_data, is_step_by_step=True)
+
+        self.assertEqual(_status, 'P', '%s-状态应为pause: %s' %
+                         (_tips, self.pl_sub.context(_run_id)))
+        self.assertEqual(_output, _input_data - 10, '%s-第1步执行结果错误: %s' %
+                         (_tips, self.pl_sub.context(_run_id)))
+        _time = 0
+        while _status == 'P':
+            _run_id, _status, _output = self.pl_sub.resume(_run_id)
+            _time += 1
+
+        self.assertEqual(_time, 6, '%s-暂停步数错误: %d' %
+                         (_tips, _time))
+
+        self.assertEqual(
+            _output, (50 / (_input_data - 10) + 100) * 2 + 3,
+            '%s: %s' % (_tips, self.pl_sub.context(_run_id))
+        )
+
+        _tips = '测试子管道 - 中间状态保存及恢复'
+        _input_data = 20
+        print(_tips)
+        _pl_sub = Pipeline('pl_sub', self._pl_sub_config, is_asyn=False, logger=LOGGER)
+        _run_id, _status, _output = _pl_sub.start(input_data=_input_data, is_step_by_step=True)
+        _time = 0
+        while _time < 2:
+            _run_id, _status, _output = _pl_sub.resume(_run_id)
+            _time += 1
+
+        # 导出中间状态
+        _json = _pl_sub.save_checkpoint()
+        print('Save checkpoint: %s' % _json)
+        del _pl_sub
+
+        # 恢复
+        _pl_sub_1 = Pipeline('pl_sub', self._pl_sub_config, is_asyn=False, logger=LOGGER)
+        _pl_sub_1.load_checkpoint(_json)
+        self.assertEqual(
+            _pl_sub_1.running_sub_pipeline[_run_id]._cache[_run_id]['output'],
+            (50 / (_input_data - 10) + 100),
+            'after load: %s: %s %s' % (
+                _tips, str(_pl_sub_1.running_sub_pipeline[_run_id]._cache[_run_id]['output']),
+                _pl_sub_1.trace_list(run_id=_run_id)
+            )
+        )
+
+        _status = 'P'
+        while _status == 'P':
+            _run_id, _status, _output = _pl_sub_1.resume(_run_id)
+
+        self.assertEqual(
+            _output, (50 / (_input_data - 10) + 100) * 2 + 3,
+            '%s: %s' % (_tips, _pl_sub_1.context(_run_id))
         )
 
 
