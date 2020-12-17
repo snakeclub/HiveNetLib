@@ -6,7 +6,7 @@
 
 **HiveNet标识名：hivenet_python_coding_standards**
 
-**HiveNet版本：v1.0.0**
+**HiveNet版本：v1.1.0**
 
 参考文档：使用Sphinx为你的python模块自动生成文档 https://blog.csdn.net/preyta/article/details/73647937
 
@@ -270,7 +270,7 @@ Python的Docstring规范有多个标准，包括Google、numpy等，本规范为
   - bool ：布尔值
   - complex ：复数
 
-- string : String（字符串）
+- string : String（字符串），也可以简写为 str
 
 - list : List（列表），可以与基础类型组合，例如：int[]，string[]
 
@@ -403,7 +403,7 @@ descript ：类的具体描述
 
 	type  ：为参数的数据类型，如果允许任何类型，填入*；如果支持几种特定类型，通过竖线"|"分隔
 	
-	paraname ： 参数名，如果为可选参数，paraname要用中括号"[ ]"标识（例如"[filepath]"）；如果参数有默认值，参数名后面带默认值，例如"[filepath]='c:/'"
+	paraname ： 参数名，如果为可选参数，paraname要用中括号"[ ]"标识（例如"[filepath]"）；如果参数有默认值，参数名后面带默认值，例如"[filepath]='c:/'"；如果参数的取值枚举值，则参数名后面带枚举标识指示，例如“my_type=enum['type1', 'type2', 'type3']”, 如果同时为枚举值并需要指定默认，则在默认选项前加*标识，例如 “my_type=enum['type1', *'type2', 'type3']”
 	
 	descript ： 参数描述
 	
@@ -415,7 +415,19 @@ descript ：类的具体描述
 
 **选填标签：**
 
-@api {action-type} <url> <api-name> : 标识函数是对外提供的api，action-type 为调用api的方法，根据实际设计提供（http方法有：get、post、delete）；url为api的访问地址；api-name为api的命名（或标识）
+@api {action-type} {protocol} <url> <api-name> : 标识函数是对外提供的api，action-type 为调用api的方法，根据实际设计提供（http方法有：get、post、delete）；protocol 为约定的报文协议名，例如 json/xml；url为api的访问地址；api-name为api的命名（或标识）
+
+@header-in {type} <name> - <descript> : 标识api入参 header 部分的填值，具体填写方式与 @param 一致
+
+@header-out {type} <name> - <descript> : 标识api出参 header 部分的填值，具体填写方式与 @param 一致
+
+@body-in {type} <name> - <descript> : 标识api入参报文主体部分的填值，具体填写方式与 @param 一致
+
+@body-out {type} <name> - <descript> : 标识api出参报文主体部分的填值，具体填写方式与 @param 一致
+
+@sub-body-begin {block|option|repeat} : 标识报文主体出入参的子参数块开始，用于实现参数嵌套指示；标签后通过选项指示子参数块出现的次数限制，block代表出现一次，option代表可以没有也可以出现一次，repeat代表循环出现，默认为block
+
+@sub-body-end : 标识报文主体出入参的子参数块结束
 
 @abstract ：标识类是抽象对象，需子类重载实现相关内容
 

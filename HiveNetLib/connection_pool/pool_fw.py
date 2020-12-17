@@ -20,10 +20,8 @@ import uuid
 import datetime
 import time
 import logging
-import copy
 import traceback
 from queue import Empty
-from enum import Enum
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))

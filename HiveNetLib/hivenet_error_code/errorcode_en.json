@@ -42,5 +42,13 @@
   "validators failed": "validators failed",
   "get info failed": "get info failed",
   "control check failed": "control check failed",
-  "user confirmation required": "user confirmation required"
+  "user confirmation required": "user confirmation required",
+  "signature error":"signature error",
+  "timestamp expired":"timestamp expired",
+  "ip address verify failure": "ip address verify failure",
+  "username format error": "username format error",
+  "username is not existed": "username is not existed",
+  "username exists": "username exists",
+  "user is locked": "user is locked",
+  "user status is abnormal": "user status is abnormal"
 }

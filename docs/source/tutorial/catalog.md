@@ -22,6 +22,8 @@ HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功
 
 PIPY安装：pip install HiveNetLib
 
+注意：pip安装时可以通过 '--no-deps' 参数指定不安装依赖包，这样可以只针对所需使用的模块安装所需的依赖包（模块装载时会自动判断并安装）; 同时也可以执行通过 deps_tool.py 文件进行安装依赖包，具体安装方法通过以下命令查看 'python deps_tool.py'
+
 - 安装包打包（2种方式）
 
 1、python安装包方式：python setup.py sdist

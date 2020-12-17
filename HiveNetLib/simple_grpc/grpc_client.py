@@ -19,10 +19,10 @@ import sys
 import logging
 import copy
 import datetime
-import grpc
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 自有包引用
 from HiveNetLib.generic import NullObj, CResult
 from HiveNetLib.simple_grpc.grpc_tool import SimpleGRpcTools, EnumCallMode
 import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2

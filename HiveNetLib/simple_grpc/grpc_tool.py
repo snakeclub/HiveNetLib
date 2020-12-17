@@ -16,9 +16,6 @@
 
 import os
 import sys
-import grpc
-from grpc_health.v1 import health_pb2
-from grpc_health.v1 import health_pb2_grpc
 import json
 import copy
 import traceback
@@ -27,6 +24,22 @@ from enum import Enum
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+import HiveNetLib.deps_tool as deps_tool
+process_install_grpc = False
+while True:
+    try:
+        import grpc
+        from grpc_health.v1 import health_pb2
+        from grpc_health.v1 import health_pb2_grpc
+        break
+    except ImportError:
+        if not process_install_grpc:
+            deps_tool.install_package('grpcio')
+            deps_tool.install_package('grpcio-health')
+            process_install_grpc = True
+            continue
+        raise
+# 自有模块引用
 import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2
 import HiveNetLib.simple_grpc.msg_pb2_grpc as msg_pb2_grpc
 from HiveNetLib.generic import CResult, NullObj

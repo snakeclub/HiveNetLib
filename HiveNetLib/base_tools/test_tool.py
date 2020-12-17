@@ -20,7 +20,8 @@ import os
 import json
 import operator
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.base_tools.string_tool import StringTool
 
 __MOUDLE__ = 'test_tool'  # 模块名
@@ -99,23 +100,20 @@ class TestTool(object):
                 print('cmp_dict: len difference!')
         else:
             src_key = list(src_data.keys())
+            src_key.sort()
             dst_key = list(dst_data.keys())
+            dst_key.sort()
             if operator.eq(src_key, dst_key):
-                src_val = list(src_data.values())
-                dst_val = list(dst_data.values())
-                if operator.eq(src_val, dst_val):
-                    is_break = False
-                    for key in src_data.keys():
-                        if src_data[key] != dst_data[key]:
-                            # print(src_data1[key])
-                            print('cmp_dict: value difference in key "%s"!' % (key))
-                            is_break = True
-                            break
-                    if not is_break:
-                        # 如果没有中断过，则代表比较成功
-                        return True
-                else:
-                    print('cmp_dict: value list difference!')
+                is_break = False
+                for key in src_data.keys():
+                    if src_data[key] != dst_data[key]:
+                        # print(src_data1[key])
+                        print('cmp_dict: value difference in key "%s"!' % (key))
+                        is_break = True
+                        break
+                if not is_break:
+                    # 如果没有中断过，则代表比较成功
+                    return True
             else:
                 print('cmp_dict: key list difference!')
         if print_if_diff:

@@ -17,7 +17,7 @@ TcpIp协议服务
 
 import os
 import sys
-import platform
+# import platform
 import datetime
 import time
 import socket

@@ -36,9 +36,16 @@ import copy
 import re
 import logging
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
-import affinity
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+# 动态安装包
+import HiveNetLib.deps_tool as deps_tool
+try:
+    import affinity
+except ImportError:
+    deps_tool.install_package('affinity')
+    import affinity
+# 自有模块引用
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.value_tool import ValueTool
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -167,6 +174,7 @@ class ParallelShareDictFw(ABC):
     @param {string} tag - 唯一标识
 
     """
+
     def __init__(self, tag):
         """
         初始化函数，增加标识的登记
@@ -576,10 +584,12 @@ class ParallelFw(ABC):
         for _key in replace_para.keys():
             if isinstance(_key, str):
                 # 修改kwargs
-                kwargs[_key] = cls.replace_distributed_logger_para_str(kwargs[_key], replace_para[_key], value_para)
+                kwargs[_key] = cls.replace_distributed_logger_para_str(
+                    kwargs[_key], replace_para[_key], value_para)
             else:
                 # 修改args
-                args[_key] = cls.replace_distributed_logger_para_str(args[_key], replace_para[_key], value_para)
+                args[_key] = cls.replace_distributed_logger_para_str(
+                    args[_key], replace_para[_key], value_para)
 
     @classmethod
     def replace_distributed_logger_para_str(cls, value, replace_para_dict, value_para):
@@ -595,7 +605,8 @@ class ParallelFw(ABC):
         _ret = value
         for _key in replace_para_dict.keys():
             # 先获取实际要替换的值
-            _replace = ValueTool.get_dict_value(replace_para_dict[_key], value_para, default_value='')
+            _replace = ValueTool.get_dict_value(
+                replace_para_dict[_key], value_para, default_value='')
             _pattern = None
             if _key is not None:
                 _pattern = re.compile(_key)
@@ -699,7 +710,7 @@ class ParallelFw(ABC):
                 'pid': kwargs['pid'],
                 'pname': kwargs['pname'],
                 'pocess_id': str(os.getpid()),
-                'thread_id': '0'# str(threading.current_thread().get_ident())
+                'thread_id': '0'  # str(threading.current_thread().get_ident())
             }
 
             _log_args = copy.deepcopy(kwargs['distributed_logger_args'])
@@ -920,6 +931,7 @@ class ParallelPool(object):
     #############################
     # 公共函数
     #############################
+
     def __init__(
         self, deal_fun, parallel_class=None, run_args=None, run_kwargs=None,
         pname='', lock=None, callback_fun=None,
@@ -1315,7 +1327,8 @@ class ParallelPool(object):
                     # 执行回调函数
                     if kwargs['callback_fun'] is not None:
                         try:
-                            kwargs['callback_fun'](tid, kwargs['pname'], _call_result, _deal_fun_ret)
+                            kwargs['callback_fun'](tid, kwargs['pname'],
+                                                   _call_result, _deal_fun_ret)
                         except Exception as e:
                             # 写异常日志
                             if kwargs['logger'] is not None:
@@ -1367,18 +1380,20 @@ class ParallelPool(object):
                     kwargs['logger'].log(
                         logging.ERROR,
                         '[EX:%s]ParallelPool[%s]  Worker[%s: %s] error: %s' % (
-                            str(type(e)), kwargs['pool_id'], kwargs['pname'], tid, traceback.format_exc()
+                            str(type(e)
+                                ), kwargs['pool_id'], kwargs['pname'], tid, traceback.format_exc()
                         )
                     )
                 _ret_info = 'exit by excepiton'
                 break
 
         # 退出任务
-        worker_info['status'] = 3 # 通知外面自己已销毁
+        worker_info['status'] = 3  # 通知外面自己已销毁
         if kwargs['logger'] is not None:
             kwargs['logger'].log(
                 kwargs['log_level'],
-                'ParallelPool[%s] Worker[%s: %s] stoped : %s' % (kwargs['pool_id'], kwargs['pname'], tid, _ret_info)
+                'ParallelPool[%s] Worker[%s: %s] stoped : %s' % (
+                    kwargs['pool_id'], kwargs['pname'], tid, _ret_info)
             )
 
     def _create_worker(self):
@@ -1416,7 +1431,8 @@ class ParallelPool(object):
         # 创建线程
         try:
             _task = self._parallel_class(
-                self._worker_deal_fun, run_args=(_tid, self._share_info, _worker_info), run_kwargs=_kwargs,
+                self._worker_deal_fun, run_args=(
+                    _tid, self._share_info, _worker_info), run_kwargs=_kwargs,
                 auto_start=True, pid=_tid, pname=self._pname, lock=None,
                 callback_fun=None, set_daemon=True, logger=self._logger,
                 use_distributed_logger=self._use_distributed_logger,
@@ -1457,7 +1473,8 @@ class ParallelPool(object):
                     if self._logger is not None:
                         self._logger.log(
                             self._log_level,
-                            'ParallelPool[%s: %s] get pause cmd, waiting workers pause...' % (self._pool_id, self._pname)
+                            'ParallelPool[%s: %s] get pause cmd, waiting workers pause...' % (
+                                self._pool_id, self._pname)
                         )
                     self._workers_lock.acquire()
                     for _key in self._workers.keys():
@@ -1479,7 +1496,8 @@ class ParallelPool(object):
                             if self._logger is not None:
                                 self._logger.log(
                                     self._log_level,
-                                    'ParallelPool[%s: %s]  pause success' % (self._pool_id, self._pname)
+                                    'ParallelPool[%s: %s]  pause success' % (
+                                        self._pool_id, self._pname)
                                 )
 
                 if self._status == 4:
@@ -1487,7 +1505,8 @@ class ParallelPool(object):
                     if self._logger is not None:
                         self._logger.log(
                             self._log_level,
-                            'ParallelPool[%s: %s] get resume cmd, waiting workers resume...' % (self._pool_id, self._pname)
+                            'ParallelPool[%s: %s] get resume cmd, waiting workers resume...' % (
+                                self._pool_id, self._pname)
                         )
                     self._workers_lock.acquire()
                     for _key in self._workers.keys():
@@ -1542,7 +1561,8 @@ class ParallelPool(object):
                             if self._logger is not None:
                                 self._logger.log(
                                     self._log_level,
-                                    'ParallelPool[%s: %s]  stop success' % (self._pool_id, self._pname)
+                                    'ParallelPool[%s: %s]  stop success' % (
+                                        self._pool_id, self._pname)
                                 )
 
                 if self._status == 2:
@@ -1568,7 +1588,8 @@ class ParallelPool(object):
                         self._get_task_num_fun is not None and
                         self._worker_release_time > 0 and
                         self._workers[_key][1]['status'] == 0 and
-                        (datetime.datetime.now() - self._workers[_key][1]['freebegin']).total_seconds() > self._worker_release_time
+                        (datetime.datetime.now() -
+                         self._workers[_key][1]['freebegin']).total_seconds() > self._worker_release_time
                     ):
                         # 空闲时间比较久，释放任务，但注意要保持最小的并发任务数
                         if _current_worker_count > self._minsize:
@@ -1579,7 +1600,8 @@ class ParallelPool(object):
                         self._worker_overtime > 0 and
                         _key not in self._overtime_workers.keys() and
                         self._workers[_key][1]['status'] == 1 and
-                        (datetime.datetime.now() - self._workers[_key][1]['taskbegin']).total_seconds() > self._worker_overtime
+                        (datetime.datetime.now() -
+                         self._workers[_key][1]['taskbegin']).total_seconds() > self._worker_overtime
                     ):
                         # 任务执行超时
                         if self._force_kill_overtime_worker:
@@ -1588,7 +1610,8 @@ class ParallelPool(object):
                                 self._logger.log(
                                     self._log_level,
                                     'ParallelPool[%s] worker[%s: %s] overtime[%ss] from %s, auto force killed' % (
-                                        self._pool_id, self._pname, _key, str(self._worker_overtime),
+                                        self._pool_id, self._pname, _key, str(
+                                            self._worker_overtime),
                                         str(self._workers[_key][1]['taskbegin'])
                                     )
                                 )
@@ -1599,7 +1622,8 @@ class ParallelPool(object):
                                 self._logger.log(
                                     self._log_level,
                                     'ParallelPool[%s] worker[%s: %s] overtime[%ss] from %s' % (
-                                        self._pool_id, self._pname, _key, str(self._worker_overtime),
+                                        self._pool_id, self._pname, _key, str(
+                                            self._worker_overtime),
                                         str(self._workers[_key][1]['taskbegin'])
                                     )
                                 )
@@ -1609,7 +1633,8 @@ class ParallelPool(object):
                         _key in self._overtime_workers.keys() and
                         (
                             self._workers[_key][1]['status'] != 1 or
-                            (datetime.datetime.now() - self._workers[_key][1]['taskbegin']).total_seconds() <= self._worker_overtime
+                            (datetime.datetime.now() -
+                             self._workers[_key][1]['taskbegin']).total_seconds() <= self._worker_overtime
                         )
                     ):
                         # 原理任务超时了，将任务从超时列表中删除
@@ -1681,6 +1706,7 @@ class ThreadParallelLock(ParallelLockFw):
     #############################
     # 内部函数，继承
     #############################
+
     def _init(self, **kwargs):
         """
         初始化并发锁
@@ -1719,6 +1745,7 @@ class ProcessParallelLock(ParallelLockFw):
     #############################
     # 内部函数，继承
     #############################
+
     def _init(self, **kwargs):
         """
         初始化并发锁
@@ -1755,6 +1782,7 @@ class ThreadParallelShareDict(ParallelShareDictFw):
     #############################
     # 需实现类实现的接口定义
     #############################
+
     def _init(self, tag):
         """
         初始化对象（比如从服务端下载后进行初始化）
@@ -1806,6 +1834,7 @@ class ProcessParallelShareDict(ParallelShareDictFw):
     #############################
     # 需实现类实现的接口定义
     #############################
+
     def _init(self, tag):
         """
         初始化对象（比如从服务端下载后进行初始化）

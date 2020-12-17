@@ -27,27 +27,28 @@ SHORT_DESCRIPTION = """
 一个方便开发人员调用的，集合一些常用开发功能的开发Python库.""".strip()
 
 DEPENDENCIES = [
+    'gevent',
     'prompt-toolkit>=2.0.0',
-    'gevent>=1.2.2',
     'affinity>=0.1.0',
     'dicttoxml>=1.7.4',
     'grpcio>=1.21.1',
     'grpcio-health-checking>=1.21.1',
     'lxml',
-    'affinity',
-    'grpcio',
     'googleapis-common-protos',
     'jsonpath-rw',
     'netifaces>=0.10.9',
     'chardet',
     'selenium',
+    'flask-cors',
+    'flask',
+    'flask-restful'
 ]
 
 # DEPENDENCIES = []
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.3'
+VERSION = '0.8.4'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

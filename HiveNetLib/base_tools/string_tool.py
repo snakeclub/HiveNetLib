@@ -15,11 +15,25 @@
 
 """
 
-import copy
+import os
+import sys
 import json
-import dicttoxml
-from lxml import etree
 from random import Random
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+try:
+    import dicttoxml
+except ImportError:
+    deps_tool.install_package('dicttoxml')
+    import dicttoxml
+try:
+    from lxml import etree
+except ImportError:
+    deps_tool.install_package('lxml')
+    from lxml import etree
 
 
 __MOUDLE__ = 'string_tool'  # 模块名

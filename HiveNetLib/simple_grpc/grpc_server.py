@@ -21,10 +21,6 @@ gRPC服务应用
 """
 import os
 import sys
-import grpc
-from grpc_health.v1.health import HealthServicer
-from grpc_health.v1 import health_pb2
-from grpc_health.v1 import health_pb2_grpc
 from concurrent import futures
 import json
 import traceback
@@ -35,6 +31,24 @@ import copy
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+process_install_grpc = False
+while True:
+    try:
+        import grpc
+        from grpc_health.v1.health import HealthServicer
+        from grpc_health.v1 import health_pb2
+        from grpc_health.v1 import health_pb2_grpc
+        break
+    except ImportError:
+        if not process_install_grpc:
+            deps_tool.install_package('grpcio')
+            deps_tool.install_package('grpcio-health')
+            process_install_grpc = True
+            continue
+        raise
+# 自有模块引用
 import HiveNetLib.simple_grpc.msg_pb2_grpc as msg_pb2_grpc
 import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2
 from HiveNetLib.simple_grpc.grpc_tool import EnumCallMode, SimpleGRpcTools
@@ -96,8 +110,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
     # 构造函数
     #############################
     def __init__(self, logger=None, log_level=logging.INFO, is_use_global_logger=True,
-                idpool=None, get_id_overtime=0,
-                **kwargs):
+                 idpool=None, get_id_overtime=0,
+                 **kwargs):
         """
         构造函数
 
@@ -493,7 +507,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _request_info_dict = dict()
             if self._logger is not None:
                 # 获取请求信息中与日志登记相关的信息，形成日志字典
-                _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.Simple)
+                _request_info_dict = self._get_request_info_dict(
+                    request, context, EnumCallMode.Simple)
                 # 补充日志字典信息
                 _request_info_dict['trace_id'] = _trace_info.trace_id
                 _request_info_dict['parent_id'] = _trace_info.parent_id
@@ -550,7 +565,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
             if self._logger is not None:
                 # 在日志字典中补充返回信息内容
-                _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                _request_info_dict['logging_para'] = copy.deepcopy(
+                    _request_info_dict['resp_logging_para'])
                 _request_info_dict['para_json'] = _return_obj.return_json
                 if _return_obj.return_bytes is None:
                     _request_info_dict['para_bytes_len'] = 'None'
@@ -629,7 +645,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 _request_info_dict = dict()
                 if self._logger is not None:
                     # 获取请求信息中与日志登记相关的信息，形成日志字典
-                    _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.ClientSideStream)
+                    _request_info_dict = self._get_request_info_dict(
+                        request, context, EnumCallMode.ClientSideStream)
                     # 补充日志字典信息
                     _request_info_dict['trace_id'] = _trace_info.trace_id
                     _request_info_dict['parent_id'] = _trace_info.parent_id
@@ -647,7 +664,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     # 执行函数
                     if request.service_name not in self._client_side_stream_service_list.keys():
                         # 没有找到服务名，返回执行失败
-                        _call_result = CResult(code='11403', i18n_msg_paras=(request.service_name, ))
+                        _call_result = CResult(
+                            code='11403', i18n_msg_paras=(request.service_name, ))
                     else:
                         # 先形成调用参数
                         _fun_object = self._client_side_stream_service_list[request.service_name][0]
@@ -666,7 +684,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 except:
                     _error = str(sys.exc_info()[0])
                     _call_result = CResult(code='21008', error=_error, trace_str=traceback.format_exc(),
-                                        i18n_msg_paras=(_error, ))
+                                           i18n_msg_paras=(_error, ))
 
                 # 处理返回对象
                 if _return_json_obj is None:
@@ -687,7 +705,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
                 if self._logger is not None:
                     # 在日志字典中补充返回信息内容
-                    _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                    _request_info_dict['logging_para'] = copy.deepcopy(
+                        _request_info_dict['resp_logging_para'])
                     _request_info_dict['para_json'] = _return_obj.return_json
                     if _return_obj.return_bytes is None:
                         _request_info_dict['para_bytes_len'] = 'None'
@@ -763,7 +782,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             _request_info_dict = dict()
             if self._logger is not None:
                 # 获取请求信息中与日志登记相关的信息，形成日志字典
-                _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.ServerSideStream)
+                _request_info_dict = self._get_request_info_dict(
+                    request, context, EnumCallMode.ServerSideStream)
                 # 补充日志字典信息
                 _request_info_dict['trace_id'] = _trace_info.trace_id
                 _request_info_dict['parent_id'] = _trace_info.parent_id
@@ -817,7 +837,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 )
                 if self._logger is not None:
                     # 在日志字典中补充返回信息内容
-                    _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                    _request_info_dict['logging_para'] = copy.deepcopy(
+                        _request_info_dict['resp_logging_para'])
                     _request_info_dict['para_json'] = _return_obj.return_json
                     if _return_obj.return_bytes is None:
                         _request_info_dict['para_bytes_len'] = 'None'
@@ -862,13 +883,15 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
                     if self._logger is not None:
                         # 在日志字典中补充返回信息内容
-                        _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                        _request_info_dict['logging_para'] = copy.deepcopy(
+                            _request_info_dict['resp_logging_para'])
                         _request_info_dict['para_json'] = _return_obj.return_json
                         if _return_obj.return_bytes is None:
                             _request_info_dict['para_bytes_len'] = 'None'
                             _request_info_dict['para_bytes'] = 'None'
                         else:
-                            _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                            _request_info_dict['para_bytes_len'] = str(
+                                len(_return_obj.return_bytes))
                             if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
                                 _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
@@ -939,7 +962,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 _request_info_dict = dict()
                 if self._logger is not None:
                     # 获取请求信息中与日志登记相关的信息，形成日志字典
-                    _request_info_dict = self._get_request_info_dict(request, context, EnumCallMode.BidirectionalStream)
+                    _request_info_dict = self._get_request_info_dict(
+                        request, context, EnumCallMode.BidirectionalStream)
                     # 补充日志字典信息
                     _request_info_dict['trace_id'] = _trace_info.trace_id
                     _request_info_dict['parent_id'] = _trace_info.parent_id
@@ -957,7 +981,8 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                     # 执行函数
                     if request.service_name not in self._bidirectional_stream_service_list.keys():
                         # 没有找到服务名，返回执行失败
-                        _call_result = CResult(code='11403', i18n_msg_paras=(request.service_name, ))
+                        _call_result = CResult(
+                            code='11403', i18n_msg_paras=(request.service_name, ))
                     else:
                         # 先形成调用参数
                         _fun_object = self._bidirectional_stream_service_list[request.service_name][0]
@@ -972,7 +997,7 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 except:
                     _error = str(sys.exc_info()[0])
                     _call_result = CResult(code='21008', error=_error, trace_str=traceback.format_exc(),
-                                        i18n_msg_paras=(_error, ))
+                                           i18n_msg_paras=(_error, ))
 
                 if self._logger is not None:
                     # 异常信息
@@ -994,13 +1019,15 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
                     if self._logger is not None:
                         # 在日志字典中补充返回信息内容
-                        _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                        _request_info_dict['logging_para'] = copy.deepcopy(
+                            _request_info_dict['resp_logging_para'])
                         _request_info_dict['para_json'] = _return_obj.return_json
                         if _return_obj.return_bytes is None:
                             _request_info_dict['para_bytes_len'] = 'None'
                             _request_info_dict['para_bytes'] = 'None'
                         else:
-                            _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                            _request_info_dict['para_bytes_len'] = str(
+                                len(_return_obj.return_bytes))
                             if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
                                 _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
@@ -1055,13 +1082,15 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
 
                         if self._logger is not None:
                             # 在日志字典中补充返回信息内容
-                            _request_info_dict['logging_para'] = copy.deepcopy(_request_info_dict['resp_logging_para'])
+                            _request_info_dict['logging_para'] = copy.deepcopy(
+                                _request_info_dict['resp_logging_para'])
                             _request_info_dict['para_json'] = _return_obj.return_json
                             if _return_obj.return_bytes is None:
                                 _request_info_dict['para_bytes_len'] = 'None'
                                 _request_info_dict['para_bytes'] = 'None'
                             else:
-                                _request_info_dict['para_bytes_len'] = str(len(_return_obj.return_bytes))
+                                _request_info_dict['para_bytes_len'] = str(
+                                    len(_return_obj.return_bytes))
                                 if 'PARA_BYTES' in _request_info_dict['logging_para']['logging_head'].keys():
                                     _request_info_dict['para_bytes'] = str(_return_obj.return_bytes)
 
@@ -1288,13 +1317,16 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 elif not _has_deal_trace_id and paras[_i][0] == 'trace_id':
                     # 以这次调用的为准
                     _has_deal_trace_id = True
-                    _call_para_str = '%s, trace_id=%s.trace_id' % (_call_para_str, trace_info_var_name)
+                    _call_para_str = '%s, trace_id=%s.trace_id' % (
+                        _call_para_str, trace_info_var_name)
                 elif not _has_deal_parent_id and paras[_i][0] == 'parent_id':
                     _has_deal_parent_id = True
-                    _call_para_str = '%s, parent_id=%s.call_id' % (_call_para_str, trace_info_var_name)
+                    _call_para_str = '%s, parent_id=%s.call_id' % (
+                        _call_para_str, trace_info_var_name)
                 elif not _has_deal_trace_level and paras[_i][0] == 'trace_level':
                     _has_deal_trace_level = True
-                    _call_para_str = '%s, trace_level=%s.trace_level' % (_call_para_str, trace_info_var_name)
+                    _call_para_str = '%s, trace_level=%s.trace_level' % (
+                        _call_para_str, trace_info_var_name)
                 else:
                     _call_para_str = '%s, %s=%s[%s][1]' % (
                         _call_para_str, paras[_i][0], paras_var_name, str(_i))
@@ -1304,13 +1336,15 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
         # 调用链参数传入
         if _is_function_has_var_parameter:
             if not _has_deal_next_stream_data:
-                _call_para_str = '%s, has_next_stream_data=%s' % (_call_para_str, str(has_next_stream_data))
+                _call_para_str = '%s, has_next_stream_data=%s' % (
+                    _call_para_str, str(has_next_stream_data))
             if not _has_deal_trace_id:
                 _call_para_str = '%s, trace_id=%s.trace_id' % (_call_para_str, trace_info_var_name)
             if not _has_deal_parent_id:
                 _call_para_str = '%s, parent_id=%s.call_id' % (_call_para_str, trace_info_var_name)
             if not _has_deal_trace_level:
-                _call_para_str = '%s, trace_level=%s.trace_level' % (_call_para_str, trace_info_var_name)
+                _call_para_str = '%s, trace_level=%s.trace_level' % (
+                    _call_para_str, trace_info_var_name)
 
         # 去掉开始的', '
         if len(_call_para_str) > 0 and _call_para_str[0] == ',':

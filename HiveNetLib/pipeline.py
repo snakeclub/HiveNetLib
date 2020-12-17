@@ -416,6 +416,7 @@ class Pipeline(object):
         #       status_msg {str} 状态描述，当异常时送入异常信息
         #       router_name : 路由名(直线路由可以不设置路由器)
         #       is_sub_pipeline {bool} 是否子管道执行
+        #       sub_name {str} - 子管道名称
         #       sub_trace_list {list} 子管道执行的trace_list
         #   node_id {str} 当前节点配置id
         #   node_status {str} I-初始化，R-正在执行, E-执行失败， S-执行成功, P-子管道暂停
@@ -568,7 +569,7 @@ class Pipeline(object):
 
         @returns {str, str, object} - 同步情况返回 run_id, status, output，异步情况返回status为R
 
-        @throws {RuntimeError} - 当状态为running、pause时抛出异常
+        @throws {RuntimeError} - 当状态为R、P时抛出异常
         """
         # 处理运行id
         _run_id = run_id
@@ -1117,6 +1118,9 @@ class Pipeline(object):
             self.log_error('Error: ' % _msg)
             raise RuntimeError(_msg)
 
+        # 登记执行任务
+        _run_cache['node_status_msg'] = status_msg
+
         _node_config = self.pipeline[node_id]
         _router_name = ''
         _router_para = {}
@@ -1129,8 +1133,10 @@ class Pipeline(object):
 
         # 对子管道执行进行处理
         _is_sub_pipeline = _node_config.get('is_sub_pipeline', False)
+        _sub_name = ''
         _sub_trace_list = []
         if _is_sub_pipeline:
+            _sub_name = self.running_sub_pipeline[_run_id].name
             _sub_trace_list = copy.deepcopy(
                 self.running_sub_pipeline[_run_id].trace_list(run_id=_run_id)
             )
@@ -1153,6 +1159,7 @@ class Pipeline(object):
             'status_msg': status_msg,
             'router_name': _router_name,
             'is_sub_pipeline': _is_sub_pipeline,
+            'sub_name': _sub_name,
             'sub_trace_list': _sub_trace_list
         })
 
@@ -1253,6 +1260,7 @@ class Pipeline(object):
                         # 设置上下文，执行下一个节点
                         _run_cache['node_id'] = _next_id
                         _run_cache['node_status'] = 'I'
+                        _run_cache['node_status_msg'] = ''
                         time.sleep(0.0001)
         except:
             # 如果在线程中出了异常，结束掉执行

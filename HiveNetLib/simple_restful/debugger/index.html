@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-cn">
+
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <script src="./js/ionicons.js"></script>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="./css/bootstrap.min.css">
+
+
+  <style type="text/css">
+    /* 指定全局字体大小(缩小后中文好看一点) */
+    html {
+      font-size: 14px;
+    }
+
+    /* 避免导航栏遮挡正文内容 */
+    body {
+      margin-top: 60px;
+    }
+  </style>
+
+  <title>Simple Restful Debugger</title>
+</head>
+
+<body class="body-with-top-nav">
+  <script>
+    var userAgent = navigator.userAgent; //取得浏览器的userAgent字符串
+    var isIE = !(userAgent.indexOf("Opera") > -1 || userAgent.indexOf("Edge") > -1 || userAgent.indexOf("Firefox") > -
+      1 || userAgent.indexOf("Safari") > -1 || userAgent.indexOf("Chrome") > -1);
+  </script>
+
+  <!-- 对屏幕阅读器以外的设备隐藏内容 -->
+  <a id="skippy" class="sr-only sr-only-focusable" href="#content">
+    <div class="container"> <span class="skiplink-text">Skip to main content</span> </div>
+  </a>
+
+  <!-- 导航栏 -->
+  <nav class="navbar navbar-dark bg-primary navbar-expand-sm navbar-toggleable-md fixed-top">
+    <!-- 网站图标 -->
+    <a class="navbar-brand" href="#" style="font-size: 20px;">
+      <svg width="30" height="30" viewBox="0 0 30 30" class="d-inline-block align-top bi" fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <use xlink:href="./img/bootstrap-icons.svg#bug-fill" />
+      </svg>
+      Debugger
+    </a>
+
+    <!-- 折叠后的菜单图标 -->
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsTogglerMenu"
+      aria-controls="navbarsTogglerMenu" aria-expanded="false" aria-label="Toggle navigation"> <span
+        class="navbar-toggler-icon"></span> </button>
+
+    <!-- 折叠后的展示菜单（以及非折叠的导航元素） -->
+    <div class="collapse navbar-collapse flex-row-reverse" id="navbarsTogglerMenu">
+      <!-- 最右边的导航元素清单，通过flex-row-reverse右对齐，且保证在折叠后菜单的上部 -->
+      <ul class="navbar-nav">
+        <!-- 登陆后的用户名下拉按钮，可以点击出现用户管理的下拉菜单（带图标） -->
+        <li class="nav-item dropdown active">
+          <!-- 显示的用户头像和文字 -->
+          <a class="nav-link dropdown-toggle" id="dropdownLoginUser" href="#" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">
+            <svg width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi" fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg" focusable="false">
+              <use id="loginUserPic" xlink:href="./img/bootstrap-icons.svg#person-circle" />
+            </svg>
+            <span id="loginUserNickName">未登陆</span>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownLoginUser">
+            <a class="dropdown-item" href="#" id="menuLogin" data-toggle="modal" data-target="#loginModal">登陆</a>
+            <a class="dropdown-item" href="#" id="menuLogin" data-toggle="modal" data-target="#registerModal">注册</a>
+            <a class="dropdown-item" href="#" id="menuLogin" data-toggle="modal" data-target="#changePasswordModal">修改密码</a>
+            <a class="dropdown-item" href="#" id="menuLogin">退出登陆</a>
+          </div>
+        </li>
+      </ul>
+
+      <!-- 左边的导航元素 -->
+      <ul class="navbar-nav mr-auto">
+
+        <!-- 选择调试接口类 -->
+        <li class="nav-item active">
+          <a class="nav-link">接口类</a>
+        </li>
+        <li class="nav-item">
+          <select class="custom-select" id="apiClassList" style="width:max-content; max-width:150px;" required>
+            <option value="">Choose...</option>
+            <option>United States</option>
+            <option>United States</option>
+          </select>
+          <div class="invalid-feedback">
+            Please select a api class.
+          </div>
+        </li>
+        <!-- 选择调试接口函数 -->
+        <li class="nav-item active">
+          <a class="nav-link">函数</a>
+        </li>
+        <li class="nav-item">
+          <select class="custom-select" id="apiFuncList" style="width:max-content; max-width:300px;" required>
+            <option value="">Choose...</option>
+            <option>United States</option>
+            <option>United States</option>
+          </select>
+          <div class="invalid-feedback">
+            Please select a api function.
+          </div>
+        </li>
+
+        <!-- 设置验证方式 -->
+        <li class="nav-item active"> <a class="nav-link" herf="#" style="cursor:pointer;" data-toggle="modal" data-target="#setAuthConfig">设置验证方式</a> </li>
+      </ul>
+    </div>
+
+  </nav>
+
+
+  <div class="container-fluid">
+    <nav>
+      <div class="nav nav-tabs nav-pills" id="nav-tab" role="tablist">
+        <a class="nav-item nav-link active" id="nav-home-tab" data-toggle="tab" href="#nav-home" role="tab" aria-controls="nav-home" aria-selected="true">Home</a>
+        <a class="nav-item nav-link" id="nav-profile-tab" data-toggle="tab" href="#nav-profile" role="tab" aria-controls="nav-profile" aria-selected="false">Profile</a>
+        <a class="nav-item nav-link" id="nav-contact-tab" data-toggle="tab" href="#nav-contact" role="tab" aria-controls="nav-contact" aria-selected="false">Contact</a>
+      </div>
+    </nav>
+    <div class="tab-content" id="nav-tabContent">
+      <div class="tab-pane fade show active" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab">...</div>
+      <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab">...</div>
+      <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab">...</div>
+    </div>
+  </div>
+
+  <!-- 登陆弹出框 -->
+  <div class="modal" tabindex="-1" role="dialog" id="loginModal">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 330px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">请进行登陆</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form class="needs-validation" novalidate>
+            <div class="mb-3 text-left">
+              <label for="username">用户名</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="text" class="form-control" id="username" placeholder="Username" required autofocus>
+                <div class="invalid-feedback" style="width: 100%;">
+                  必须输入用户名
+                </div>
+              </div>
+            </div>
+            <div class="mb-3 text-left">
+              <label for="password">密  码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="password" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <div class="custom-control custom-checkbox mb-3">
+              <input type="checkbox" class="custom-control-input" id="rememberMe">
+              <label class="custom-control-label" for="rememberMe">记住登陆状态</label>
+            </div>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">登  陆</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 注册弹出框 -->
+  <div class="modal" tabindex="-1" role="dialog" id="registerModal">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 330px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">请填入注册信息</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form class="needs-validation" novalidate>
+            <div class="mb-3 text-left">
+              <label for="registerUsername">注册用户名</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="text" class="form-control" id="registerUsername" placeholder="Username" required autofocus>
+                <div class="invalid-feedback" style="width: 100%;">
+                  必须输入注册用户名
+                </div>
+              </div>
+            </div>
+            <div class="mb-3 text-left">
+              <label for="registerPassword">密  码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="registerPassword" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <div class="mb-3 text-left">
+              <label for="registerRepeatPassword">重输一次密码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="registerRepeatPassword" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">注  册</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修改密码弹出框 -->
+  <div class="modal" tabindex="-1" role="dialog" id="changePasswordModal">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 330px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">修改用户密码</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form class="needs-validation" novalidate>
+            <div class="mb-3 text-left">
+              <label for="changePasswordOrg">原密码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="changePasswordOrg" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <div class="mb-3 text-left">
+              <label for="changePasswordNew">新密码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="changePasswordNew" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <div class="mb-3 text-left">
+              <label for="changePasswordRepeat">重输一次密码</label>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"></span>
+                </div>
+                <input type="password" id="changePasswordRepeat" class="form-control" placeholder="Password" required>
+                <div class="invalid-feedback">
+                  必须输入密码
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">修  改</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置验证方式弹出框 -->
+  <div class="modal" tabindex="-1" role="dialog" id="setAuthConfig">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">设置验证方式</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="inputEmail4">Email</label>
+                <input type="email" class="form-control" id="inputEmail4">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="inputPassword4">Password</label>
+                <input type="password" class="form-control" id="inputPassword4">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="inputAddress">Address</label>
+              <input type="text" class="form-control" id="inputAddress" placeholder="1234 Main St">
+            </div>
+            <div class="form-group">
+              <label for="inputAddress2">Address 2</label>
+              <input type="text" class="form-control" id="inputAddress2" placeholder="Apartment, studio, or floor">
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="inputCity">City</label>
+                <input type="text" class="form-control" id="inputCity">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="inputState">State</label>
+                <select id="inputState" class="form-control">
+                  <option selected>Choose...</option>
+                  <option>...</option>
+                </select>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="inputZip">Zip</label>
+                <input type="text" class="form-control" id="inputZip">
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="gridCheck">
+                <label class="form-check-label" for="gridCheck">
+                  Check me out
+                </label>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Sign in</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Optional JavaScript -->
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="./js/jquery.slim.min.js"></script>
+  <script src="./js/popper.min.js"></script>
+  <script src="./js/bootstrap.min.js"></script>
+</body>
+
+</html>

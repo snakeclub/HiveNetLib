@@ -16,13 +16,20 @@ import sys
 import os
 import re
 from enum import Enum
-import lxml.etree as ET
-try:
-    import chardet
-except:
-    pass
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+# 动态安装包
+import HiveNetLib.deps_tool as deps_tool
+try:
+    import lxml.etree as ET
+except ImportError:
+    deps_tool.install_package('lxml')
+    import lxml.etree as ET
+try:
+    import chardet
+except ImportError:
+    deps_tool.install_package('chardet')
+    import chardet
 
 
 __MOUDLE__ = 'simple_xml'  # 模块名

@@ -741,7 +741,7 @@ class BaseStream(ABC):
         @param {int} move_forward_step=None - 执行流处理前先向前移动指定步数（与move_next_step、seek_position不能共存）
 
         @example
-            @BaseStream.stream_dealer(stop_by_excepiton=True)
+            @BaseStream.stream_decorator(stop_by_excepiton=True)
             def dealer_fun(deal_obj, position, **kwargs):
                 # 进行流对象处理，deal_obj为传入的流对象，kwargs为函数自身的传入参数
                 pass

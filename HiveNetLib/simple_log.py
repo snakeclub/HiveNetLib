@@ -28,8 +28,7 @@ import logging.config
 import threading
 import json
 import traceback
-from queue import Full, Empty
-from lxml import etree
+from queue import Empty
 from enum import Enum
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
@@ -38,6 +37,7 @@ from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.simple_queue import MemoryQueue
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+
 
 __MOUDLE__ = 'simple_log'  # 模块名
 __DESCRIPT__ = u'简单日志模块'  # 模块描述

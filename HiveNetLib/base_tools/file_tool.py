@@ -22,13 +22,17 @@ from enum import Enum
 import platform
 import subprocess
 import shutil
-try:
-    import chardet
-except:
-    pass
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+try:
+    import chardet
+except ImportError:
+    deps_tool.install_package('chardet')
+    import chardet
+# 引用自有模块
 import HiveNetLib.base_tools.myzipfile as zipfile
 
 

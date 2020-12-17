@@ -3,5 +3,5 @@
 
 
 __all__ = [
-    'msg_fw', 'msg_xml', 'msg_json', 'protocol_msg_http'
+    'intf_msg_fw', 'msg_fw', 'msg_xml', 'msg_json', 'protocol_msg_http'
 ]

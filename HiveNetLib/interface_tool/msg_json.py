@@ -17,12 +17,18 @@ json报文处理模块
 
 import os
 import sys
-import copy
 import json
-from jsonpath_rw import jsonpath, parse
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+try:
+    from jsonpath_rw import jsonpath, parse
+except ImportError:
+    deps_tool.install_package('jsonpath-rw')
+    from jsonpath_rw import jsonpath, parse
+# 引用自有模块
 from HiveNetLib.generic import CResult
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, MsgFW
 from HiveNetLib.interface_tool.msg_xml import MsgXML

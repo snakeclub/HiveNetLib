@@ -42,5 +42,13 @@
     "validators failed": "校验失败",
     "get info failed": "获取信息失败",
     "control check failed": "控制检查失败",
-    "user confirmation required": "需要用户确认"
+    "user confirmation required": "需要用户确认",
+    "signature error":"签名检查失败",
+    "timestamp expired":"时间戳已过期",
+    "ip address verify failure": "IP地址验证失败",
+    "username format error": "用户名格式错误",
+    "username exists": "用户名已存在",
+    "username is not existed": "用户名不存在",
+    "user is locked": "用户被锁定",
+    "user status is abnormal": "用户状态异常"
 }

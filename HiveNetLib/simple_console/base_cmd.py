@@ -13,13 +13,11 @@
 """
 import os
 import sys
-import threading
-import traceback
 import time
 import subprocess
 import warnings
 import copy
-from collections import Iterator
+from collections.abc import Iterator
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -203,7 +201,7 @@ class CmdBaseFW(object):
         @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的
             print_str属性要求框架进行打印处理
         """
-        pass
+        raise NotImplementedError()
 
 
 class CmdDefault(CmdBaseFW):

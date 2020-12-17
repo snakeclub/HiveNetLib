@@ -12,7 +12,6 @@
 
 @module prompt_plus
 @file prompt_plus.py
-
 """
 
 from __future__ import unicode_literals
@@ -24,30 +23,44 @@ import sys
 import os
 import logging
 from queue import Queue
-from collections import Iterator
+from collections.abc import Iterator
 import asyncio
-# from prompt_toolkit import prompt, Prompt
-from prompt_toolkit import prompt
-from prompt_toolkit import PromptSession  # 动态对象要用到，所以不能删除
-from prompt_toolkit import print_formatted_text as prompt_toolkit_print
-# from prompt_toolkit.key_binding import KeyBindings
-# from prompt_toolkit.enums import EditingMode
-try:
-    from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
-except:
-    pass
-from prompt_toolkit.patch_stdout import patch_stdout
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.styles import Style
-from prompt_toolkit.lexers import Lexer
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.shortcuts import ProgressBar
-from prompt_toolkit.formatted_text import HTML
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+process_install_prompt_toolkit = False
+while True:
+    try:
+        # from prompt_toolkit import prompt, Prompt
+        from prompt_toolkit import prompt
+        from prompt_toolkit import PromptSession  # 动态对象要用到，所以不能删除
+        from prompt_toolkit import print_formatted_text as prompt_toolkit_print
+        # from prompt_toolkit.key_binding import KeyBindings
+        # from prompt_toolkit.enums import EditingMode
+        try:
+            from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+        except:
+            pass
+        from prompt_toolkit.patch_stdout import patch_stdout
+        from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.styles import Style
+        from prompt_toolkit.lexers import Lexer
+        from prompt_toolkit.completion import Completer, Completion
+        from prompt_toolkit.shortcuts import ProgressBar
+        from prompt_toolkit.formatted_text import HTML
+        break
+    except ImportError:
+        if not process_install_prompt_toolkit:
+            deps_tool.install_package('prompt-toolkit')
+            process_install_prompt_toolkit = True
+            continue
+        raise
+# 内部包引用
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
 from HiveNetLib.simple_stream import StringStream
+
 
 __MOUDLE__ = 'prompt_plus'  # 模块名
 __DESCRIPT__ = u'增强的交互命令行扩展处理，基于prompt_toolkit进行封装和扩展'  # 模块描述
@@ -1640,17 +1653,18 @@ class PromptPlus(object):
         @param {bool} force_logging=False - 是否强制使用日志打印, 默认都是通过print输出
         @param {logger} my_logger=None - 如果该参数传入值，则使用该日志对象进行打印
         """
+        _args = list(args)
         _logger = self._prompt_init_para['logger']
         if my_logger is not None:
             _logger = my_logger
         if _logger is None or not force_logging:
             # 没有日志类，直接输出
-            if line_head and len(args) > 0:
-                args[0] = '\r%s' % str(args[0])
+            if line_head and len(_args) > 0:
+                _args[0] = '\r%s' % str(_args[0])
             if format_print:
-                PromptPlus.print_formatted_text(*args, sep=sep, end=end, style=style, flush=flush)
+                PromptPlus.print_formatted_text(*_args, sep=sep, end=end, style=style, flush=flush)
             else:
-                print(*args, sep=sep, end=end, flush=flush)
+                print(*_args, sep=sep, end=end, flush=flush)
         else:
             _print_str = __MemoryStringStream__()
             print(*args, sep=sep, end=end, file=_print_str, flush=flush)

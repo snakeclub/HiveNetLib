@@ -49,6 +49,7 @@ class GoToNode(PipelineRouter):
         @param {Pipeline} pipeline_obj - 管道对象
         @param {str} run_id - 当前管道的运行id
         @param {kwargs} - 传入的扩展参数
+            default_to_next {bool} - 当没有给出上下文参数的时候是否默跳转到下一个节点, 默认为False
 
         @returns {str} - 下一节点的配置id，如果是最后的节点，返回None
         """
@@ -76,8 +77,16 @@ class GoToNode(PipelineRouter):
                 raise RuntimeError(
                     'GoToNode Router Error: goto_node_name[%s] not found!' % _goto_node_name)
         else:
-            raise RuntimeError(
-                'GoToNode Router Error: goto para not found in context or pipeline para!')
+            # 没有跳转参数
+            if kwargs.get('default_to_next', False):
+                # 跳转到下一个节点
+                _next_id = None
+                _temp_id = str(int(pipeline_obj.current_node_id(run_id=run_id)) + 1)
+                if _temp_id in pipeline_obj.pipeline.keys():
+                    _next_id = _temp_id
+            else:
+                raise RuntimeError(
+                    'GoToNode Router Error: goto para not found in context or pipeline para!')
 
         # 返回路由节点
         return _next_id

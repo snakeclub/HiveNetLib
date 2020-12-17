@@ -16,7 +16,6 @@
 """
 import os
 import sys
-import netifaces
 import socket
 import urllib
 import copy
@@ -25,19 +24,36 @@ import re
 import json
 import time
 import datetime
-import collections
 import logging
 import traceback
 from io import BytesIO
 from enum import Enum
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import selenium.webdriver.chrome.options
-import selenium.webdriver.firefox.options
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+process_install_selenium = False
+while True:
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+        import selenium.webdriver.chrome.options
+        import selenium.webdriver.firefox.options
+        break
+    except ImportError:
+        if not process_install_selenium:
+            deps_tool.install_package('selenium')
+            process_install_selenium = True
+            continue
+        raise
+try:
+    import netifaces
+except ImportError:
+    deps_tool.install_package('netifaces')
+    import netifaces
+# 引用自有模块
 import HiveNetLib.base_tools.wget as wget
 
 
