@@ -41,14 +41,18 @@ DEPENDENCIES = [
     'selenium',
     'flask-cors',
     'flask',
-    'flask-restful'
+    'flask-restful',
+    'flask-httpauth',
+    'werkzeug',
+    'requests',
+    'pycryptodomex'
 ]
 
 # DEPENDENCIES = []
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.4'
+VERSION = '0.8.5'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

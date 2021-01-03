@@ -70,6 +70,12 @@ DEPENDENCIES_DICT = {
     'flask-restful': {
         'install': 'flask-restful'
     },
+    'flask-httpauth': {
+        'install': 'flask-httpauth'
+    },
+    'werkzeug': {
+        'install': 'werkzeug'
+    },
     'pycryptodome': {
         'install': 'pycryptodome' if sys.platform != 'win32' else 'pycryptodomex'
     }

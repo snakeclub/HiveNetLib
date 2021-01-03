@@ -23,7 +23,6 @@ import logging
 import math
 import threading
 import ctypes
-import requests
 from functools import wraps
 from collections import OrderedDict
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
@@ -31,6 +30,11 @@ sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 # 动态安装包
 import HiveNetLib.deps_tool as deps_tool
+try:
+    import requests
+except ImportError:
+    deps_tool.install_package('requests')
+    import requests
 process_install_flask = False
 while True:
     try:
@@ -46,6 +50,7 @@ while True:
             deps_tool.install_package('flask')
             deps_tool.install_package('flask-cors')
             deps_tool.install_package('flask-restful')
+            deps_tool.install_package('werkzeug')
             process_install_flask = True
             continue
         raise

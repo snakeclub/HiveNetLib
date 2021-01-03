@@ -39,6 +39,8 @@ while True:
             deps_tool.install_package('flask')
             deps_tool.install_package('flask-cors')
             deps_tool.install_package('flask-restful')
+            deps_tool.install_package('flask-httpauth')
+            deps_tool.install_package('werkzeug')
             process_install_flask = True
             continue
         raise
