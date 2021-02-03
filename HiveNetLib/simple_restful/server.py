@@ -120,6 +120,57 @@ class FlaskTool(object):
     """
     Flash工具类，提供路由，内容解析等通用处理功能
     """
+
+    @classmethod
+    def add_route(cls, app: Flask, url: str, func, endpoint: str = None,
+                  with_para: bool = False, methods: list = None):
+        """
+        添加指定路由
+
+        @param {Flask} app - 要添加路由的服务器
+        @param {str} url - 路由url, 例如'/test'
+        @param {function} func - 要添加路由的函数
+        @param {str} endpoint=None - 路由标识，如果不传默认使用函数名(会存在函数名相同导致异常的情况)
+        @param {bool} with_para=False - 路由是否根据函数添加入参
+        @param {list} methods=None - 指定路由支持的方法，如果不传代表支持所有方法
+        """
+        _route = url if url == '/' else url.rstrip('/')  # 去掉最后的'/'
+        _methods = methods
+        _endpoint = endpoint if endpoint is not None else RunTool.get_function_name(
+            func, is_with_class=True, is_with_module=True
+        )
+
+        # 判断endpoint是否重复
+        if _endpoint in app.view_functions.keys():
+            raise RuntimeError('endpoint [%s] exists!' % _endpoint)
+
+        if with_para:
+            # 根据函数入参处理路由
+            _para_list = RunTool.get_function_parameter_defines(func)
+            for _para in _para_list:
+                if _para['name'] == 'methods':
+                    # 指定了处理方法
+                    _methods = _para['default']
+                elif _para['name'] in ('self', 'cls'):
+                    # 不处理 self 和 cls 入参
+                    continue
+                elif _para['type'] not in ('VAR_POSITIONAL', 'VAR_KEYWORD'):
+                    # 不处理 *args及**kwargs参数
+                    _type = ''
+                    if _para['annotation'] == int:
+                        _type = 'int:'
+                    elif _para['annotation'] == float:
+                        _type = 'float:'
+
+                    _route = '%s/<%s%s>' % (_route, _type, _para['name'])
+
+        # 创建路由
+        app.url_map.add(
+            Rule(_route, endpoint=_endpoint, methods=_methods)
+        )
+        # 加入路由
+        app.view_functions[_endpoint] = func
+
     @classmethod
     def add_route_by_class(cls, app: Flask, class_objs: list, blacklist: list = None, class_name_mapping: dict = None,
                            url_base: str = 'api', ver_is_new: bool = True):
@@ -688,7 +739,7 @@ class FlaskServer(object):
                 self.before_server_stop(self)
 
             # 向线程发送中止异常
-            self._async_raise(self._thread.ident, FlaskServerExit)
+            RunTool.async_raise(self._thread.ident, FlaskServerExit)
 
             # 更新状态为正在停止
             self._status = 'stoping'
@@ -723,10 +774,24 @@ class FlaskServer(object):
             url_base=url_base, ver_is_new=ver_is_new
         )
 
+    def add_route(self, url: str, func, endpoint: str = None,
+                  with_para: bool = False, methods: list = None):
+        """
+        添加指定路由
+
+        @param {str} url - 路由url, 例如'/test'
+        @param {function} func - 要添加路由的函数
+        @param {str} endpoint=None - 路由标识，如果不传默认使用函数名(会存在函数名相同导致异常的情况)
+        @param {bool} with_para=False - 路由是否根据函数添加入参
+        @param {list} methods=None - 指定路由支持的方法，如果不传代表支持所有方法
+        """
+        FlaskTool.add_route(
+            self.app, url=url, func=func, endpoint=endpoint, with_para=with_para, methods=methods
+        )
+
     #############################
     # 内部函数
     #############################
-
     def _server_run_fun(self):
         """
         启动服务器的线程函数
@@ -742,20 +807,10 @@ class FlaskServer(object):
             _flask_run['use_reloader'] = False
             if self.use_wsgi:
                 # 使用WSGIServer
-                _ssl_args = dict()
-                # keyfile='server.key', certfile='server.crt'
-                _ssl_context = _flask_run.get('ssl_context', None)
-                if _ssl_context is not None and type(_ssl_context) in (tuple, list):
-                    _ssl_args['certfile'] = _ssl_context[0]
-                    _ssl_args['keyfile'] = _ssl_context[1]
-                _wsgi_server = pywsgi.WSGIServer(
-                    (_flask_run.get('host', ''), _flask_run.get('port', 5000)),
-                    application=self.app,
-                    **_ssl_args
-                )
-                _wsgi_server.serve_forever()
+                self._wsgi_server_start(_flask_run)
             else:
-                self.app.run(**_flask_run)
+                # 使用原生方式启动
+                self._flask_server_start(_flask_run)
         except FlaskServerExit:
             # 正常执行中止服务后的操作, 无需抛出异常
             pass
@@ -775,25 +830,34 @@ class FlaskServer(object):
         """
         self._status = 'running'
 
-    def _async_raise(self, tid, exctype):
+    def _wsgi_server_start(self, run_para: dict):
         """
-        向线程抛出异常以中止线程
+        启动wsgi服务器的函数
+        注：如果需改用其他wsgi服务器，请继承并重载该函数
 
-        @param {int} tid - 线程id(Thread.ident)
-        @param {Excepton} exctype - 要抛出的异常类型
+        @param {dict} run_para - 启动参数
         """
-        tid = ctypes.c_long(tid)
-        if not inspect.isclass(exctype):
-            exctype = type(exctype)
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
-        if res == 0:
-            raise ValueError("invalid thread id")
+        _ssl_args = dict()
+        # keyfile='server.key', certfile='server.crt'
+        _ssl_context = run_para.get('ssl_context', None)
+        if _ssl_context is not None and type(_ssl_context) in (tuple, list):
+            _ssl_args['certfile'] = _ssl_context[0]
+            _ssl_args['keyfile'] = _ssl_context[1]
+        _wsgi_server = pywsgi.WSGIServer(
+            (run_para.get('host', ''), run_para.get('port', 5000)),
+            application=self.app,
+            **_ssl_args
+        )
+        _wsgi_server.serve_forever()
 
-        if res != 1:
-            # """if it returns a number greater than one, you're in trouble,
-            # and you should call it again with exc=NULL to revert the effect"""
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-            raise SystemError("PyThreadState_SetAsyncExc failed")
+    def _flask_server_start(self, run_para: dict):
+        """
+        flask原生启动方式
+        注：如果需改用其他启动方式，请继承并重载该函数
+
+        @param {dict} run_para - 启动参数
+        """
+        self.app.run(**run_para)
 
 
 class WebAuth(object):

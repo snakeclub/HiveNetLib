@@ -395,13 +395,14 @@ class FileTool(object):
                     )
 
     @staticmethod
-    def copy_all_with_path(src_path='', dest_path='', regex_str=''):
+    def copy_all_with_path(src_path='', dest_path='', regex_str='', exist_ok=False):
         """
         复制指定文件夹下的所有文件及文件夹到目标文件夹
 
         @param {string} src_path='' - 源文件夹
         @param {string} dest_path='' - 目标文件夹
         @param {string} regex_str='' - 文件名匹配的正则表达式
+        @param {bool} exist_ok=Fasle - 遇到文件存在的情况忽略错误
 
         """
         _pattern = None
@@ -420,10 +421,17 @@ class FileTool(object):
             _full_destname = os.path.join(_dest_path, fn)
             if os.path.isfile(_full_filename):
                 # 复制文件
-                shutil.copyfile(_full_filename, _full_destname)
+                if not exist_ok and os.path.exists(_full_destname):
+                    raise FileExistsError('file exists: %s' % _full_destname)
+                else:
+                    shutil.copyfile(_full_filename, _full_destname)
             else:
-                # 复制文件夹
-                shutil.copytree(_full_filename, _full_destname)
+                # 复制文件夹, 先创建文件夹
+                FileTool.create_dir(_full_destname, exist_ok=True)
+                # 递归复制文件夹
+                FileTool.copy_all_with_path(
+                    src_path=_full_filename, dest_path=_full_destname, exist_ok=exist_ok
+                )
 
     #############################
     # 文件内容处理

@@ -28,6 +28,7 @@ SHORT_DESCRIPTION = """
 
 DEPENDENCIES = [
     'gevent',
+    'eventlet',
     'prompt-toolkit>=2.0.0',
     'affinity>=0.1.0',
     'dicttoxml>=1.7.4',
@@ -43,6 +44,7 @@ DEPENDENCIES = [
     'flask',
     'flask-restful',
     'flask-httpauth',
+    'flask-socketio',
     'werkzeug',
     'requests',
     'pycryptodomex'
@@ -52,7 +54,7 @@ DEPENDENCIES = [
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.5'
+VERSION = '0.8.6'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

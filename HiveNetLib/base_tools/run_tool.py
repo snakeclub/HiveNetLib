@@ -17,10 +17,12 @@
 
 import sys
 import os
+import time
+import inspect
+import ctypes
+import subprocess
 import traceback
 import logging
-import inspect
-from enum import Enum
 from contextlib import contextmanager
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -71,11 +73,12 @@ class RunTool(object):
         RUNTOOL_GLOBAL_VAR_LIST[key] = value
 
     @staticmethod
-    def get_global_var(key):
+    def get_global_var(key, default=None):
         """
         根据key获取全局变量的值，如果找不到key则返回None
 
         @param {string} key - 要获取的全局变量key值
+        @param {object} default=None - 获取不到返回的默认值
 
         @returns {object} - 全局变量的值，如果找不到key则返回None
 
@@ -83,8 +86,8 @@ class RunTool(object):
         global RUNTOOL_GLOBAL_VAR_LIST
         if key in RUNTOOL_GLOBAL_VAR_LIST.keys():
             return RUNTOOL_GLOBAL_VAR_LIST[key]
-
-        return None
+        else:
+            return default
 
     @staticmethod
     def del_global_var(key):
@@ -178,6 +181,164 @@ class RunTool(object):
 
         """
         return RunTool.get_global_var('CALL_CHAIN_TOOL_LOGGER')
+
+    #############################
+    # 命令行执行
+    #############################
+    @classmethod
+    def exec_sys_cmd(cls, cmd: str, shell_encoding: str = None,
+                     stop_var: list = None, use_stop_signal: int = None):
+        """
+        执行系统命令
+
+        @param {str} cmd - 要执行的命令
+        @param {str} shell_encoding=None - 传入指定的编码
+            注：如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
+        @param {list} stop_var=None - 用于在运行过程中在外部设置停止标志的列表变量，第一个值为True时停止线程
+        @param {int} use_stop_signal=None - 使用指定signal进行中止，例如 signal.CTRL_C_EVENT
+
+        @returns {(int, list)} - 返回命令执行结果数组, 第一个为 exit_code, 0代表成功; 第二个为输出信息行数组
+        """
+        _shell_encoding = shell_encoding
+        if _shell_encoding is None:
+            _shell_encoding = cls.get_global_var('SHELL_ENCODING', default='utf-8')
+
+        _sp = subprocess.Popen(
+            cmd, close_fds=True,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            shell=True
+        )
+
+        # 循环等待执行完成
+        _exit_code = None
+        _info_str = ''
+        while True:
+            # 判断是否中止执行
+            if stop_var is not None and len(stop_var) > 0:
+                if stop_var[0]:
+                    # 需要强制结束进程
+                    if use_stop_signal is None:
+                        _sp.terminate()
+                    else:
+                        os.kill(_sp.pid, use_stop_signal)
+
+                    _info_str += '\nkilled with singal'
+                    _exit_code = 0
+                    break
+
+            # 获取输出信息 .replace('\r', '').replace('\n', '')
+            _info_str += _sp.stdout.read().decode(
+                _shell_encoding
+            )
+
+            _exit_code = _sp.poll()
+            if _exit_code is not None:
+                # 结束，打印异常日志
+                _info_str += _sp.stdout.read().decode(_shell_encoding)
+                if _exit_code != 0:
+                    _info_str += _sp.stderr.read().decode(_shell_encoding)
+
+                # 关闭输出管道
+                _sp.stdout.close()
+                break
+
+            # 释放一下CPU
+            time.sleep(0.01)
+
+        # 格式化
+        if sys.platform == 'darwin':
+            # mac os, \r 代表回车换行
+            _info_str = _info_str.replace('\n', '').replace('\r', '\n')
+        else:
+            # \r 代表回车  \n 代表换行
+            _info_str = _info_str.replace('\r', '')
+
+        return (_exit_code, _info_str.split('\n'))
+
+    @classmethod
+    def exec_sys_cmd_not_output(cls, cmd: str, shell_encoding: str = None,
+                                stop_var: list = None, use_stop_signal: int = None):
+        """
+        执行系统命令不输出信息
+
+        @param {str} cmd - 要执行的命令
+        @param {str} shell_encoding=None - 传入指定的编码
+            注：如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
+        @param {list} stop_var=None - 用于在运行过程中在外部设置停止标志的列表变量，第一个值为True时停止线程
+        @param {int} use_stop_signal=None - 使用指定signal进行中止，例如 signal.CTRL_C_EVENT
+
+        @returns {(int, list)} - 返回命令执行结果数组, 第一个为 exit_code, 0代表成功; 第二个为输出信息行数组
+        """
+        _shell_encoding = shell_encoding
+        if _shell_encoding is None:
+            _shell_encoding = cls.get_global_var('SHELL_ENCODING', default='utf-8')
+
+        _sp = subprocess.Popen(
+            cmd, close_fds=True,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            shell=True
+        )
+
+        # 循环等待执行完成
+        _exit_code = None
+        _info_str = ''
+        while True:
+            if stop_var is not None and len(stop_var) > 0:
+                if stop_var[0]:
+                    # 需要强制结束进程
+                    if use_stop_signal is None:
+                        _sp.terminate()
+                    else:
+                        os.kill(_sp.pid, use_stop_signal)
+
+                    _info_str = 'killed with singal'
+                    _exit_code = 0
+                    break
+
+            _exit_code = _sp.poll()
+            if _exit_code is not None:
+                # 结束
+                if _exit_code != 0:
+                    _info_str += _sp.stdout.read().decode(_shell_encoding)
+                    _info_str += _sp.stderr.read().decode(_shell_encoding)
+
+                # 关闭输出管道
+                _sp.stdout.close()
+                break
+
+            # 释放一下CPU
+            time.sleep(0.01)
+
+        if sys.platform == 'darwin':
+            # mac os, \r 代表回车换行
+            _info_str = _info_str.replace('\n', '').replace('\r', '\n')
+        else:
+            # \r 代表回车  \n 代表换行
+            _info_str = _info_str.replace('\r', '')
+
+        return (_exit_code, _info_str.split('\n'))
+
+    #############################
+    # 线程处理函数
+    #############################
+    @classmethod
+    def async_raise(cls, tid, exctype):
+        """raises the exception, performs cleanup if needed"""
+        tid = ctypes.c_long(tid)
+        if not inspect.isclass(exctype):
+            exctype = type(exctype)
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+        if res == 0:
+            raise ValueError("invalid thread id")
+        elif res != 1:
+            # """if it returns a number greater than one, you're in trouble,
+            # and you should call it again with exc=NULL to revert the effect"""
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+
+    @classmethod
+    def stop_thread(cls, thread):
+        cls.async_raise(thread.ident, SystemExit)
 
     #############################
     # 进程锁控制

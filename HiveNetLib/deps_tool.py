@@ -28,6 +28,9 @@ DEPENDENCIES_DICT = {
     'gevent': {
         'install': 'gevent',
     },
+    'eventlet': {
+        'install': 'eventlet',
+    },
     'prompt-toolkit': {
         'install': 'prompt-toolkit>=2.0.0',
     },
@@ -72,6 +75,9 @@ DEPENDENCIES_DICT = {
     },
     'flask-httpauth': {
         'install': 'flask-httpauth'
+    },
+    'flask-socketio': {
+        'install': 'flask-socketio'
     },
     'werkzeug': {
         'install': 'werkzeug'
