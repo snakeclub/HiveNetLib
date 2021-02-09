@@ -22,7 +22,6 @@ import datetime
 import logging
 import math
 import threading
-import ctypes
 from functools import wraps
 from collections import OrderedDict
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
@@ -55,9 +54,11 @@ while True:
             continue
         raise
 try:
+    import gevent
     from gevent import pywsgi
 except ImportError:
     deps_tool.install_package('gevent')
+    import gevent
     from gevent import pywsgi
 # 自有包引用
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -574,16 +575,18 @@ class FlaskServer(object):
                 host {str} - 绑定的主机地址，可以为 '127.0.0.1' 或不传
                 port {int} - 监听端口, 默认为 5000
                 threaded {bool} - 是否启动多线程, 默认为 True
-                processes {int} - 进程数, 默认为 1
+                processes {int} - 进程数, 默认为 1, 如果设置进程数大于1，必须将threaded设置为False
                 ssl_context {str|tuple} - 使用https, 有两种使用方式
                     1. ssl_context='adhoc': 使用 pyOpenSSL 自带证书, 注意需进行安装 'pip install pyOpenSSL'
                     2. ssl_context=('/certificates/server.crt', '/certificates/server.key'): 使用指定路径的证书文件
                         示例: ssl_context=('/certificates/server-cert.pem', '/certificates/server-key.pem')
             debug {bool} - 是否debug模式，默认False
-            send_file_max_age_default {int} - 单位为秒，发送文件功能最大的缓存超时时间，默认为12小时
+            send_file_max_age_default {int} - 单位为秒，发送文件功能最大的缓存超时时间，默认为12小时, 如果要调试静态文件，可以设置为1
+            templates_auto_reload {bool} - 是否自动重新加载模版，默认为False，如果要调试模版，可以设置为True
             json_as_ascii {bool} - josn字符串是否采取ascii模式, 默认为True, 如果需要json显示中文需传入False
             max_upload_size {float} - 上传文件的最大大小，单位为MB
             use_wsgi {bool} - 是否使用WSGIServer, 默认为False
+                注意: 如果使用wsgi， 处理函数内部请勿使用time.sleep, 否则会造成堵塞, 请统一调整为使用gevent.sleep
         @param {dict} support_auths=None - 服务器支持的验证对象字典, key为验证对象类型名(可以为类名), value为验证对象实例对象
             注意: 支持的auth对象必须有auth_required这个修饰符函数
         @param {function} before_server_start=None - 服务器启动前执行的函数对象，传入服务自身（self）
@@ -617,6 +620,10 @@ class FlaskServer(object):
         self.app.send_file_max_age_default = datetime.timedelta(
             seconds=self.server_config.get('send_file_max_age_default', 12 * 60 * 60)
         )
+        _templates_auto_reload = self.server_config.get('templates_auto_reload', False)
+        if _templates_auto_reload:
+            self.app.jinja_env.auto_reload = True
+            self.app.templates_auto_reload = True
         self.app.config['JSON_AS_ASCII'] = self.server_config.get('json_as_ascii', True)
         if 'max_upload_size' in self.server_config.keys():
             self.app.config['MAX_CONTENT_LENGTH'] = math.floor(
@@ -630,7 +637,7 @@ class FlaskServer(object):
         self.before_server_stop = before_server_stop
         self.after_server_stop = after_server_stop
 
-        # 在收到第一个请求前执行的函数
+        # 在收到第一个请求前执行的函数(在多进程的情况下没有调用，可能是Flask的bug)
         self.app.before_first_request_funcs.append(self._update_running_status)
 
         # 安全相关
@@ -693,16 +700,22 @@ class FlaskServer(object):
             self._thread.start()
 
             # 循环等待服务启动成功
-            _url = '%s://%s:%d/' % (
-                'https' if 'ssl_context' in self.server_config.get(
-                    'flask_run', {}).keys() else 'http',
-                self.server_config.get('flask_run', {}).get('host', '127.0.0.1'),
-                self.server_config.get('flask_run', {}).get('port', 5000)
-            )
-            while self._status == 'starting':
-                # 向Flask发送根目录的请求，触发状态更新
-                time.sleep(sleep_time)
-                requests.get(_url)
+            if not self.use_wsgi and self.server_config.get('flask_run', {}).get('processes', 1) > 1:
+                # 多进程模式由于flask的bug，无法使用标准做法验证，采取等待一段时间后认为进程启动的方式
+                gevent.sleep(2)
+                if self._status == 'starting':
+                    self._status = 'running'
+            else:
+                _url = '%s://%s:%d/' % (
+                    'https' if 'ssl_context' in self.server_config.get(
+                        'flask_run', {}).keys() else 'http',
+                    self.server_config.get('flask_run', {}).get('host', '127.0.0.1'),
+                    self.server_config.get('flask_run', {}).get('port', 5000)
+                )
+                while self._status == 'starting':
+                    # 向Flask发送根目录的请求，触发状态更新
+                    gevent.sleep(sleep_time)
+                    requests.get(_url)
 
             # 服务器成功启动后执行事件
             if self.after_server_start is not None:
@@ -714,7 +727,7 @@ class FlaskServer(object):
             # 同步处理，一直检查状态直到退出
             try:
                 while self._status != 'stop':
-                    time.sleep(sleep_time)
+                    gevent.sleep(sleep_time)
             except KeyboardInterrupt:
                 # 遇到键盘退出情况，调用stop结束运行
                 self.stop()
@@ -753,7 +766,7 @@ class FlaskServer(object):
                 return False
 
             # 睡眠一段时间, 继续检查
-            time.sleep(sleep_time)
+            gevent.sleep(sleep_time)
 
         # 已经完全停止
         return True

@@ -14,7 +14,6 @@
 
 import os
 import sys
-import time
 import uuid
 from time import monotonic as timefun
 import threading
@@ -23,6 +22,7 @@ from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.formula import StructFormulaKeywordPara, FormulaTool
 from HiveNetLib.base_tools.string_tool import StringTool
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'simple_id'  # 模块名
@@ -567,7 +567,7 @@ class IdPool(object):
                     if remaining <= 0.0:
                         raise TimeoutError('get original id timeout')
                 # 没有超时，循环
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
                 continue
             else:
                 return _current_id
@@ -619,7 +619,7 @@ class IdPool(object):
             if self._allocate_thread_stop_tag:
                 break
             else:
-                time.sleep(0.1)
+                RunTool.sleep(0.1)
 
         # 线程结束，更新状态
         with self._allocate_thread_status_lock:

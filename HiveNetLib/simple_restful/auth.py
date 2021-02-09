@@ -712,5 +712,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-
-    print(sys.platform)

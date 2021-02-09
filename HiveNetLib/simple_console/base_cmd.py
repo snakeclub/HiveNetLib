@@ -510,7 +510,7 @@ class CommonCmd(CmdBaseFW):
                                 prompt_obj.prompt_print(_sp.stderr.read().decode(_shell_encoding))
                         break
                     # 释放一下CPU
-                    time.sleep(0.01)
+                    RunTool.sleep(0.01)
                 except KeyboardInterrupt:
                     if _is_ni:
                         # 不允许取消

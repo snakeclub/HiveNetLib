@@ -55,6 +55,7 @@ except ImportError:
     import netifaces
 # 引用自有模块
 import HiveNetLib.base_tools.wget as wget
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'net_tool'  # 模块名
@@ -372,7 +373,7 @@ class NetTool(object):
             if not _common_options['wait_all_loaded']:
                 if _common_options['until_menthod'] is None:
                     # 没有检查方法，直接sleep等待超时
-                    time.sleep(_common_options['timeout'])
+                    RunTool.sleep(_common_options['timeout'])
                 else:
                     # 按条件等待加载
                     _wait = WebDriverWait(_browser, _common_options['timeout'], 0.5)
@@ -388,7 +389,7 @@ class NetTool(object):
                 break
 
             _use_time += 0.01
-            time.sleep(0.01)
+            RunTool.sleep(0.01)
 
         if _common_options['quit']:
             # 关闭浏览器
@@ -754,7 +755,7 @@ class NetTool(object):
                         _file.write(_chunk)
                         _down_size += len(_chunk)
                         _file.flush()
-                        time.sleep(0.001)
+                        RunTool.sleep(0.001)
             finally:
                 _file.close()
 
@@ -868,7 +869,7 @@ class NetTool(object):
                             if _chunk:
                                 _stream_io.write(_chunk)
                                 _stream_io.flush()
-                                time.sleep(0.001)
+                                RunTool.sleep(0.001)
 
                         if back_type != 'file':
                             # 非文件模式，转换为bytes数组

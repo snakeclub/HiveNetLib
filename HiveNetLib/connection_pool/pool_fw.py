@@ -28,6 +28,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.
 from HiveNetLib.generic import NullObj
 from HiveNetLib.simple_queue import MemoryQueue, EnumQueueType
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'pool_fw'  # 模块名
@@ -366,7 +367,7 @@ class ConnectionPoolFw(ABC):
         self._is_destroyed = True
         # 等待守护线程结束
         while self._daemon_running:
-            time.sleep(0.5)
+            RunTool.sleep(0.5)
 
         # 清除所有线程连接资源
         self._access_lock.acquire()
@@ -517,7 +518,7 @@ class ConnectionPoolFw(ABC):
                         self._free_pool.put(_key)
 
             # 进行下一次的循环
-            time.sleep(self.daemon_sleep_time)
+            RunTool.sleep(self.daemon_sleep_time)
 
         # 运行到这里说明守护线程结束
         self._daemon_running = False

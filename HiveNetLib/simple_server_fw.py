@@ -27,6 +27,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.
 from HiveNetLib.generic import CResult, NullObj
 from HiveNetLib.simple_i18n import _, get_global_i18n, init_global_i18n
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'simple_server_fw'  # 模块名
@@ -287,7 +288,7 @@ class SimpleServerFW(ABC):
 
         # 返回结果,循环等待
         while is_wait and self.__server_run_status == EnumServerRunStatus.WaitStart:
-            time.sleep(0.01)
+            RunTool.sleep(0.01)
 
         # 如果是等待模式，检查一次结果，如果没有正常运行返回最后一次启动结果
         if is_wait:
@@ -352,7 +353,7 @@ class SimpleServerFW(ABC):
             if overtime > 0 and (datetime.datetime.now() - _begin_time).total_seconds() > overtime:
                 _result = CResult(code='31005')  # 执行超时
                 break
-            time.sleep(0.1)
+            RunTool.sleep(0.1)
 
         # 返回结果
         return _result
@@ -424,7 +425,7 @@ class SimpleServerFW(ABC):
                             tid, start_result.server_info)
                         if stop_predeal_result.code == '00000' and not stop_predeal_result.is_finished:
                             # 预处理未完成，需要循环处理
-                            time.sleep(0.1)
+                            RunTool.sleep(0.1)
                             continue
                         else:
                             # 预处理已完成，退出

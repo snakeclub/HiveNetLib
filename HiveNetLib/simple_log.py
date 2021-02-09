@@ -15,6 +15,7 @@
 @see https://docs.python.org/zh-cn/3/howto/logging-cookbook.html
 """
 
+from HiveNetLib.base_tools.run_tool import RunTool
 import sys
 import os
 import os.path
@@ -1291,7 +1292,7 @@ class QueueHandler(logging.Handler):
                 while True:
                     if self._current_running_num <= 0:
                         break
-                    time.sleep(0.1)
+                    RunTool.sleep(0.1)
                 self._logging_running = False
         # 返回结果
         self._running_status_lock.release()
@@ -1324,7 +1325,7 @@ class QueueHandler(logging.Handler):
                     _logger = self._loggers['default']
                 else:
                     # 没有找到对应的logger, 不记录日志
-                    time.sleep(0.1)
+                    RunTool.sleep(0.1)
                     continue
 
                 # 处理日志内容
@@ -1341,7 +1342,7 @@ class QueueHandler(logging.Handler):
                         _formatter = self._formatters['default']
                     else:
                         # 找不到格式化的对象，不记录日志
-                        time.sleep(0.1)
+                        RunTool.sleep(0.1)
                         continue
 
                     # 内容处理函数
@@ -1364,7 +1365,7 @@ class QueueHandler(logging.Handler):
                     _logger.log(_log_obj.levelno, _msg)
             except Empty:
                 # 获取不到数据继续循环
-                time.sleep(0.1)
+                RunTool.sleep(0.1)
             except:
                 # 遇到异常情况，将异常信息登记入堆栈
                 _error_obj = NullObj()

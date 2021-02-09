@@ -15,8 +15,6 @@
 
 import os
 import sys
-import time
-import datetime
 import queue
 import threading
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -27,6 +25,11 @@ from HiveNetLib.simple_restful.server import FlaskServer, FlaskServerExit
 from HiveNetLib.simple_queue import MemoryQueue
 # 动态安装包
 import HiveNetLib.deps_tool as deps_tool
+try:
+    import gevent
+except ImportError:
+    deps_tool.install_package('gevent')
+    import gevent
 process_install_flask = False
 while True:
     try:
@@ -62,7 +65,7 @@ class SocketIOServer(FlaskServer):
                  before_server_start=None, after_server_start=None,
                  before_server_stop=None, after_server_stop=None, logger=None, **kwargs):
         """
-        初始化FlaskServer
+        初始化SocketIOServer
 
         @param {str} app_name - Flask服务器名称
         @param {dict} server_config=None - 服务器配置字典，定义如下:
@@ -393,7 +396,7 @@ class SocketIOClient(object):
                 )
             except queue.Empty:
                 # 队列为空
-                time.sleep(0.1)
+                gevent.sleep(0.1)
 
     #############################
     # 内部函数

@@ -25,10 +25,14 @@ import HiveNetLib.deps_tool as deps_tool
 process_install_pycryptodome = False
 while True:
     try:
-        # TODO(黎慧剑): 这部分还需要测试非windows环境用法是否正确
-        from Cryptodome import Random
-        from Cryptodome.PublicKey import RSA
-        from Cryptodome.Cipher import PKCS1_v1_5  # 注: JS加密的内容 PKCS1_OAEP 没有办法解密
+        if sys.platform != 'win32':
+            from Crypto import Random
+            from Crypto.PublicKey import RSA
+            from Crypto.Cipher import PKCS1_v1_5
+        else:
+            from Cryptodome import Random
+            from Cryptodome.PublicKey import RSA
+            from Cryptodome.Cipher import PKCS1_v1_5  # 注: JS加密的内容 PKCS1_OAEP 没有办法解密
         break
     except ImportError:
         if not process_install_pycryptodome:

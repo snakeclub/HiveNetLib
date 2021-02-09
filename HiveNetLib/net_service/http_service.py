@@ -17,16 +17,14 @@ Http协议服务
 
 import os
 import sys
-import platform
 import datetime
-import time
 import copy
-import socket
 import traceback
 import logging
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.simple_server_fw import EnumServerRunStatus
 from HiveNetLib.net_service.tcpip_service import TcpIpService
@@ -443,7 +441,7 @@ class HttpService(TcpIpService):
                 return
 
             # 睡眠一下，继续处理下一个请求
-            time.sleep(0.001)
+            RunTool.sleep(0.001)
 
 
 if __name__ == '__main__':

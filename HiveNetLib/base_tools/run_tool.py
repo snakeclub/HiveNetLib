@@ -28,6 +28,10 @@ from contextlib import contextmanager
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.base_tools.file_tool import FileTool
+try:
+    from gevent import sleep
+except ImportError:
+    from time import sleep
 
 
 __MOUDLE__ = 'run_tool'  # 模块名
@@ -243,7 +247,7 @@ class RunTool(object):
                 break
 
             # 释放一下CPU
-            time.sleep(0.01)
+            cls.sleep(0.01)
 
         # 格式化
         if sys.platform == 'darwin':
@@ -307,7 +311,7 @@ class RunTool(object):
                 break
 
             # 释放一下CPU
-            time.sleep(0.01)
+            cls.sleep(0.01)
 
         if sys.platform == 'darwin':
             # mac os, \r 代表回车换行
@@ -321,6 +325,16 @@ class RunTool(object):
     #############################
     # 线程处理函数
     #############################
+    @classmethod
+    def sleep(cls, seconds=0):
+        """
+        休眠一段时间
+        注：如果有安装gevent则会使用gevent.sleep替代time.sleep
+
+        @param {int} seconds=0 - 休眠时间，单位为秒
+        """
+        return sleep(seconds=seconds)
+
     @classmethod
     def async_raise(cls, tid, exctype):
         """raises the exception, performs cleanup if needed"""

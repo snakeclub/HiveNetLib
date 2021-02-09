@@ -535,7 +535,7 @@ class ParallelFw(ABC):
             # 判断是否超时
             if overtime > 0 and (datetime.datetime.now() - _start).total_seconds() > overtime:
                 raise CallOverTime
-            time.sleep(0.001)  # 准备下一次循环
+            RunTool.sleep(0.001)  # 准备下一次循环
 
     #############################
     # 内部函数
@@ -1143,7 +1143,7 @@ class ParallelPool(object):
             # 等待
             _starttime = datetime.datetime.now()
             while self._status != 0:
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
                 if (datetime.datetime.now() - _starttime).total_seconds() > overtime:
                     # 超时抛出异常
                     raise CallOverTime
@@ -1167,7 +1167,7 @@ class ParallelPool(object):
             # 等待
             _starttime = datetime.datetime.now()
             while self._status == 3:
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
                 if (datetime.datetime.now() - _starttime).total_seconds() > overtime:
                     # 超时抛出异常
                     raise CallOverTime
@@ -1191,7 +1191,7 @@ class ParallelPool(object):
             # 等待
             _starttime = datetime.datetime.now()
             while self._status == 4:
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
                 if (datetime.datetime.now() - _starttime).total_seconds() > overtime:
                     # 超时抛出异常
                     raise CallOverTime
@@ -1294,7 +1294,7 @@ class ParallelPool(object):
                 elif worker_info['cmd'] == 2:
                     # 暂停任务，直接往下循环
                     worker_info['status'] = 2
-                    time.sleep(0.001)
+                    RunTool.sleep(0.001)
                     continue
 
                 # 执行处理函数
@@ -1483,7 +1483,7 @@ class ParallelPool(object):
                     self._workers_lock.release()
                     # 内部循环等待所有任务状态为暂停
                     while self._status == 3:
-                        time.sleep(self._daemon_thread_time)
+                        RunTool.sleep(self._daemon_thread_time)
                         _all_pause = True
                         self._workers_lock.acquire()
                         for _key in self._workers.keys():
@@ -1515,7 +1515,7 @@ class ParallelPool(object):
                     self._workers_lock.release()
                     # 内部循环等待所有任务状态为非暂停
                     while self._status == 4:
-                        time.sleep(self._daemon_thread_time)
+                        RunTool.sleep(self._daemon_thread_time)
                         _all_resume = True
                         self._workers_lock.acquire()
                         for _key in self._workers.keys():
@@ -1548,7 +1548,7 @@ class ParallelPool(object):
                     self._workers_lock.release()
                     # 内部循环等待所有任务状态为停止
                     while self._status == 5:
-                        time.sleep(self._daemon_thread_time)
+                        RunTool.sleep(self._daemon_thread_time)
                         _all_stop = True
                         self._workers_lock.acquire()
                         for _key in self._workers.keys():
@@ -1567,7 +1567,7 @@ class ParallelPool(object):
 
                 if self._status == 2:
                     # 暂停
-                    time.sleep(self._daemon_thread_time)
+                    RunTool.sleep(self._daemon_thread_time)
                     continue
 
                 if self._status == 0:
@@ -1682,7 +1682,7 @@ class ParallelPool(object):
                         self._create_worker()
                         _create_num = _create_num - 1
 
-                time.sleep(self._daemon_thread_time)
+                RunTool.sleep(self._daemon_thread_time)
 
             except Exception as e:
                 # 异常，写日志，但不退出
@@ -1693,7 +1693,7 @@ class ParallelPool(object):
                             str(type(e)), self._pool_id, self._pname, traceback.format_exc()
                         )
                     )
-                time.sleep(self._daemon_thread_time)
+                RunTool.sleep(self._daemon_thread_time)
 
 
 class ThreadParallelLock(ParallelLockFw):

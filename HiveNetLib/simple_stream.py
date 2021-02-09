@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.generic import NullObj
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'simple_stream'  # 模块名
@@ -192,7 +193,7 @@ class BaseStream(ABC):
                         return
                     if self._stream_list_tag[stream_tag][1]:
                         # 当前流的暂停标记
-                        time.sleep(0.01)
+                        RunTool.sleep(0.01)
                         continue
 
                     # 循环进行流处理
@@ -230,11 +231,11 @@ class BaseStream(ABC):
                                 return
 
                     # 准备执行下一个
-                    time.sleep(0.01)
+                    RunTool.sleep(0.01)
                 except StopIteration:
                     if self._keep_wait_data:
                         # 没有获取到数据，但继续循环尝试获取
-                        time.sleep(0.01)
+                        RunTool.sleep(0.01)
                         continue
                     else:
                         # 已经到结尾了，结束流处理
@@ -338,7 +339,7 @@ class BaseStream(ABC):
                             return
 
                     # 准备执行下一个
-                    time.sleep(0.01)
+                    RunTool.sleep(0.01)
                 except StopIteration:
                     # 已经到结尾了，结束流处理
                     return
@@ -573,7 +574,7 @@ class BaseStream(ABC):
             while True:
                 if stream_tag not in self._stream_list.keys():
                     break
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
 
     def pause_stream(self, stream_tag='default'):
         """
@@ -628,7 +629,7 @@ class BaseStream(ABC):
             while True:
                 if len(self._stream_list_tag.keys()) == 0:
                     break
-                time.sleep(0.01)
+                RunTool.sleep(0.01)
 
     def seek(self, position, stream_tag='default'):
         """

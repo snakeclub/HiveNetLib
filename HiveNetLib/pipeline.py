@@ -659,7 +659,7 @@ class Pipeline(object):
 
         while _run_cache['thread_running']:
             # 等待运行线程结束
-            time.sleep(0.01)
+            RunTool.sleep(0.01)
 
         # 记录日志
         self.log_info('Pipeline [%s] pause!' % self.name)
@@ -1261,7 +1261,7 @@ class Pipeline(object):
                         _run_cache['node_id'] = _next_id
                         _run_cache['node_status'] = 'I'
                         _run_cache['node_status_msg'] = ''
-                        time.sleep(0.0001)
+                        RunTool.sleep(0.0001)
         except:
             # 如果在线程中出了异常，结束掉执行
             _run_cache['node_status'] = 'E'

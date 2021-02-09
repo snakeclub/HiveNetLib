@@ -29,6 +29,7 @@ from HiveNetLib.simple_i18n import _, SimpleI18N
 from HiveNetLib.net_service.net_service_fw import NetServiceFW
 from HiveNetLib.generic import NullObj, CResult
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.base_tools.run_tool import RunTool
 
 __MOUDLE__ = 'tcpip_service'  # 模块名
 __DESCRIPT__ = u'TcpIp协议服务'  # 模块描述
@@ -187,7 +188,7 @@ class TcpIpService(NetServiceFW):
             )
         if not _result.is_success():
             # 出现异常，睡眠一段时间
-            time.sleep(0.01)
+            RunTool.sleep(0.01)
         return _result
 
     @classmethod
@@ -242,7 +243,7 @@ class TcpIpService(NetServiceFW):
                         _rest_bytes = _rest_bytes - len(_buffer)
                     else:
                         # 休眠一下
-                        time.sleep(0.001)
+                        RunTool.sleep(0.001)
         return _result
 
     @classmethod

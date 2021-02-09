@@ -27,6 +27,7 @@ from collections.abc import Iterator
 import asyncio
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.base_tools.run_tool import RunTool
 # 动态添加包安装
 import HiveNetLib.deps_tool as deps_tool
 process_install_prompt_toolkit = False
@@ -823,7 +824,7 @@ class PromptPlusCompleter(Completer):
         _word_list = self._get_complete_words(document=document)
 
         if self._slow_time > 0:
-            time.sleep(self._slow_time)  # Simulate slowness.
+            RunTool.sleep(self._slow_time)  # Simulate slowness.
 
         if self._ignore_case:
             word_before_cursor = word_before_cursor.lower()
@@ -1040,7 +1041,7 @@ class PromptPlus(object):
         # 每隔0.01秒进度条加1
         with PromptPlus.get_process_bar() as pb:
             for i in pb(range(800)):
-                time.sleep(.01)
+                RunTool.sleep(.01)
 
         # 传入一个自定义的iter对象
         def some_iterable():
@@ -1048,7 +1049,7 @@ class PromptPlus(object):
 
         with PromptPlus.get_process_bar(title=title) as pb:
             for i in pb(some_iterable, total=1000, label=label):
-                time.sleep(.01)
+                RunTool.sleep(.01)
 
         注：ProgressBar的__call__方法(pb)参数如下:
             data=None, label='', remove_when_done=False, total=None
@@ -1781,7 +1782,7 @@ class PromptPlus(object):
                     return
 
                 # 间隔一会，继续下一个处理
-                time.sleep(0.1)
+                RunTool.sleep(0.1)
         else:
             # 异步模式，通知prompt_toolkit使用asyncio event loop
             try:

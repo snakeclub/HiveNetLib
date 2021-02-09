@@ -352,3 +352,107 @@ _auth = AppKeyAuth(
 )
 ```
 
+## socketio支持
+
+simple_restful模块通过flask-socketio扩展了对socketio的支持，可以通过 simple_restful.socketio.SocketIOServer 创建socketio服务器，具体使用方法如下：
+
+**1、开发socketio的消息处理函数**
+
+```
+# SocketIO处理函数
+def server_on_connect():
+    """
+    客户端连接
+    """
+    print('server: client connect!')
+
+
+def server_on_disconnect():
+    print('server: client disconnect!')
+
+
+def sever_on_add(data):
+    """
+    加法运算并返回结果
+
+    @param {dict} data - 要加的变量字典
+    """
+    print('server: get ', data)
+    _num = 0
+    for _value in data.values():
+        _num += _value
+
+    # 返回结果
+    SocketIOServer.emit('resp_add', {'data': _num})
+
+```
+
+注：
+
+（1）data 为 socketio 客户端传递的消息的json对象；
+
+（2）broadcast、emit 这两个消息推送函数，必须在SocketIOServer的消息处理函数内部使用，否则会出现找不到上下文的异常；或者按以下方式指定消息推送的Flask对象，以取得上下文内容，例如：
+
+```
+self.socketio_server.broadcast(
+    'remove_device', {'device': device_name}, with_context_app=self.socketio_server.app
+)
+```
+
+（3）可以通过bind_bg_task_on_connect绑定连接时启动的后台执行任务（比如扫描任务）。
+
+**2、实例化 SocketIOServer 服务对象，绑定消息处理函数：**
+
+```
+from HiveNetLib.simple_restful.socketio import SocketIOServer, SocketIOClient
+
+# 启动服务
+_sever = SocketIOServer(
+    'test_sio_server', server_config={
+        'debug': True,
+        'flask_run': {
+            'host': '127.0.0.1', 'port': 5001
+        },
+    }
+)
+
+# 绑定服务函数
+_sever.bind_on_event('connect', server_on_connect)
+_sever.bind_on_event('disconnect', server_on_disconnect)
+_sever.bind_on_event('add', sever_on_add)
+
+# 启动服务
+_sever.start(is_asyn=True)
+```
+
+**3、可以通过 socketio客户端向服务器端传递消息**
+
+```
+from HiveNetLib.simple_restful.socketio import SocketIOClient
+
+# SocketIOClient处理函数
+def client_on_connect():
+    """
+    客户端连接
+    """
+    print('client: client connect!')
+
+
+def client_on_disconnect():
+    print('client: client disconnect!')
+
+
+_client = SocketIOClient()
+_client.bind_bg_task_on_connected(
+    _client.emit_bg_task, before_func=client_on_connect
+)
+_client.bind_on_event('disconnect', client_on_disconnect)
+_client.bind_on_event('resp_add', client_on_resp_add)
+_client.connect('http://127.0.0.1:5001', is_asyn=True)
+_client.emit_bg(
+    'add', {'a': 10, 'b': 15}
+)
+time.sleep(5)
+_client.disconnect()
+```
+

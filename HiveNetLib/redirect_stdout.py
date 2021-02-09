@@ -15,12 +15,16 @@
 
 """
 
+import os
 import sys
 import time
 import threading
 import traceback
 import queue
 from enum import Enum
+# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'redirect_stdout'  # 模块名
@@ -296,7 +300,7 @@ class RedirectOutput(object):
                 self._bg_thread_stop = True  # 通知后台线程停止
                 # 等待线程自动停止
                 while(self._is_bg_thread_running):
-                    time.sleep(0.01)
+                    RunTool.sleep(0.01)
             self._is_started = False  # 标记重定向关闭
         finally:
             self._write_lock.release()
@@ -358,13 +362,13 @@ class RedirectOutput(object):
                 # 尝试从队列获取要写的对象
                 if self._buffer.empty():
                     # 没有数据，下一次循环
-                    time.sleep(0.1)
+                    RunTool.sleep(0.1)
                 else:
                     data = self._buffer.get(False)
                     self.__write(data)
             except Exception:
                 # 执行出现异常时不退出处理
-                time.sleep(0.1)
+                RunTool.sleep(0.1)
                 continue
         # 线程自然消亡
         self._is_bg_thread_running = False
