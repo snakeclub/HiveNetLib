@@ -336,7 +336,7 @@ def get_console_width():
             console_handle, byref(sbi))
         if ret == 0:
             return 0
-        return sbi.srWindow.Right+1
+        return sbi.srWindow.Right + 1
 
     elif os.name == 'posix':
         from fcntl import ioctl
@@ -363,9 +363,9 @@ def bar_thermometer(current, total, width=80):
     See `bar_adaptive` for more information.
     """
     # number of dots on thermometer scale
-    avail_dots = width-2
+    avail_dots = width - 2
     shaded_dots = int(math.floor(float(current) / total * avail_dots))
-    return '[' + '.'*shaded_dots + ' '*(avail_dots-shaded_dots) + ']'
+    return '[' + '.' * shaded_dots + ' ' * (avail_dots - shaded_dots) + ']'
 
 
 def bar_adaptive(current, total, width=80):
@@ -415,7 +415,7 @@ def bar_adaptive(current, total, width=80):
     min_width = {
         'percent': 4,  # 100%
         'bar': 3,      # [.]
-        'size': len("%s" % total)*2 + 3,  # 'xxxx / yyyy'
+        'size': len("%s" % total) * 2 + 3,  # 'xxxx / yyyy'
     }
     priority = ['percent', 'bar', 'size']
 
@@ -425,7 +425,7 @@ def bar_adaptive(current, total, width=80):
     for field in priority:
         if min_width[field] < avail:
             selected.append(field)
-            avail -= min_width[field]+1   # +1 is for separator or for reserved space at
+            avail -= min_width[field] + 1   # +1 is for separator or for reserved space at
             # the end of line to avoid linefeed on Windows
     # render
     output = ''
@@ -436,7 +436,7 @@ def bar_adaptive(current, total, width=80):
             output += ('%s%%' % (100 * current // total)).rjust(min_width['percent'])
         elif field == 'bar':  # [. ]
             # bar takes its min width + all available space
-            output += bar_thermometer(current, total, min_width['bar']+avail)
+            output += bar_thermometer(current, total, min_width['bar'] + avail)
         elif field == 'size':
             # size field has a constant width (min == max)
             output += ("%s / %s" % (current, total)).rjust(min_width['size'])
@@ -481,7 +481,7 @@ def callback_progress(blocks, block_size, total_size, bar_function):
             __current_size += block_size
         current_size = __current_size
     else:
-        current_size = min(blocks*block_size, total_size)
+        current_size = min(blocks * block_size, total_size)
     progress = bar_function(current_size, total_size, width)
     if progress:
         sys.stdout.write("\r" + progress)
@@ -501,7 +501,7 @@ def detect_filename(url=None, out=None, headers=None, default="download.wget"):
     return names["out"] or names["headers"] or names["url"] or default
 
 
-def download(url, out=None, bar=bar_adaptive, headers=None):
+def download(url, out=None, bar=bar_adaptive, headers=None, proxy=None):
     """High level function, which downloads URL into tmp file in current
     directory and then renames it to filename autodetected from either URL
     or HTTP headers.
@@ -509,6 +509,7 @@ def download(url, out=None, bar=bar_adaptive, headers=None):
     :param bar: function to track download progress (visualize etc.)
     :param out: output filename or directory
     :param headers: 支持传入http头
+    :param proxy: 支持传入代理字典，格式如下{'http': '127.0.0.1:80'}
     :return:    filename where URL is downloaded to
     """
     # detect of out is a directory
@@ -545,6 +546,12 @@ def download(url, out=None, bar=bar_adaptive, headers=None):
         _opener.addheaders = list()
         for _key in headers.keys():
             _opener.addheaders.append((_key, headers[_key]))
+
+        # 增加代理设置
+        if proxy is not None:
+            _proxy_handle = ulib.ProxyHandler(proxy)
+            _opener.add_handler(_proxy_handle)
+
         ulib.install_opener(_opener)
 
     (tmpfile, headers) = ulib.urlretrieve(binurl, tmpfile, callback)

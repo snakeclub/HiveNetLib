@@ -424,6 +424,8 @@ class FileTool(object):
                 if not exist_ok and os.path.exists(_full_destname):
                     raise FileExistsError('file exists: %s' % _full_destname)
                 else:
+                    # 先创建目录
+                    FileTool.create_dir(os.path.split(_full_destname)[0], exist_ok=True)
                     shutil.copyfile(_full_filename, _full_destname)
             else:
                 # 复制文件夹, 先创建文件夹
@@ -501,7 +503,7 @@ class FileTool(object):
     #############################
     @staticmethod
     def zip(src_path, dest_path=None, dest_filename=None, mode='w',
-            compression=zipfile.ZIP_DEFLATED, allowZip64=True, **kwargs):
+            compression=zipfile.ZIP_DEFLATED, allowZip64=True, pwd=None, **kwargs):
         """
         压缩指定文件或路径
 
@@ -515,6 +517,8 @@ class FileTool(object):
             zipfile.ZIP_STORED = 0 - 仅打包存储（不压缩）
             zipfile.ZIP_DEFLATED = 8 - 压缩存储
         @param {bool} allowZip64=True - 当要处理的压缩包大于2G时，建议打开该开关
+        @param {bytes} pwd=None - 解压密码（该密码设置无效）
+            示例：pwd='123456'.encode('utf-8')
         @param {kwargs} - 动态参数，支持后续兼容性的扩展
 
         @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
@@ -527,12 +531,20 @@ class FileTool(object):
         _src_path, _src_file = os.path.split(_src_realpath)
         if dest_path is None:
             dest_path = _src_path
+        else:
+            # 尝试先创建目录
+            FileTool.create_dir(dest_path, exist_ok=True)
+
         if dest_filename is None:
             dest_filename = _src_file + '.zip'
 
         # 创建zip文件
         _zip = zipfile.ZipFile(os.path.join(dest_path, dest_filename), mode=mode,
-                               compression=compression, allowZip64=compression)
+                               compression=compression, allowZip64=allowZip64)
+
+        # 设置密码
+        if pwd is not None:
+            _zip.setpassword(pwd)
 
         if os.path.isfile(src_path):
             # 文件
@@ -542,7 +554,7 @@ class FileTool(object):
             _src_realpath = _src_realpath.replace('\\', '/')
             for root, dirs, files in os.walk(src_path):
                 # 获取相对路径
-                _abs_path = root.replace('\\', '/').replace(_src_realpath, '', 1)
+                _abs_path = os.path.realpath(root).replace('\\', '/').replace(_src_realpath, '', 1)
 
                 # 确保相对路径不能是'/'开头，否则解压检索的文件信息会有问题
                 if len(_abs_path) > 0 and _abs_path[0] == '/':
@@ -550,11 +562,14 @@ class FileTool(object):
 
                 if len(files) == 0:
                     # 空目录，写入目录信息
-                    _zip.writestr(_abs_path + '/', '')
+                    _zip.writestr('./' + _abs_path + '/', '')
 
                 # 写入文件
-                for filename in files:
-                    _zip.write(os.path.join(root, filename), _abs_path + '/' + filename)
+                for _filename in files:
+                    _zip.write(
+                        os.path.join(root, _filename),
+                        os.path.join('./', _abs_path, _filename)
+                    )
 
         # 保存压缩包
         _zip.close()
@@ -615,6 +630,29 @@ class FileTool(object):
         _bytes = _zip.read(member, pwd=pwd)
         _zip.close()
         return _bytes
+
+    @staticmethod
+    def is_zip_encrypted(filename: str, **kwargs) -> bool:
+        """
+        判断压缩文件是否已加密
+
+        @param {string} filename - 压缩文件
+
+        @returns {bool} - 压缩文件是否已加密
+        """
+        if not os.path.exists(filename):
+            raise FileNotFoundError('file [%s] not found!' % filename)
+
+        # 读取信息
+        _zip = zipfile.ZipFile(filename)
+        for _zinfo in _zip.infolist():
+            _is_encrypted = _zinfo.flag_bits & 0x1
+            if _is_encrypted:
+                return True
+            else:
+                return False
+
+        return False
 
 
 if __name__ == '__main__':

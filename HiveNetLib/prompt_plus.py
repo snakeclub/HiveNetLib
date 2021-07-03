@@ -25,6 +25,8 @@ import logging
 from queue import Queue
 from collections.abc import Iterator
 import asyncio
+
+from prompt_toolkit.shortcuts.prompt import confirm
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -989,6 +991,18 @@ class PromptPlus(object):
             return _prompt_text
 
     @staticmethod
+    def confirm(message: str = 'Confirm?', suffix: str = " (y/n) ") -> bool:
+        """
+        提示客户输入确认
+
+        @param {str} message='Confirm?' - 获取输入的提示信息
+        @param {str} suffix=" (y/n) " - 提示后缀
+
+        @returns {bool} - 确认结果
+        """
+        return confirm(message=message, suffix=suffix)
+
+    @staticmethod
     def format_html_text(text):
         """
         将html字符串格式化为打印对象
@@ -1386,12 +1400,13 @@ class PromptPlus(object):
             # 没有处理，返回用户退出的错误码
             return CResult(code='10101', msg=u'get exit single(EOFError)')
 
-    def _call_on_cmd(self, message='', cmd_str=''):
+    def _call_on_cmd(self, message='', cmd_str='', shell_cmd: bool = False):
         """
         执行命令处理
 
         @param {string} message='' - 输入提示信息
         @param {string} cmd_str='' - 要执行的命令字符串（含参数）
+        @param {bool} shell_cmd=False - 是否命令行直接执行模式
 
         @returns {string} - 返回执行函数的返回结果
 
@@ -1418,7 +1433,7 @@ class PromptPlus(object):
                     try:
                         return self._prompt_init_para['default_dealfun'](
                             message=message, cmd=_cmd, cmd_para=_cmd_para_str,
-                            prompt_obj=self
+                            prompt_obj=self, shell_cmd=shell_cmd
                         )
                     except TypeError as error:
                         if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
@@ -1434,7 +1449,7 @@ class PromptPlus(object):
                     try:
                         return self._prompt_init_para['cmd_para'][_match_cmd]['deal_fun'](
                             message=message, cmd=_match_cmd, cmd_para=_cmd_para_str,
-                            prompt_obj=self
+                            prompt_obj=self, shell_cmd=shell_cmd
                         )
                     except TypeError as error:
                         if len(error.args) > 0 and error.args[0].index('unexpected keyword argument') > 0:
@@ -1671,11 +1686,12 @@ class PromptPlus(object):
             print(*args, sep=sep, end=end, file=_print_str, flush=flush)
             _logger.log(level, _print_str)
 
-    def call_cmd_directly(self, cmd_str):
+    def call_cmd_directly(self, cmd_str, shell_cmd: bool = False):
         """
         外部直接使用实例执行命令, 不通过命令行获取
 
         @param {string} cmd_str - 要实行的命令(含命令本身和参数)
+        @param {bool} shell_cmd=False - 是否命令行直接执行模式
 
         @return {CResult} - 执行返回结果
         """
@@ -1685,7 +1701,9 @@ class PromptPlus(object):
 
         try:
             # 执行命令
-            _run_result = self._call_on_cmd(message=self._message, cmd_str=cmd_str)
+            _run_result = self._call_on_cmd(
+                message=self._message, cmd_str=cmd_str, shell_cmd=shell_cmd
+            )
         except:
             # 其他异常
             _run_result = CResult(

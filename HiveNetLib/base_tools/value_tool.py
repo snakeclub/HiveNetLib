@@ -53,10 +53,9 @@ class ValueTool(object):
     def set_dict_nest_value(dict_obj, *args):
         """
         按嵌套方式设置字典的值
-        （第一个）
 
         @param {dict} dict_obj - 要设置的字典
-        @param {*args} - 每一个
+        @param {*args} - 除最后一个参数都为str格式的字典key值，最后一个参数为要设置的值
 
         @return {dict} - 返回当前字典对象
         """

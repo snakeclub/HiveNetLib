@@ -34,6 +34,13 @@ __AUTHOR__ = '黎慧剑'  # 作者
 __PUBLISH__ = '2018.08.29'  # 发布日期
 
 
+def null_fun(*args, **kwargs):
+    """
+    空函数
+    """
+    pass
+
+
 class NullObj(object):
     """
     空对象定义类，用于动态增加属性的使用场景
@@ -255,17 +262,17 @@ class CResult(NullObj):
         """
         获取并设置i18n_msg_id的值
         """
+        # 尝试先装载错误码映射
+        _map_error_code = self.__get_map_error_code()
+
+        # 获取代码表，区分错误类型及错误明细编码
+        if self.code[0] in _map_error_code.keys():
+            self.i18n_error_type_msg_id = _map_error_code[self.code[0]]
+        else:
+            self.i18n_error_type_msg_id = 'unknow'  # 没有定义国际化时使用未知代替
+
         if self.i18n_msg_id is None or self.i18n_msg_id == '':
             # 只有原来没有设置过才通过标准错误码映射修改，否则保持不变
-            # 尝试先装载错误码映射
-            _map_error_code = self.__get_map_error_code()
-
-            # 获取代码表，区分错误类型及错误明细编码
-            if self.code[0] in _map_error_code.keys():
-                self.i18n_error_type_msg_id = _map_error_code[self.code[0]]
-            else:
-                self.i18n_error_type_msg_id = 'unknow'  # 没有定义国际化时使用未知代替
-
             if self.code[1:] in _map_error_code.keys():
                 self.i18n_msg_id = _map_error_code[self.code[1:]]
             else:

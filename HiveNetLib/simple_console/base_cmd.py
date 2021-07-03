@@ -137,19 +137,23 @@ class CmdBaseFW(object):
             return CResult(code='00000')
 
     @classmethod
-    def _cmd_para_to_dict(cls, cmd_para, name_with_sign=True):
+    def _cmd_para_to_dict(cls, cmd_para, name_with_sign=True, str_char='\'', tran_char='\\'):
         """
         将参数转换为字典格式
 
         @param {string} cmd_para - 命令参数
         @param {bool} name_with_sign=True - 参数名是否带标识(长短参数带-，名字参数带=)
+        @param {string} str_char='\'' - 字符串标识符
+        @param {string} tran_char='\\' - 字符串里的转义字符
 
         @return {dict} - 参数字典，获取规则说明如下:
             长短参数、名字参数: key为参数名（如果name_with_sign为True，长短参数带-，名字参数带=）, value为参数值
             其他参数: key为'{para}序号', value为参数值, 序号从1开始
         """
         # 获取命令执行参数
-        _cmd_list = PromptPlus.get_cmd_para_list(cmd_para)
+        _cmd_list = PromptPlus.get_cmd_para_list(
+            cmd_para, str_char=str_char, tran_char=tran_char
+        )
         _dict = dict()
         _seq = 1
         for _item in _cmd_list:
@@ -162,9 +166,9 @@ class CmdBaseFW(object):
                     elif _para_name.endswith('='):
                         _para_name = _para_name[0: -1]
 
-                _dict[_para_name] = _item[1].strip("'")
+                _dict[_para_name] = _item[1].strip(str_char)
             else:
-                _dict['{para}%d' % _seq] = _item[1].strip("'")
+                _dict['{para}%d' % _seq] = _item[1].strip(str_char)
                 _seq += 1
         # 返回字典
         return _dict
@@ -276,6 +280,11 @@ class CmdOnExit(CmdBaseFW):
         @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的
             print_str属性要求框架进行打印处理
         """
+        if self._console_global_para['exit_with_prompt'] == 'n':
+            # 不由用户选择直接退出
+            prompt_obj.prompt_print(_("Exit $1 Console", self._console_global_para['name']))
+            return CResult(code='10101')
+
         _tip = _('You will shutdown $1 console, continue?(y/N)',
                  self._console_global_para['name'])
         _back = input(_tip)
@@ -372,6 +381,11 @@ class CommonCmd(CmdBaseFW):
         _cmd_list = PromptPlus.get_cmd_para_list(cmd_para)
         if len(_cmd_list) == 0:
             # 没有传入任何参数，生成命令提示参数并返回
+            # 先计算命令的最大长度
+            _max_len = 15
+            for _key in _CMD_HELP_INFO.keys():
+                _max_len = max(_max_len, len(_key))
+
             _cmd_list_tips = ''
             for _key in _CMD_HELP_INFO.keys():
                 _cmd_title = ''
@@ -383,7 +397,7 @@ class CommonCmd(CmdBaseFW):
                     _cmd_title = _CMD_HELP_INFO[_key][list(_CMD_HELP_INFO[_key].keys())[0]][0]
                 _cmd_list_tips = '%s%s%s\n' % (
                     _cmd_list_tips,
-                    StringTool.fill_fix_string(_key, 15, ' ', left=False),
+                    StringTool.fill_fix_string(_key, _max_len + 1, ' ', left=False),
                     _cmd_title.replace(
                         '{{VERSION}}', self._console_global_para['version']
                     ).replace(

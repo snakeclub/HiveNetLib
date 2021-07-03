@@ -12,6 +12,20 @@ simple_parallel是并行任务（多线程、多进程）的处理框架和实�
 
 3、框架可支持实现分布式计算并行任务的自定义扩展。
 
+**注意：本模块要导入affinity，该工具在windows平台需要同步安装pywin32；**
+
+**另外要修改安装路径下：affinity/init.py文件的语法错误：**
+
+```
+except win32process.error, e:
+    raise ValueError, e
+修改为:
+except win32process.error as e:
+    raise ValueError
+```
+
+
+
 
 
 ## ParallelLockFw（并行锁框架）

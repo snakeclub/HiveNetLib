@@ -83,7 +83,8 @@ class SocketIOServer(FlaskServer):
                     3. static_url_path='/path/', 路径前面不带'/'的情况，将通过'/path/index.html'访问静态资源
             cors_config {dict} - flask_cors的配置参数字典，例如:
                 supports_credentials {bool} - 是否支持跨域
-            socketio_config {dict} - SocketIO初始化参数，具体支持的参数参考SocketIO文档
+            socketio_config {dict} - SocketIO初始化参数，具体支持的参数参考SocketIO文档,例如：
+                'cors_allowed_origins': '*'  # 解决跨域访问问题
             flask_run {dict} - SocketIoServer运行参数字典(请参考官方socketio.run文档), 常用参数包括:
                 host {str} - 绑定的主机地址，可以为 '127.0.0.1' 或不传
                 port {int} - 监听端口, 默认为 5000

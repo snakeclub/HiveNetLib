@@ -700,7 +700,7 @@ class ValidateTool(object):
     #############################
     @classmethod
     def check_by_rule(cls, rule, obj, obj_id='object', ignore_list_miss_value=True,
-                      ignore_extra_keys=True, i18n_obj=None, is_list_call=False,
+                      ignore_extra_keys=True, option_rule=None, i18n_obj=None, is_list_call=False,
                       is_use_pre_obj_id=True, pre_obj_id=''):
         """
         按规则检查对象
@@ -742,6 +742,8 @@ class ValidateTool(object):
         @param {string} obj_id='object' - 要检查对象的id，用于在错误信息中显示
         @param {bool} ignore_list_miss_value=True - 是否忽略列表中不足的对象
         @param {bool} ignore_extra_keys=True - 当规则为dict时，是否忽略数据中不存在的key
+        @param {dict} option_rule=None - 指示字段是否可忽略，只有当rule为dict的时候与rule配套使用，
+            字典结构与rule一致，key为要检查的字段，value为二元列表['M'或'O', {子字典}]
         @param {SimpleI18N} i18n_obj=None - 国际化类的实例对象，如不传入会尝试自动加载全局的国际化控件
         @param {bool} is_list_call=False - 内部针对dict的校验规则使用，用于区分函数是否已进行过列表拆分处理
             注：指一个dict规则处理列表中的多个dict数据
@@ -784,7 +786,8 @@ class ValidateTool(object):
                 for _key, _value in rule.items():
                     # 检查对象的key是不是对应存在
                     if _key not in obj.keys():
-                        if ignore_extra_keys:
+                        if ignore_extra_keys and (option_rule is None or _key not in option_rule.keys() or option_rule[_key][0] != 'M'):
+                            # 结合option_rule检查字段是否必填
                             continue
                         else:
                             # 检查对象不存在key
@@ -796,9 +799,14 @@ class ValidateTool(object):
                     _result = None
                     if type(rule[_key]) == dict:
                         # 下一级还是dict，递归处理
+                        _option_rule = None
+                        if option_rule is not None:
+                            _option_rule = option_rule[_key][1]
+
                         _result = cls.check_by_rule(
                             rule[_key], obj[_key], obj_id=_key, ignore_list_miss_value=ignore_list_miss_value,
-                            ignore_extra_keys=ignore_extra_keys, i18n_obj=i18n_obj, is_list_call=False,
+                            ignore_extra_keys=ignore_extra_keys, option_rule=_option_rule,
+                            i18n_obj=i18n_obj, is_list_call=False,
                             is_use_pre_obj_id=is_use_pre_obj_id,
                             pre_obj_id=_pre_obj_id
                         )
@@ -1025,7 +1033,12 @@ class ValidateTool(object):
             _index = 0
             while _index < _obj_len:
                 _show_obj_id = obj_id if not is_use_pre_obj_id else ('%s~%d' % (obj_id, _index))
-                _result = cls._check_by_single_rule(
+                _check_rule_fun = cls._check_by_single_rule
+                if type(rules[_index]) == dict:
+                    # 字典形式的校验
+                    _check_rule_fun = cls.check_by_rule
+
+                _result = _check_rule_fun(
                     rules[_index], _check_obj[_index], obj_id=_show_obj_id,
                     ignore_list_miss_value=ignore_list_miss_value, i18n_obj=i18n_obj,
                     is_use_pre_obj_id=is_use_pre_obj_id, pre_obj_id=pre_obj_id

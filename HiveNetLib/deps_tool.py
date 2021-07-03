@@ -88,21 +88,25 @@ DEPENDENCIES_DICT = {
 }
 
 
-def install_package(package_name: str, force_reinstall: bool = False) -> tuple:
+def install_package(package_name: str, force_reinstall: bool = False, dependencies_dict: dict = None) -> tuple:
     """
     安装指定依赖包
 
     @param {str} package_name - 要安装的包名(DEPENDENCIES_DICT中的key)
     @param {bool} force_reinstall=False - 是否强制重新安装
+    @param {dict} dependencies_dict=None - 依赖字典, key为依赖的包名，value为{'install': '实际安装包名和版本要求'}
+        注：如果为None代表使用 DEPENDENCIES_DICT 字典
 
     @returns {tuple[int, str]} - 安装结果,
         第一位为运行结果，0代表成本，其他代表失败
         第二位为命令安装结果输出内容
     """
+    _dependencies_dict = DEPENDENCIES_DICT if dependencies_dict is None else dependencies_dict
+
     _result = subprocess.getstatusoutput(
         'pip install %s%s' % (
             '--force-reinstall ' if force_reinstall else '',
-            DEPENDENCIES_DICT[package_name]['install']
+            _dependencies_dict[package_name]['install']
         )
     )
     if _result[0] == 0:
@@ -115,16 +119,20 @@ def install_package(package_name: str, force_reinstall: bool = False) -> tuple:
     return _result
 
 
-def install_all(force_reinstall: bool = False) -> bool:
+def install_all(force_reinstall: bool = False, dependencies_dict: dict = None) -> bool:
     """
     安装所有依赖包
 
     @param {bool} force_reinstall=False - 是否强制重新安装
+    @param {dict} dependencies_dict=None - 依赖字典, key为依赖的包名，value为{'install': '实际安装包名和版本要求'}
+        注：如果为None代表使用 DEPENDENCIES_DICT 字典
 
     @returns {bool} - 最后安装情况
     """
+    _dependencies_dict = DEPENDENCIES_DICT if dependencies_dict is None else dependencies_dict
+
     _fail_list = []
-    for _key in DEPENDENCIES_DICT.keys():
+    for _key in _dependencies_dict.keys():
         _result = install_package(_key, force_reinstall=force_reinstall)
         if _result[0] != 0:
             # 安装失败

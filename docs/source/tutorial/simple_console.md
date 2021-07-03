@@ -24,7 +24,7 @@ from HiveNetLib.simple_i18n import _
 from HiveNetLib.simple_console.base_cmd import CmdBaseFW
 
 class YourClass(CmdBaseFW):
-	#############################
+	  #############################
     # 需具体实现类覆盖实现的类
     #############################
     def _init(self, **kwargs):
@@ -43,6 +43,7 @@ class YourClass(CmdBaseFW):
         @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
         @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
         @param {kwargs} - 传入的主进程的初始化kwargs对象
+            shell_cmd {bool} - 如果传入参数有该key，且值为True，代表是命令行直接执行，非进入控制台执行
         @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的print_str属性要求框架进行打印处理
         """
         您自己的处理函数内容
@@ -175,6 +176,36 @@ if __name__ == '__main__':
 entry_points={'console_scripts': [
     "wikitool = mediawikiTool.console:main"
 ]},
+```
+
+
+
+### 修改命令行配色方案
+
+通过修改config.xml配置文件可以改变命令行展现的不同特性，其中一个比较关键的配置是修改命令行配色方案，如果遇到命令需要在不同颜色主题的命令行中执行，默认的配色方案可能有问题，这时候就需要修改配色方案来保证字体输出能清晰看到，可以修改配置中的 color_set 参数调整配色方案：
+
+```
+color_set : 命令行配色方案，如果采用默认方案可不传，每个配色格式类似为'#000088 bg:#aaaaff underline'
+    input : 用户输入，默认为'#F2F2F2'
+    cmd : 命令，默认为'#13A10E'
+    name_para : key-value形式参数名， 默认为'#C19C00'
+    short_para: -char形式的短参数字符， 默认为'#3B78FF'
+    long_para: -name形式的长参数字符，默认为'#FFFF00'
+    word_para: word 形式的词字符，默认为'#C19C00',  # word 形式的词字符
+    wrong_tip: 错误的命令或参数名提示，默认为'#FF0000 bg:#303030', 也可以参考格式：#ff0000 bg:#ffffff reverse
+    prompt: prompt提示信息，默认为'#F2F2F2'
+```
+
+示例：
+
+```
+...
+<color_set>
+    <!-- 设置为空让字体能同时适应黑白背景 -->
+    <input></input>
+    <prompt></prompt>
+</color_set>
+...
 ```
 
 

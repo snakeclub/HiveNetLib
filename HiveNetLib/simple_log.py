@@ -15,7 +15,6 @@
 @see https://docs.python.org/zh-cn/3/howto/logging-cookbook.html
 """
 
-from HiveNetLib.base_tools.run_tool import RunTool
 import sys
 import os
 import os.path
@@ -38,6 +37,7 @@ from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.simple_queue import MemoryQueue
 from HiveNetLib.base_tools.exception_tool import ExceptionTool
+from HiveNetLib.base_tools.run_tool import RunTool
 
 
 __MOUDLE__ = 'simple_log'  # 模块名
@@ -553,6 +553,9 @@ class Logger(object):
         if auto_create_conf and config_type in (EnumLoggerConfigType.JSON_FILE, EnumLoggerConfigType.INI_FILE):
             # 判断文件是否存在，如果不存在则按默认值创建文件
             self.__create_conf_file()
+        elif self.__config_type == EnumLoggerConfigType.JSON_STR:
+            # 不自动创建配置文件的情况下，需要更新文件路径
+            self.__json_str = self.__json_str.replace('{$log_file_path$}', logfile_path)
 
         # 如果是JSON格式，先加载到对象
         if self.__config_type == EnumLoggerConfigType.JSON_STR:

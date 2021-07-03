@@ -163,7 +163,7 @@ cresult_obj.net_info = [socket, id]
 | 0406   | send failure                                         | 发送数据失败                               |                                    |
 | 0407   | get client connection timed out                      | 获取客户端连接超时                         |                                    |
 | 0408   | grpc call failure,  status code: [$1], details: [$2] | grpc调用失败，状态码: [$1]，详细信息: [$2] |                                    |
-|        | ip address verify failure                            | IP地址验证失败                             |                                    |
+| 0409   | ip address verify failure                            | IP地址验证失败                             |                                    |
 | 0599   | other network failure                                | 网络连接其他失败                           |                                    |
 
 

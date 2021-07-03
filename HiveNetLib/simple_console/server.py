@@ -53,12 +53,13 @@ class ConsoleServer(object):
     # 静态函数
     #############################
     @staticmethod
-    def console_main(execute_file_path=None, default_config_file=None, **kwargs):
+    def console_main(execute_file_path=None, default_config_file=None, console_self_config: dict = None, **kwargs):
         """
         启动命令行框架的主函数
 
         @param {string} execute_file_path=None - 外部调用该函数应将程序主目录传入，这样才能找到配置文件
         @param {string} default_config_file=None - 如果您希望用不同的配置文件路径作为默认路径，可传入该函数指定
+        @param {dict} console_self_config=None - 命令行自定义配置信息，将添加到全局参数中
         """
         # 获取命令行参数，需要外部传入config、encoding参数
         # 例如 console.py config=/conf/config.xml encoding=utf-8 help=y shell_cmd=以命令行方式执行命令 shell_cmdfile=cmdfile.txt cmdfile_encoding=utf-8
@@ -66,6 +67,9 @@ class ConsoleServer(object):
         if CONSOLE_GLOBAL_PARA is None:
             CONSOLE_GLOBAL_PARA = {}
             RunTool.set_global_var('CONSOLE_GLOBAL_PARA', CONSOLE_GLOBAL_PARA)
+
+        # 自定义配置信息
+        CONSOLE_GLOBAL_PARA['console_self_config'] = console_self_config
 
         # 程序主目录
         if execute_file_path is None:
@@ -133,10 +137,13 @@ class ConsoleServer(object):
                 _cmd_list = [_cmd_opts['shell_cmd']]
             # 逐个命令执行
             for _cmd in _cmd_list:
-                _result = _server.call_cmd_directly(_cmd)
+                _result = _server.call_cmd_directly(_cmd, shell_cmd=True)
                 if not _result.is_success():
                     # 执行有错误，不继续执行
-                    return
+                    exit(1)
+
+            # 正常完成
+            exit(0)
         elif 'shell_cmdfile' in _cmd_opts.keys():
             _file_encoding = None
             if 'cmdfile_encoding' in _cmd_opts.keys() and _cmd_opts['cmdfile_encoding'] != '':
@@ -146,10 +153,13 @@ class ConsoleServer(object):
             _cmd_list = _cmd_text.split('\n')
             # 逐个命令执行
             for _cmd in _cmd_list:
-                _result = _server.call_cmd_directly(_cmd)
+                _result = _server.call_cmd_directly(_cmd, shell_cmd=True)
                 if not _result.is_success():
                     # 执行有错误，不继续执行
-                    return
+                    exit(1)
+
+            # 正常完成
+            exit(0)
         else:
             _server.start_console()
 
@@ -181,6 +191,8 @@ class ConsoleServer(object):
         self._console_global_para['shell_cmd_name'] = self._config_dict['shell_cmd_name']
         self._console_global_para['language'] = self._config_dict['language']
         self._console_global_para['shell_encoding'] = self._config_dict['shell_encoding']  # 控制台编码
+        self._console_global_para['exit_with_prompt'] = self._config_dict.get(
+            'exit_with_prompt', 'y')  # 是否提示退出
 
         # i18n多语言加载
         _trans_file_path = None
@@ -253,10 +265,12 @@ class ConsoleServer(object):
             _logger = Logger.create_logger_by_dict(
                 self._config_dict['logger'])
 
-        # 执行命令处理类的后初始化函数
-        for _key in self._import_object_dict.keys():
-            if hasattr(self._import_object_dict[_key], 'init_after_console_init'):
-                self._import_object_dict[_key].init_after_console_init()
+        # 颜色调整
+        _color_set = self._config_dict.get('color_set', None)
+        if _color_set is not None:
+            _input_color = _color_set.get('input', None)
+            if _input_color is not None:
+                _color_set[''] = _input_color
 
         # 初始化命令行工具对象
         self._prompt = PromptPlus(
@@ -267,7 +281,16 @@ class ConsoleServer(object):
             on_abort=self._on_abort,  # Ctrl + C 取消本次输入执行函数
             on_exit=self._on_exit,  # Ctrl + D 关闭命令行执行函数
             logger=_logger,  # 日志
+            color_set=_color_set,  # 命令行配色方案
         )
+
+        # 最后才添加这个对象
+        self._console_global_para['prompt_obj'] = self._prompt  # 将命令行工具对象放到可访问的参数中
+
+        # 执行命令处理类的后初始化函数
+        for _key in self._import_object_dict.keys():
+            if hasattr(self._import_object_dict[_key], 'init_after_console_init'):
+                self._import_object_dict[_key].init_after_console_init()
 
     #############################
     # 公共函数
@@ -328,14 +351,15 @@ class ConsoleServer(object):
             is_print_async_execute_info=True
         )
 
-    def call_cmd_directly(self, cmd_str):
+    def call_cmd_directly(self, cmd_str, shell_cmd: bool = False):
         """
         外部直接使用实例执行命令, 不通过命令行获取
 
         @param {string} cmd_str - 要实行的命令(含命令本身和参数)
+        @param {bool} shell_cmd=False - 是否命令行直接执行模式
         """
         self._prompt.prompt_print(_('call cmd by shell mode: $1', cmd_str))
-        return self._prompt.call_cmd_directly(cmd_str)
+        return self._prompt.call_cmd_directly(cmd_str, shell_cmd=shell_cmd)
 
     #############################
     # 内部函数

@@ -18,11 +18,12 @@ import os
 import sys
 import socket
 import urllib
+import urllib.request
 import copy
 import requests
+from urllib.parse import urlparse
 import re
 import json
-import time
 import datetime
 import logging
 import traceback
@@ -86,6 +87,9 @@ class NetTool(object):
 
     """
 
+    #############################
+    # 网络字节转换
+    #############################
     @staticmethod
     def int_to_bytes(int_value, fix_len=4, byte_order="big", signed=True):
         """
@@ -128,6 +132,7 @@ class NetTool(object):
     #############################
     # 获取网卡相关信息
     #############################
+
     @staticmethod
     def get_net_interfaces():
         """
@@ -195,7 +200,7 @@ class NetTool(object):
     #############################
     @staticmethod
     def get_web_page_code(url: str, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
-                          encoding='utf-8', retry=0,
+                          encoding='utf-8', retry=0, proxy: dict = None,
                           cafile=None, capath=None, cadefault=False, context=None, real_url=['']):
         """
         获取网页代码(静态代码)
@@ -208,6 +213,8 @@ class NetTool(object):
             默认使用socket的默认超时时间，如果没有使用socket.setdefaulttimeout设置，则是不超时
         @param {str} encoding='utf-8' - 解析返回页面内容的编码
         @param {int} retry=0 - 超时重试次数
+        @param {dict} proxy=None - 设置访问代理，例如{'http': 'http://61.135.217.7:80'}, 或 {'https': 'https://61.135.217.7:443'}
+            注：指定代理模式不支持cafile、capath、cadefault、context等参数
         @param {str} cafile=None - 本地CA证书文件
         @param {str} capath=None - 本地CA证书所在路径
         @param {bool} cadefault=False - ?
@@ -232,17 +239,35 @@ class NetTool(object):
             context = ssl._create_unverified_context()
 
         """
+        # 创建代理句柄
+        if proxy is not None:
+            # 处理代理格式
+            _new_proxy = dict()
+            for _key, _val in proxy:
+                _url_info = urlparse(_val)
+                _new_proxy[_url_info.scheme] = _url_info.netloc
+
+            _proxy_handle = urllib.request.ProxyHandler(_new_proxy)
+            _opener = urllib.request.build_opener(_proxy_handle)
+
         _retry_time = 1
         while True:
             # 正式的处理逻辑
             try:
                 real_url[0] = url
-                with urllib.request.urlopen(
-                    url, data=data, timeout=timeout, cafile=cafile,
-                    capath=capath, cadefault=cadefault, context=context
-                ) as _res:
-                    real_url[0] = _res.url
-                    return _res.read().decode(encoding)
+                if proxy is None:
+                    # 非代理模式
+                    with urllib.request.urlopen(
+                        url, data=data, timeout=timeout, cafile=cafile,
+                        capath=capath, cadefault=cadefault, context=context
+                    ) as _res:
+                        real_url[0] = _res.url
+                        return _res.read().decode(encoding)
+                else:
+                    # 代理模式
+                    with _opener.open(url, data=data, timeout=timeout) as _res:
+                        real_url[0] = _res.url
+                        return _res.read().decode(encoding)
             except urllib.error.HTTPError:
                 if _retry_time <= retry:
                     _retry_time += 1
@@ -252,7 +277,8 @@ class NetTool(object):
 
     @staticmethod
     def get_web_page_dom_code(url: str, browser=None, common_options=None,
-                              webdriver_type=EnumWebDriverType.Chrome, driver_options={}):
+                              webdriver_type=EnumWebDriverType.Chrome, driver_options={},
+                              cookie: dict = None):
         """
         获取页面加载后的动态html
 
@@ -275,7 +301,8 @@ class NetTool(object):
             pos_x {int} - 浏览器x位置(px)
             pos_y {int} - 浏览器y位置(px)
         @param {EnumWebDriverType} webdriver_type=EnumWebDriverType.Chrome - 浏览器驱动类型
-        @param {dict} driver_options=None - 调用驱动的参数，具体请查阅浏览器驱动的文档
+        @param {dict} driver_options={} - 调用驱动的参数，具体请查阅浏览器驱动的文档
+        @param {dict} cookie=None - 要设置的cookie字典
 
         @returns {str} - 页面加载后的html代码
 
@@ -341,6 +368,10 @@ class NetTool(object):
                 _browser.set_window_position(
                     int(_common_options['pos_x']), int(_common_options['pos_y'])
                 )
+
+        # cookie
+        if cookie is not None:
+            _browser.add_cookie(cookie)
 
         # 打开网页
         _browser.get(url)
@@ -695,7 +726,9 @@ class NetTool(object):
             while True:
                 try:
                     _fileinfo = NetTool.get_http_fileinfo(
-                        url, headers=headers, connect_timeout=connect_timeout)
+                        url, headers=headers, connect_timeout=connect_timeout, params=params,
+                        proxies=proxies, verify=verify, cookies=cookies
+                    )
                     break
                 except:
                     if _retry_time < retry:
@@ -720,7 +753,22 @@ class NetTool(object):
             if show_rate:
                 _bar = wget.bar_adaptive
 
-            wget.download(url, out=_filename, bar=_bar, headers=headers)
+            _new_proxy = dict()
+            if proxies is not None and len(proxies) > 0:
+                for _key in proxies.keys():
+                    _url_info = urlparse(proxies[_key])
+                    _new_proxy[_url_info.scheme] = _url_info.netloc
+
+            if cookies is not None and len(cookies) > 0:
+                # 将cookie放入头文件
+                if headers is None:
+                    headers = {}
+                _cookie_str_list = list()
+                for _key, _val in cookies:
+                    _cookie_str_list.append('%s=%s' % (_key, _val))
+                headers['Cookie'] = '; '.join(_cookie_str_list)
+
+            wget.download(url, out=_filename, bar=_bar, headers=headers, proxy=_new_proxy)
         else:
             # 自动续传
             _headers = copy.deepcopy(headers)

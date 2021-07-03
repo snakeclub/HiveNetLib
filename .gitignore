@@ -110,3 +110,7 @@ test_data/temp/
 # vscode
 .vscode-test/
 .vscode/
+
+# Mac
+.DS_Store
+.DS_Store/*

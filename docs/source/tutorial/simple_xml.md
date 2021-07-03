@@ -147,6 +147,56 @@ to_dict函数可以将指定的节点生成字典对象（需注意不支持节�
 }
 ```
 
+### 将字典对象添加到xml中
+
+可以通过 set_value_by_dict 函数将字典对象添加到xml文档的指定节点中，程序会自动判断类型并进行相应转换，示例如下：
+
+```
+# 创建SimpleXml对象
+_doc = SimpleXml('<root><a type="list"><item>test1</item></a><b></b></root>',
+                     obj_type=EnumXmlObjType.String)
+
+# 要添加到b节点下的字典对象
+_dict = {
+    'b': True, 'c': 10, 'd': 3.4, 'e': 'teste', 'f': [
+        False, 11, 4.5, 'haha', {'g': 'gteset', 'h': False}
+    ],
+    'i': {'a': 'tet', 'b': 'ddd'}
+}
+
+# 执行添加动作，通过with_type指定自动识别对象类型
+_doc.set_value_by_dict('/root/b', _dict, with_type=True, debug=True)
+
+print(_doc.to_string())
+
+执行结果显示如下：
+<root>
+  <a type="list">
+    <item>test1</item>
+  </a>
+  <b>
+    <b type="bool">true</b>
+    <c type="int">10</c>
+    <d type="float">3.4</d>
+    <e>teste</e>
+    <f type="list">
+      <item type="bool">false</item>
+      <item type="int">11</item>
+      <item type="float">4.5</item>
+      <item>haha</item>
+      <item>
+        <g>gteset</g>
+        <h type="bool">false</h>
+      </item>
+    </f>
+    <i>
+      <a>tet</a>
+      <b>ddd</b>
+    </i>
+  </b>
+</root>
+```
+
 
 
 ## lxml.etree的基本使用参考

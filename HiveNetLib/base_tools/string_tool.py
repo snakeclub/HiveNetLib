@@ -185,9 +185,53 @@ class StringTool(object):
             return StringTool.get_n_index(src, sub, n - 1, index + len(sub))
         return index
 
+    @classmethod
+    def get_starts_same_len(cls, str_a: str, str_b: str) -> int:
+        """
+        比较两个字符串开始相同的字符个数
+
+        @param {str} str_a - 字符a
+        @param {str} str_b - 字符b
+
+        @returns {int} - 相同字符个数
+        """
+        _len = 0
+        try:
+            while True:
+                if str_a[_len] != str_b[_len]:
+                    return _len
+                _len += 1
+        except:
+            pass
+
+        return _len
+
+    @classmethod
+    def get_ends_same_len(cls, str_a: str, str_b: str) -> int:
+        """
+        比较两个字符串结束位置相同的字符个数
+
+        @param {str} str_a - 字符a
+        @param {str} str_b - 字符b
+
+        @returns {int} - 相同字符个数
+        """
+        _len = 0
+        try:
+            while True:
+                _pos = -1 - _len
+                if str_a[_pos] != str_b[_pos]:
+                    return _len
+                _len += 1
+        except:
+            pass
+
+        return _len
+
     #############################
     # 对象与字符串转换
     #############################
+
     @staticmethod
     def format_obj_property_str(deal_obj, is_deal_subobj=False, c_level=0, max_level=10, is_same_line=False):
         """
@@ -488,5 +532,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-    print(StringTool.object_to_json(10))
-    print(type(StringTool.json_to_object('10')))

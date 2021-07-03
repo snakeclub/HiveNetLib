@@ -22,9 +22,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.
 import HiveNetLib.deps_tool as deps_tool
 try:
     import lxml.etree as ET
+    import lxml.html as HT
 except ImportError:
     deps_tool.install_package('lxml')
     import lxml.etree as ET
+    import lxml.html as HT
 try:
     import chardet
 except ImportError:
@@ -65,7 +67,7 @@ class SimpleXml(object):
     # 内部函数
     #############################
     def __init__(self, xml_obj, obj_type=EnumXmlObjType.File, encoding=None, use_chardet=True,
-                 register_namespace=None, **kwargs):
+                 parser: str = 'xml', register_namespace=None, **kwargs):
         """
         构造函数
 
@@ -76,6 +78,9 @@ class SimpleXml(object):
         @param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
         @param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
         @param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
+        @param {str} parser='xml' - 解析器类型，默认为xml
+            xml - 标准xml解析器
+            html - html解析器，兼容html一些不规范的地方
         @param {dict} register_namespace=None - 注册命名空间别名，格式为：
             {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
             注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
@@ -131,31 +136,54 @@ class SimpleXml(object):
                 self.encoding = 'utf-8'
 
         # 生成root
-        _parser = ET.XMLParser(
-            encoding=self.encoding,
-            attribute_defaults=False if 'attribute_defaults' not in kwargs.keys(
-            ) else kwargs['attribute_defaults'],
-            dtd_validation=False if 'dtd_validation' not in kwargs.keys(
-            ) else kwargs['dtd_validation'],
-            load_dtd=False if 'dtd_validation' not in kwargs.keys() else kwargs['dtd_validation'],
-            no_network=True if 'no_network' not in kwargs.keys() else kwargs['no_network'],
-            ns_clean=False if 'ns_clean' not in kwargs.keys() else kwargs['ns_clean'],
-            recover=False if 'recover' not in kwargs.keys() else kwargs['recover'],
-            schema=None if 'schema' not in kwargs.keys() else kwargs['schema'],
-            huge_tree=False if 'huge_tree' not in kwargs.keys() else kwargs['huge_tree'],
-            remove_blank_text=False if 'remove_blank_text' not in kwargs.keys(
-            ) else kwargs['remove_blank_text'],
-            resolve_entities=True if 'resolve_entities' not in kwargs.keys(
-            ) else kwargs['resolve_entities'],
-            remove_comments=False if 'remove_comments' not in kwargs.keys(
-            ) else kwargs['remove_comments'],
-            remove_pis=False if 'remove_pis' not in kwargs.keys() else kwargs['remove_pis'],
-            strip_cdata=True if 'strip_cdata' not in kwargs.keys() else kwargs['strip_cdata'],
-            collect_ids=True if 'collect_ids' not in kwargs.keys() else kwargs['collect_ids'],
-            target=None if 'target' not in kwargs.keys() else kwargs['target'],
-            compact=True if 'compact' not in kwargs.keys() else kwargs['compact']
-        )
-        self.root = ET.fromstring(_xml_bytes, parser=_parser)
+        if parser == 'html':
+            _parser = HT.HTMLParser(
+                encoding=self.encoding,
+                remove_blank_text=False if 'remove_blank_text' not in kwargs.keys(
+                ) else kwargs['remove_blank_text'],
+                remove_comments=False if 'remove_comments' not in kwargs.keys(
+                ) else kwargs['remove_comments'],
+                remove_pis=False if 'remove_pis' not in kwargs.keys() else kwargs['remove_pis'],
+                strip_cdata=True if 'strip_cdata' not in kwargs.keys() else kwargs['strip_cdata'],
+                no_network=True if 'no_network' not in kwargs.keys() else kwargs['no_network'],
+                target=None if 'target' not in kwargs.keys() else kwargs['target'],
+                schema=None if 'schema' not in kwargs.keys() else kwargs['schema'],
+                recover=True if 'recover' not in kwargs.keys() else kwargs['recover'],
+                compact=True if 'compact' not in kwargs.keys() else kwargs['compact'],
+                collect_ids=True if 'collect_ids' not in kwargs.keys() else kwargs['collect_ids'],
+                huge_tree=False if 'huge_tree' not in kwargs.keys() else kwargs['huge_tree']
+            )
+        else:
+            _parser = ET.XMLParser(
+                encoding=self.encoding,
+                attribute_defaults=False if 'attribute_defaults' not in kwargs.keys(
+                ) else kwargs['attribute_defaults'],
+                dtd_validation=False if 'dtd_validation' not in kwargs.keys(
+                ) else kwargs['dtd_validation'],
+                load_dtd=False if 'dtd_validation' not in kwargs.keys(
+                ) else kwargs['dtd_validation'],
+                no_network=True if 'no_network' not in kwargs.keys() else kwargs['no_network'],
+                ns_clean=False if 'ns_clean' not in kwargs.keys() else kwargs['ns_clean'],
+                recover=False if 'recover' not in kwargs.keys() else kwargs['recover'],
+                schema=None if 'schema' not in kwargs.keys() else kwargs['schema'],
+                huge_tree=False if 'huge_tree' not in kwargs.keys() else kwargs['huge_tree'],
+                remove_blank_text=False if 'remove_blank_text' not in kwargs.keys(
+                ) else kwargs['remove_blank_text'],
+                resolve_entities=True if 'resolve_entities' not in kwargs.keys(
+                ) else kwargs['resolve_entities'],
+                remove_comments=False if 'remove_comments' not in kwargs.keys(
+                ) else kwargs['remove_comments'],
+                remove_pis=False if 'remove_pis' not in kwargs.keys() else kwargs['remove_pis'],
+                strip_cdata=True if 'strip_cdata' not in kwargs.keys() else kwargs['strip_cdata'],
+                collect_ids=True if 'collect_ids' not in kwargs.keys() else kwargs['collect_ids'],
+                target=None if 'target' not in kwargs.keys() else kwargs['target'],
+                compact=True if 'compact' not in kwargs.keys() else kwargs['compact']
+            )
+
+        if parser == 'html':
+            self.root = HT.fromstring(_xml_bytes, parser=_parser)
+        else:
+            self.root = ET.fromstring(_xml_bytes, parser=_parser)
         self.tree = ET.ElementTree(self.root)
 
     def __str__(self):
@@ -164,11 +192,11 @@ class SimpleXml(object):
         """
         return self.to_string(xml_declaration=None)
 
-    def _xml_node_to_dict_value(self, node, item_dict_nodes=None):
+    def _xml_node_to_dict_value(self, node: ET._Element, item_dict_nodes=None):
         """
         将指定节点通过递归生成存入dict的key-value值
 
-        @param {Element} node - 要生成key-value的节点
+        @param {ET._Element} node - 要生成key-value的节点
         @param {list} item_dict_nodes = None - 指定list和tuple情况下，使用字典作为列表项的节点清单(Element)
 
         @return {tuple} - 返回 key, value 值，如果是注释返回 None, None
@@ -210,14 +238,17 @@ class SimpleXml(object):
                 _type = 'string'
 
         # 按不同type属性类型进行处理
+        _text = node.text
+        if type(_text) == str:
+            _text = node.text.strip()
         if _type == 'string':
-            _value = node.text
+            _value = _text
         elif _type == 'bool':
-            _value = (node.text == 'true')
+            _value = (_text == 'true')
         elif _type == 'int':
-            _value = round(float(node.text))
+            _value = round(float(_text))
         elif _type == 'float':
-            _value = float(node.text)
+            _value = float(_text)
         elif _type == 'dict':
             # 字典
             if _childs is None:
@@ -233,7 +264,7 @@ class SimpleXml(object):
                         _value[_child_key] = _child_value
             else:
                 # 没有子节点，等同于string
-                _value = node.text
+                _value = _text
         else:
             # list或tuple
             if _type == 'tuple':
@@ -251,6 +282,11 @@ class SimpleXml(object):
             for childnode in node.getchildren():
                 _child_key, _child_value = self._xml_node_to_dict_value(
                     childnode, item_dict_nodes=item_dict_nodes)
+
+                if _child_key is None and _child_value is None:
+                    # 屏蔽掉注释的情况
+                    continue
+
                 if _use_dict:
                     # 列表项按字典处理
                     _child_value = {_child_key: _child_value}
@@ -409,21 +445,21 @@ class SimpleXml(object):
         @param {string} xpath - 符合XPath语法的搜索路径
         @param {dict} namespaces=None - 命名空间
 
-        @return {list} - 返回节点清单
+        @return {list} - 返回节点清单(返回的数组内部对象为ET._Element)
         """
         return self.root.xpath(xpath, namespaces=namespaces)
 
-    def get_xpath(self, node):
+    def get_xpath(self, node: ET._Element):
         """
         获取指定节点的xpath路径
 
-        @param {Element} node - 要获取搜索路径的节点
+        @param {ET._Element} node - 要获取搜索路径的节点
 
         @return {string} - 可搜索到该节点的xpath
         """
         return self.tree.getpath(node)
 
-    def append_path_node(self, path, namespaces=None):
+    def append_path_node(self, path, namespaces=None, ignore_path_check: bool = False):
         """
         按path生成对应路径的节点
 
@@ -435,16 +471,19 @@ class SimpleXml(object):
                     'real_person': 'http://people.example.com',
                     'role': 'http://characters.example.com'
                 }
+        @param {bool} ignore_path_check=False - 是否忽略路径检查（不检查直接操作）
+
         @return {Element} - 返回创建完成的节点
 
         @throws {AttributeError} - 当搜索路径不符合创建规范时，抛出该异常
         """
         # 检查是否有不符合的情况
-        _replace_reg = re.compile(r'{[\S\s]+?}')
-        _check_str = _replace_reg.sub('X', path)
-        if re.search('/$|//|\\*|\\.|\\[*\\]', _check_str, flags=re.M) is not None:
-            # 不符合搜索路径的条件，抛出异常
-            raise AttributeError('path must just with tag')
+        if not ignore_path_check:
+            _replace_reg = re.compile(r'{[\S\s]+?}')
+            _check_str = _replace_reg.sub('X', path)
+            if re.search('/$|//|\\*|\\.|\\[*\\]', _check_str, flags=re.M) is not None:
+                # 不符合搜索路径的条件，抛出异常
+                raise AttributeError('path must just with tag')
 
         # 获取每个节点
         _node_reg = re.compile(r'(({[\S\s]+?}){0,}[^/]+)')
@@ -473,15 +512,15 @@ class SimpleXml(object):
         # 返回新增的节点
         return _node
 
-    def append_node(self, xpath, node, namespaces=None):
+    def append_node(self, xpath, node: ET._Element, namespaces=None):
         """
         添加节点到指定路径(匹配的第一个)
 
         @param {string} xpath - 符合XPath语法的搜索路径
         @param {dict} namespaces=None - 命名空间
-        @param {Element} node - 要添加的节点
+        @param {ET._Element} node - 要添加的节点
 
-        @return {Element} - 返回匹配到的节点
+        @return {ET._Element} - 返回匹配到的节点
         """
         _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) > 0:
@@ -489,11 +528,34 @@ class SimpleXml(object):
         else:
             raise NameError('can\'t find node by xpath')
 
-    def remove_node(self, node, hold_tail=False):
+    def append_empty_node(self, xpath: str, tag: str, prefix: str = None, namespaces: dict = None):
+        """
+        添加空节点到指定路径(匹配的第一个)
+        注意：该方法不会判断节点标签是否已存在，即使已存在也会添加新节点
+
+        @param {str} xpath - 符合XPath语法的搜索路径
+        @param {str} tag - 要添加的空节点tag标签
+        @param {str} prefix=None - 命名空间指定前缀
+        @param {dict} namespaces=None - 命名空间
+
+        @return {ET._Element} - 返回匹配到的节点
+        """
+        # 创建节点对象
+        _new_node = None
+        if prefix is not None:
+            _tag = '{' + namespaces[prefix] + '}' + tag
+            _new_node = ET.Element(_tag, nsmap=namespaces)
+        else:
+            _new_node = ET.Element(tag)
+
+        # 添加到节点中
+        self.append_node(xpath, _new_node, namespaces=namespaces)
+
+    def remove_node(self, node: ET._Element, hold_tail=False):
         """
         删除指定节点
 
-        @param {Element} node - 要删除的节点
+        @param {ET._Element} node - 要删除的节点
         @param {bool} hold_tail=False - 是否保留上一节点的tail信息
         """
         _parent = node.getparent()
@@ -578,7 +640,7 @@ class SimpleXml(object):
             # 返回属性值
             return _nodes[0].get(attr_name, default=default)
 
-    def set_value(self, xpath, value, namespaces=None, auto_create=True, debug=False):
+    def set_value(self, xpath, value, namespaces=None, auto_create=True, debug=False, ignore_path_check=False):
         """
         设置指定节点的值
 
@@ -594,6 +656,7 @@ class SimpleXml(object):
                 }
         @param {bool} auto_create=True - 节点不存在的时候是否自动创建节点
         @param {bool} debug=False - 如果出现不可预知的异常时，打印入参
+        @param {bool} ignore_path_check=False - 是否忽略路径检查（不检查直接操作）
 
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
@@ -603,7 +666,9 @@ class SimpleXml(object):
             if len(_nodes) == 0:
                 if auto_create:
                     # 找不到节点，尝试自动创建节点
-                    _node = self.append_path_node(xpath, namespaces=namespaces)
+                    _node = self.append_path_node(
+                        xpath, namespaces=namespaces, ignore_path_check=ignore_path_check
+                    )
                     _node.text = value
                 else:
                     # 不创建节点，抛出异常
@@ -619,7 +684,7 @@ class SimpleXml(object):
                     xpath, value, namespaces, auto_create))
             raise
 
-    def set_attr(self, xpath, attr_name, value, namespaces=None, auto_create=True):
+    def set_attr(self, xpath, attr_name, value, namespaces=None, auto_create=True, ignore_path_check=False):
         """
         设置指定节点的值（只要节点存在强制新增属性）
 
@@ -635,6 +700,7 @@ class SimpleXml(object):
                     'role': 'http://characters.example.com'
                 }
         @param {bool} auto_create=True - 节点不存在的时候是否自动创建
+        @param {bool} ignore_path_check=False - 是否忽略路径检查（不检查直接操作）
 
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
@@ -643,7 +709,9 @@ class SimpleXml(object):
         if len(_nodes) == 0:
             if auto_create:
                 # 找不到节点，尝试自动创建节点
-                _nodes = [self.append_path_node(xpath, namespaces=namespaces)]
+                _nodes = [self.append_path_node(
+                    xpath, namespaces=namespaces, ignore_path_check=ignore_path_check
+                )]
             else:
                 # 不创建节点，抛出异常
                 raise NameError('can\'t find node by xpath')
@@ -651,14 +719,17 @@ class SimpleXml(object):
             # 设置节点属性值
             _node.set(attr_name, value)
 
-    def set_value_by_dict(self, xpath: str, value_dict: dict, ignore_exception=False, debug=False):
+    def set_value_by_dict(self, xpath: str, value_dict: dict, list_node_name: str = 'item',
+                          ignore_exception=False, debug=False, with_type: bool = False):
         """
         将字典值写入xml对象中
 
         @param {str} xpath - 要写入的初始xpath
         @param {dict} value_dict - 值字典，key写入tag名(将与参数的xpath组合)，value为写入值
+        @param {str} list_node_name='item' - 列表情况下子节点标签名
         @param {bool} ignore_exception=False - 如果出现不可预知的异常，忽略继续处理下一个
         @param {bool} debug=False - 如果出现不可预知的异常时，打印入参
+        @param {bool} with_type=False - 判断数据类型，如果是特殊类型打上类型标签
 
         @return {list} - 当ignore_exception=True时返回，异常时的信息
         """
@@ -669,18 +740,68 @@ class SimpleXml(object):
 
         for _key in value_dict.keys():
             _value = value_dict[_key]
-            if type(_value) == dict:
+            _value_type = type(_value)
+            if _value_type == dict:
                 # 如果值为字典，按下一个层级处理
                 _sub_exception_list = self.set_value_by_dict(
                     '%s%s' % (_xpath, _key), _value,
-                    ignore_exception=ignore_exception, debug=debug
+                    ignore_exception=ignore_exception, debug=debug, with_type=with_type
                 )
                 if _sub_exception_list is not None:
                     _exception_list = _exception_list + _sub_exception_list
-            else:
-                # 按字符串处理
+            elif _value_type == list:
+                # 列表类型的处理
                 try:
-                    self.set_value('%s%s' % (_xpath, _key), str(_value), debug=debug)
+                    _list_xpath = '%s%s' % (_xpath, _key)
+                    self.set_attr(
+                        _list_xpath, 'type', "list", auto_create=True, ignore_path_check=True
+                    )  # 增加类型指示
+                    if len(_value) == 0:
+                        # 列表没有数据，只是建空列表对象
+                        self.set_value(_list_xpath, '', debug=debug, ignore_path_check=True)
+                    else:
+                        for _i in range(len(_value)):
+                            # 先创建节点
+                            self.append_empty_node(_list_xpath, list_node_name)
+
+                            # 处理值，组成字典形式复用当前函数逻辑遍历处理（带上第几个属性的做法）
+                            _sub_exception_list = self.set_value_by_dict(
+                                _list_xpath, {'%s[%d]' % (list_node_name, _i + 1): _value[_i]},
+                                ignore_exception=ignore_exception, debug=debug, with_type=with_type
+                            )
+                            if _sub_exception_list is not None:
+                                _exception_list = _exception_list + _sub_exception_list
+                except:
+                    if not ignore_exception:
+                        raise
+                    else:
+                        _exception_list.append(
+                            'set_value error: [xpath=%s%s][value=%s]' % (_xpath, _key, str(_value))
+                        )
+            else:
+                try:
+                    _value_xpath = '%s%s' % (_xpath, _key)
+                    if not with_type:
+                        # 无需处理类型，直接按字符串处理
+                        self.set_value(
+                            _value_xpath, str(_value), debug=debug, ignore_path_check=True
+                        )
+                    else:
+                        if _value_type == bool:
+                            # 有点特殊，要转换为true/false
+                            self.set_value(
+                                _value_xpath, 'true' if _value else 'false', debug=debug,
+                                ignore_path_check=True
+                            )
+                            self.set_attr(_value_xpath, 'type', 'bool', ignore_path_check=True)
+                        else:
+                            self.set_value(
+                                _value_xpath, str(_value), debug=debug, ignore_path_check=True
+                            )
+                            if _value_type == int:
+                                self.set_attr(_value_xpath, 'type', 'int', ignore_path_check=True)
+                            elif _value_type == float:
+                                self.set_attr(_value_xpath, 'type', 'float', ignore_path_check=True)
                 except:
                     if not ignore_exception:
                         raise
@@ -699,7 +820,7 @@ class SimpleXml(object):
         """
         获取指定节点的值(从节点开始检索)
 
-        @param {Element} node - 开始检索的节点
+        @param {ET._Element} node - 开始检索的节点
         @param {string} xpath - - 符合XPath语法的搜索路径
         @param {string} default='' - 如果找不到节点时默认返回的值
         @param {dict} namespaces=None - 命名空间
@@ -717,7 +838,7 @@ class SimpleXml(object):
         """
         获取指定节点的属性值(从节点开始检索)
 
-        @param {Element} node - 开始检索的节点
+        @param {ET._Element} node - 开始检索的节点
         @param {string} xpath - - 符合XPath语法的搜索路径
         @param {string} attr_name - 属性名
         @param {string} default='' - 如果找不到节点或具体属性时默认返回的值
@@ -737,7 +858,7 @@ class SimpleXml(object):
         """
         获取xpath指定的子节点(从节点开始检索)
 
-        @param {Element} node - 开始检索的节点
+        @param {ET._Element} node - 开始检索的节点
         @param {string} xpath - - 符合XPath语法的搜索路径
         @param {dict} namespaces=None - 命名空间
 
