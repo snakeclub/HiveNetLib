@@ -35,17 +35,12 @@ import uuid
 import copy
 import re
 import logging
+import psutil
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-# 动态安装包
-import HiveNetLib.deps_tool as deps_tool
-try:
-    import affinity
-except ImportError:
-    deps_tool.install_package('affinity')
-    import affinity
 # 自有模块引用
+import HiveNetLib.base_tools.affinity as affinity
 from HiveNetLib.generic import CResult
 from HiveNetLib.base_tools.value_tool import ValueTool
 from HiveNetLib.base_tools.run_tool import RunTool
@@ -1978,6 +1973,7 @@ class ProcessParallel(ParallelFw):
     def bind_cpu(self, cpu_num=1):
         """
         绑定进程在指定CPU上执行
+        注：暂时只支持windows和linux
 
         @param {long} cpu_num=1L - 要指定的CPU
 
@@ -1993,19 +1989,26 @@ class ProcessParallel(ParallelFw):
         finally:
             self._stat_lock.release()
 
-        _last_cpu = affinity.set_process_affinity_mask(_pid, cpu_num)
-        # 打印日志
-        if self._logger is not None:
-            self._logger.log(
-                self._log_level,
-                'set process [%s:%s] bind cpu - [pid:%s] from %s to %s' % (
-                    self._pid,
-                    self._pname,
-                    str(_pid),
-                    str(_last_cpu),
-                    str(cpu_num)
-                )
-            )
+        if sys.platform in ('win32', 'linux2'):
+            try:
+                _last_cpu = affinity.set_process_affinity_mask(_pid, cpu_num)
+                # 打印日志
+                if self._logger is not None:
+                    self._logger.log(
+                        self._log_level,
+                        'set process [%s:%s] bind cpu - [pid:%s] from %s to %s' % (
+                            self._pid,
+                            self._pname,
+                            str(_pid),
+                            str(_last_cpu),
+                            str(cpu_num)
+                        )
+                    )
+            except:
+                if self._logger is not None:
+                    self._logger.log(
+                        'affinity for python 3 incorrect, change affinity/__init__.py to fix'
+                    )
 
     def get_runing_cpu(self):
         """
@@ -2023,7 +2026,9 @@ class ProcessParallel(ParallelFw):
         finally:
             self._stat_lock.release()
 
-        return affinity.get_process_affinity_mask(_pid)
+        # 更换处理方式
+        _proess = psutil.Process(_pid)
+        return _proess.cpu_num()
 
     #############################
     # 内部函数 - 具体实现_is_running

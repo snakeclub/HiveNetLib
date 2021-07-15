@@ -34,21 +34,6 @@ sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 # 动态添加包安装
 import HiveNetLib.deps_tool as deps_tool
-process_install_selenium = False
-while True:
-    try:
-        from selenium import webdriver
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-        import selenium.webdriver.chrome.options
-        import selenium.webdriver.firefox.options
-        break
-    except ImportError:
-        if not process_install_selenium:
-            deps_tool.install_package('selenium')
-            process_install_selenium = True
-            continue
-        raise
 try:
     import netifaces
 except ImportError:
@@ -64,20 +49,6 @@ __DESCRIPT__ = u'网络处理相关工具'  # 模块描述
 __VERSION__ = '0.1.0'  # 版本
 __AUTHOR__ = u'黎慧剑'  # 作者
 __PUBLISH__ = '2018.08.29'  # 发布日期
-
-
-class EnumWebDriverType(Enum):
-    """
-    selenium的WebDriver类型
-
-    @enum {str}
-    """
-    Chrome = 'Chrome'  # 谷歌浏览器
-    Firefox = 'Firefox'  # 火狐浏览器
-    Ie = 'Ie'  # IE
-    Edge = 'Edge'  # Edge浏览器
-    PhantomJS = 'PhantomJS'  # PhantomJS无头无浏览器模式
-    Safari = 'Safari'
 
 
 class NetTool(object):
@@ -198,6 +169,25 @@ class NetTool(object):
     #############################
     # 网页处理相关
     #############################
+    @classmethod
+    def get_full_url(cls, url: str, ref_url: str) -> str:
+        """
+        获取完整的url地址
+
+        @param {str} url - 要处理的url地址
+        @param {str} ref_url - 引用的url地址（页面url）
+
+        @returns {str} - 完整url地址
+        """
+        if url.find('://') >= 0:
+            # 是完整路径
+            return url
+        else:
+            _url_info = urlparse(ref_url)
+            return '%s://%s/%s' % (
+                _url_info.scheme, _url_info.netloc, url
+            )
+
     @staticmethod
     def get_web_page_code(url: str, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
                           encoding='utf-8', retry=0, proxy: dict = None,
@@ -274,363 +264,6 @@ class NetTool(object):
                     continue
                 else:
                     raise
-
-    @staticmethod
-    def get_web_page_dom_code(url: str, browser=None, common_options=None,
-                              webdriver_type=EnumWebDriverType.Chrome, driver_options={},
-                              cookie: dict = None):
-        """
-        获取页面加载后的动态html
-
-        @param {str} url - 要访问的url
-        @param {WebDriver} browser=None - 要使用的浏览器，如果为None则会创建一个新的
-        @param {dict} common_options=None - 通用参数
-            headless {bool} True - 是否无界面模式(部分浏览器不支持)
-            timeout {float} 10 - 等待超时时间，单位为秒
-            wait_all_loaded {bool} True - 是否等待所有页面元素加载完
-            roll_to_end {bool} False - 是否滚动到页面结尾(加载更多的情况), 必须跟until_menthod结合判断
-            until_menthod {function} - 如果不等待所有页面加载完，判断函数，函数应返回True/False
-            until_message {str} - 传入判断函数的信息
-            session_id {str} - 上一次调用的浏览器session id (browser.session_id)，需要在同一个浏览器打开下一个页面时使用
-            executor_url {str} - 上一次调用的执行url (browser.command_executor._url)，需要在同一个浏览器打开下一个页面时使用
-            quit {bool} - 是否关闭浏览器，如果为False，会将当前浏览器的session_id和executor_url返回到传入字典的相应参数中
-            size_type {str} - 浏览器大小类型, 不传代表默认大小，max - 最大化, min - 最小化, size - 指定大小
-            width {int} - 浏览器宽(px)
-            height {int} - 浏览器高(px)
-            set_pos {bool} - 是否设置位置
-            pos_x {int} - 浏览器x位置(px)
-            pos_y {int} - 浏览器y位置(px)
-        @param {EnumWebDriverType} webdriver_type=EnumWebDriverType.Chrome - 浏览器驱动类型
-        @param {dict} driver_options={} - 调用驱动的参数，具体请查阅浏览器驱动的文档
-        @param {dict} cookie=None - 要设置的cookie字典
-
-        @returns {str} - 页面加载后的html代码
-
-        @throws {AttributeError} - 传入不支持的浏览器类型时抛出异常
-
-        @example 使用expected_conditions来实现页面加载等待判断
-            from selenium.webdriver.support import expected_conditions as EC
-            from selenium.webdriver.common.by import By
-
-            # 当出现id为kw的元素时结束等待
-            common_options = {
-                'timeout': 10,
-                'wait_all_loaded': False,
-                'until_menthod': EC.presence_of_element_located((By.ID, "kw")),
-                'until_message': ''
-            }
-        """
-        # 参数处理
-        _common_options = {
-            'headless': True,
-            'timeout': 10,
-            'wait_all_loaded': True,
-            'roll_to_end': False,
-            'until_menthod': None,
-            'until_message': '',
-            'session_id': '',
-            'executor_url': '',
-            'quit': True,
-            'size_type': '',
-            'width': '800',
-            'height': '600',
-            'set_pos': False,
-            'pos_x': '0',
-            'pos_y': '0',
-        }
-        if common_options is not None:
-            _common_options.update(common_options)
-
-        # 创建浏览器
-        _browser = browser
-        if browser is None:
-            # 创建新的浏览器
-            _browser = NetTool.get_webdriver_browser(
-                common_options=_common_options,
-                webdriver_type=webdriver_type,
-                driver_options=driver_options
-            )
-        elif _common_options['session_id'] != '':
-            # 设置sessionid
-            _browser.session_id = _common_options['session_id']
-
-            # 设置大小和位置
-            if _common_options['size_type'] == 'max':
-                _browser.maximize_window()
-            elif _common_options['size_type'] == 'min':
-                _browser.minimize_window()
-            elif _common_options['size_type'] == 'size':
-                _browser.set_window_size(
-                    int(_common_options['width']), int(_common_options['height'])
-                )
-
-            if _common_options['set_pos']:
-                _browser.set_window_position(
-                    int(_common_options['pos_x']), int(_common_options['pos_y'])
-                )
-
-        # cookie
-        if cookie is not None:
-            _browser.add_cookie(cookie)
-
-        # 打开网页
-        _browser.get(url)
-
-        if _common_options['roll_to_end']:
-            # 循环操作滚动到结尾
-            _start_time = datetime.datetime.now()
-            while True:
-                # 滚动
-                _browser.execute_script('window.scrollTo(0,1000000)')
-
-                # 检查是否达到结束条件
-                try:
-                    _wait = WebDriverWait(_browser, 1, 0.5)
-                    _wait.until(_common_options['until_menthod'], _common_options['until_message'])
-
-                    # 正常执行完成
-                    break
-                except:
-                    _end_time = datetime.datetime.now()
-                    _use = (_end_time - _start_time).total_seconds()
-                    if _use < _common_options['timeout']:
-                        # 没有超时，继续处理
-                        continue
-
-                    # 超时了，直接抛出异常
-                    raise
-        else:
-            # 不涉及滚动
-            if not _common_options['wait_all_loaded']:
-                if _common_options['until_menthod'] is None:
-                    # 没有检查方法，直接sleep等待超时
-                    RunTool.sleep(_common_options['timeout'])
-                else:
-                    # 按条件等待加载
-                    _wait = WebDriverWait(_browser, _common_options['timeout'], 0.5)
-                    _wait.until(_common_options['until_menthod'], _common_options['until_message'])
-
-        # 获取页面代码并返回
-        _page_source = ''
-        _use_time = 0.01
-        while True:
-            # 循环获取解决拿不到源码的问题
-            _page_source = _browser.page_source
-            if _page_source != '' or _use_time > _common_options['timeout']:
-                break
-
-            _use_time += 0.01
-            RunTool.sleep(0.01)
-
-        if _common_options['quit']:
-            # 关闭浏览器
-            _browser.quit()
-        else:
-            # 传入浏览器的信息
-            common_options['session_id'] = _browser.session_id
-            common_options['executor_url'] = _browser.command_executor._url
-
-        return _page_source
-
-    @staticmethod
-    def get_webdriver_browser(common_options=None,
-                              webdriver_type=EnumWebDriverType.Chrome, driver_options={}):
-        """
-        获取webdriver浏览器对象
-
-        @param {dict} common_options=None - 通用参数
-            headless {bool} True - 是否无界面模式(部分浏览器不支持)
-            wait_all_loaded {bool} True - 是否等待所有页面元素加载完
-            session_id {str} - 上一次调用的浏览器session id (browser.session_id)，需要在同一个浏览器打开下一个页面时使用
-            executor_url {str} - 上一次调用的执行url (browser.command_executor._url)，需要在同一个浏览器打开下一个页面时使用
-            size_type {str} - 浏览器大小类型, 不传代表默认大小，max - 最大化, min - 最小化, size - 指定大小
-            width {int} - 浏览器宽(px)
-            height {int} - 浏览器高(px)
-            set_pos {bool} - 是否设置位置
-            pos_x {int} - 浏览器x位置(px)
-            pos_y {int} - 浏览器y位置(px)
-        @param {EnumWebDriverType} webdriver_type=EnumWebDriverType.Chrome - 浏览器驱动类型
-        @param {dict} driver_options=None - 调用驱动的参数，具体请查阅浏览器驱动的文档
-
-        @return {WebDriver} - 浏览器对象
-        """
-        # 参数处理
-        _common_options = {
-            'headless': True,
-            'wait_all_loaded': True,
-            'session_id': '',
-            'executor_url': '',
-            'size_type': '',
-            'width': '800',
-            'height': '600',
-            'set_pos': False,
-            'pos_x': '0',
-            'pos_y': '0',
-        }
-        if common_options is not None:
-            _common_options.update(common_options)
-
-        # 创建浏览器
-        _desired_capabilities = None
-
-        # 创建新的浏览器
-        _browser = None
-        if webdriver_type == EnumWebDriverType.Chrome:
-            # 设置传入参数的基础值
-            if driver_options is not None:
-                if 'chrome_options' not in driver_options or driver_options['chrome_options'] is None:
-                    driver_options['chrome_options'] = selenium.webdriver.chrome.options.Options()
-            else:
-                driver_options = {
-                    'chrome_options': selenium.webdriver.chrome.options.Options()
-                }
-
-            # 设置公共参数
-            if _common_options.get('headless', True):
-                # 无浏览器模式
-                driver_options['chrome_options'].add_argument('--headless')
-                driver_options['chrome_options'].add_argument('--disable-gpu')
-
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.CHROME
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.quit()
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.Chrome(
-                    desired_capabilities=_desired_capabilities, **driver_options
-                )
-        elif webdriver_type == EnumWebDriverType.Firefox:
-            if driver_options is not None:
-                if 'firefox_options' not in driver_options or driver_options['firefox_options'] is None:
-                    driver_options['firefox_options'] = selenium.webdriver.firefox.options.Options()
-            else:
-                driver_options = {
-                    'firefox_options': selenium.webdriver.firefox.options.Options()
-                }
-
-            # 设置公共参数
-            if _common_options.get('headless', True):
-                # 无浏览器模式
-                driver_options['firefox_options'].add_argument('-headless')
-
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.FIREFOX
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.quit()
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.Firefox(
-                    desired_capabilities=_desired_capabilities, **driver_options
-                )
-        elif webdriver_type == EnumWebDriverType.Ie:
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.INTERNETEXPLORER
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.Ie(
-                    desired_capabilities=_desired_capabilities,
-                    **driver_options
-                )
-        elif webdriver_type == EnumWebDriverType.Edge:
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.EDGE
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.Edge(
-                    capabilities=_desired_capabilities,
-                    **driver_options
-                )
-        elif webdriver_type == EnumWebDriverType.PhantomJS:
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.PHANTOMJS
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.PhantomJS(
-                    desired_capabilities=_desired_capabilities,
-                    **driver_options
-                )
-        elif webdriver_type == EnumWebDriverType.Safari:
-            if not _common_options['wait_all_loaded']:
-                # 注释这两行会导致最后输出结果的延迟，即等待页面加载完成再输出
-                _desired_capabilities = DesiredCapabilities.SAFARI
-                _desired_capabilities["pageLoadStrategy"] = "none"
-
-            if _common_options['session_id'] != '':
-                # 使用未关闭的浏览器
-                _browser = webdriver.Remote(
-                    command_executor=_common_options['executor_url'],
-                    desired_capabilities=_desired_capabilities
-                )
-                _browser.session_id = _common_options['session_id']
-            else:
-                _browser = webdriver.Safari(
-                    desired_capabilities=_desired_capabilities,
-                    **driver_options
-                )
-        else:
-            raise AttributeError('not support webdriver type: %s' % str(webdriver_type))
-
-        # 设置浏览器大小和位置
-        if _common_options['size_type'] == 'max':
-            _browser.maximize_window()
-        elif _common_options['size_type'] == 'min':
-            _browser.minimize_window()
-        elif _common_options['size_type'] == 'size':
-            _browser.set_window_size(
-                int(_common_options['width']), int(_common_options['height'])
-            )
-
-        if _common_options['set_pos']:
-            _browser.set_window_position(
-                int(_common_options['pos_x']), int(_common_options['pos_y'])
-            )
-
-        # 返回浏览器
-        return _browser
 
     #############################
     # 下载文件相关

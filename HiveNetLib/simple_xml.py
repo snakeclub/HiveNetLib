@@ -28,6 +28,11 @@ except ImportError:
     import lxml.etree as ET
     import lxml.html as HT
 try:
+    import elementpath
+except ImportError:
+    deps_tool.install_package('elementpath')
+    import elementpath
+try:
     import chardet
 except ImportError:
     deps_tool.install_package('chardet')
@@ -67,7 +72,7 @@ class SimpleXml(object):
     # 内部函数
     #############################
     def __init__(self, xml_obj, obj_type=EnumXmlObjType.File, encoding=None, use_chardet=True,
-                 parser: str = 'xml', register_namespace=None, **kwargs):
+                 parser: str = 'xml', register_namespace=None, use_xpath2=False, **kwargs):
         """
         构造函数
 
@@ -84,6 +89,7 @@ class SimpleXml(object):
         @param {dict} register_namespace=None - 注册命名空间别名，格式为：
             {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
             注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
+        @param {bool} use_xpath2=False - 使用xpath2.0，默认只支持xpath1.0
         @param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
             attribute_defaults - inject default attributes from DTD or XMLSchema
             dtd_validation - validate against a DTD referenced by the document
@@ -106,6 +112,7 @@ class SimpleXml(object):
         self.file = None  # xml对象的文件路径
         self.root = None  # xml对象的根对象
         self.encoding = encoding
+        self.use_xpath2 = use_xpath2
         # 注册命名空间
         if register_namespace is not None:
             for _key in register_namespace.keys():
@@ -373,7 +380,12 @@ class SimpleXml(object):
         if xpath is None:
             _node = self.root
         else:
-            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+            if self.use_xpath2:
+                # xpath2.0
+                _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+            else:
+                # xpath1.0
+                _nodes = self.root.xpath(xpath, namespaces=namespaces)
             if len(_nodes) > 0:
                 _node = _nodes[0]
 
@@ -413,8 +425,17 @@ class SimpleXml(object):
         if 'item_dict_xpaths' in kwargs.keys() and kwargs['item_dict_xpaths'] is not None:
             _item_dict_nodes = list()
             for _get_xpath in kwargs['item_dict_xpaths'].keys():
-                _get_nodes = self.root.xpath(_get_xpath,
-                                             namespaces=kwargs['item_dict_xpaths'][_get_xpath])
+                if self.use_xpath2:
+                    # xpath2.0
+                    _get_nodes = elementpath.select(
+                        self.root, _get_xpath, namespaces=kwargs['item_dict_xpaths'][_get_xpath]
+                    )
+                else:
+                    # xpath1.0
+                    _get_nodes = self.root.xpath(
+                        _get_xpath,
+                        namespaces=kwargs['item_dict_xpaths'][_get_xpath]
+                    )
                 # 合并列表
                 _item_dict_nodes = _item_dict_nodes + _get_nodes
 
@@ -422,7 +443,14 @@ class SimpleXml(object):
         _roots = [self.root]
         if xpath is not None:
             # 获取全部匹配节点
-            _roots = self.root.xpath(xpath, namespaces=namespaces)
+            if self.use_xpath2:
+                # xpath2.0
+                _roots = elementpath.select(
+                    self.root, xpath, namespaces=namespaces
+                )
+            else:
+                # xpath1.0
+                _roots = self.root.xpath(xpath, namespaces=namespaces)
 
         # 生成字典
         _dict = dict()
@@ -447,7 +475,13 @@ class SimpleXml(object):
 
         @return {list} - 返回节点清单(返回的数组内部对象为ET._Element)
         """
-        return self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _els = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _els = self.root.xpath(xpath, namespaces=namespaces)
+        return _els
 
     def get_xpath(self, node: ET._Element):
         """
@@ -522,7 +556,12 @@ class SimpleXml(object):
 
         @return {ET._Element} - 返回匹配到的节点
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
         if len(_nodes) > 0:
             return _nodes[0].append(node)
         else:
@@ -582,7 +621,13 @@ class SimpleXml(object):
         @param {dict} namespaces=None - 命名空间
         @param {bool} hold_tail=False - 是否保留上一节点的tail信息
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+
         for _node in _nodes:
             self.remove_node(_node, hold_tail=hold_tail)
 
@@ -606,7 +651,13 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的文本值，如果没有找到匹配节点，返回''
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+
         if len(_nodes) == 0:
             return default
         else:
@@ -633,7 +684,13 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的指定属性文本值，如果没有找到匹配节点或属性，返回''
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+
         if len(_nodes) == 0:
             return default
         else:
@@ -662,7 +719,13 @@ class SimpleXml(object):
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
         """
         try:
-            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+            if self.use_xpath2:
+                # xpath2.0
+                _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+            else:
+                # xpath1.0
+                _nodes = self.root.xpath(xpath, namespaces=namespaces)
+
             if len(_nodes) == 0:
                 if auto_create:
                     # 找不到节点，尝试自动创建节点
@@ -705,7 +768,13 @@ class SimpleXml(object):
         @throw {NameError} - 当节点不存在时抛出该异常
         @throws {AttributeError} - 当搜索路径不符合自动创建规范时，抛出该异常
         """
-        _nodes = self.root.xpath(xpath, namespaces=namespaces)
+        if self.use_xpath2:
+            # xpath2.0
+            _nodes = elementpath.select(self.root, xpath, namespaces=namespaces)
+        else:
+            # xpath1.0
+            _nodes = self.root.xpath(xpath, namespaces=namespaces)
+
         if len(_nodes) == 0:
             if auto_create:
                 # 找不到节点，尝试自动创建节点
@@ -827,6 +896,7 @@ class SimpleXml(object):
 
         @return {string} - 第一个匹配节点的文本值，如果没有找到匹配节点，返回''
         """
+
         _nodes = node.xpath(xpath, namespaces=namespaces)
         if len(_nodes) == 0:
             return default

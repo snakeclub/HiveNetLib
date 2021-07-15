@@ -10,6 +10,7 @@
 
 """The setup.py file for Python HiveNetLib."""
 
+import sys
 from setuptools import setup, find_packages
 
 
@@ -35,6 +36,7 @@ DEPENDENCIES = [
     'grpcio>=1.21.1',
     'grpcio-health-checking>=1.21.1',
     'lxml',
+    'elementpath',
     'googleapis-common-protos',
     'jsonpath-rw',
     'netifaces>=0.10.9',
@@ -50,11 +52,14 @@ DEPENDENCIES = [
     'pycryptodomex'
 ]
 
+if sys.platform == 'win32':
+    DEPENDENCIES.append('pywin32')
+
 # DEPENDENCIES = []
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.7'
+VERSION = '0.8.8'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

@@ -121,6 +121,10 @@ pip install recommonmark
 
 [simple_console](simple_console.md)是简单的命令行执行框架，可在该框架上基于xml配置文件扩展增加不同的命令支持。
 
+#### simple_webdriver
+
+simple_webdriver 对 selenium WebDriver进行了简单封装，可以快速创建WebDriver对象并基于步骤数组进行元素查找和界面操作执行。
+
 
 
 ### 其他模块
@@ -156,4 +160,10 @@ IntfMsgFW（接口通讯信息处理框架）定义所有的接口信息必定�
 #### connection_pool
 
 [connection_pool](connection_pool/connection_pool.md)连接池服务框架定义了标准的连接池处理模型，可基于该模型实现数据库、网络连接的连接池。
+
+#### html_parser
+
+html_parser是基于simple_xml实现的html代码解析模块，提供按操作步骤数组逐层向下解析元素的方法，同时解析获取到的元素对象（HtmlElement）的操作方法与 selenium 的 大部分方法兼容。
+
+
 

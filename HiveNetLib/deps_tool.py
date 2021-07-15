@@ -49,6 +49,9 @@ DEPENDENCIES_DICT = {
     'lxml': {
         'install': 'lxml',
     },
+    'elementpath': {
+        'install': 'elementpath',
+    },
     'googleapis-common-protos': {
         'install': 'googleapis-common-protos',
     },

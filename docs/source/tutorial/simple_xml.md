@@ -2,6 +2,14 @@
 
 simple_stream模块主要实现了xml文件的简单处理处理，模块使用lxml.etree进行底层处理。
 
+支持的主要功能：
+
+1、支持xml文件解析处理，以及与字典对象的相互转换；
+
+2、支持html文件解析（基于xpath）；
+
+3、扩展支持xpath2.0语法。
+
 
 
 ## SimpleXml的基本使用参考
@@ -15,35 +23,38 @@ simple_stream模块主要实现了xml文件的简单处理处理，模块使用l
 
 主要参数如下：
 @param {object} xml_obj - 要装载的报文载体（与obj_type结合来判断是什么对象），例如(仅供参考)：
-    obj_type = EnumXmlObjType.File 时，obj为文件路径
-    obj_type = EnumXmlObjType.FileHandle 时，obj为文件句柄
-    obj_type = EnumXmlObjType.String 时，obj为报文文本
-@param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
-@param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
-@param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
-@param {dict} register_namespace=None - 注册命名空间别名，格式为：
-    {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
-    注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
-@param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
+            obj_type = EnumXmlObjType.File 时，obj为文件路径
+            obj_type = EnumXmlObjType.FileHandle 时，obj为文件句柄
+            obj_type = EnumXmlObjType.String 时，obj为报文文本
+        @param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
+        @param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
+        @param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
+        @param {str} parser='xml' - 解析器类型，默认为xml
+            xml - 标准xml解析器
+            html - html解析器，兼容html一些不规范的地方
+        @param {dict} register_namespace=None - 注册命名空间别名，格式为：
+            {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
+            注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
+        @param {bool} use_xpath2=False - 使用xpath2.0，默认只支持xpath1.0
+        @param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
+            attribute_defaults - inject default attributes from DTD or XMLSchema
+            dtd_validation - validate against a DTD referenced by the document
+            load_dtd - use DTD for parsing
+            no_network - prevent network access for related files (default: True)
+            ns_clean - clean up redundant namespace declarations
+            recover - try hard to parse through broken XML
+            remove_blank_text - discard blank text nodes that appear ignorable
+                装载时是否将空白文本去掉，只有含这个参数，打印时pretty_print才生效
+            remove_comments - discard comments
+            remove_pis - discard processing instructions
+            strip_cdata - replace CDATA sections by normal text content (default: True)
+            compact - save memory for short text content (default: True)
+            collect_ids - use a hash table of XML IDs for fast access (default: True, always True with DTD validation)
+            resolve_entities - replace entities by their text value (default: True)
+            huge_tree - disable security restrictions and support very deep trees
+            target - a parser target object that will receive the parse events
+            schema - an XMLSchema to validate against
 ```
-
-​            obj_type = EnumXmlObjType.FileHandle 时，obj为文件句柄
-
-​            obj_type = EnumXmlObjType.String 时，obj为报文文本
-
-​        @param {EnumXmlObjType} obj_type=EnumXmlObjType.File - xml对象类型
-
-​        @param {string} encoding=encoding - 装载字符编码，如果传None代表自动判断
-
-​        @param {bool} use_chardet=True - 当自动判断的时候，是否使用chardet库
-
-​        @param {dict} register_namespace=None - 注册命名空间别名，格式为：
-
-​            {prefix: uri, prefix: uri, ... }  其中prefix和uri都为字符串
-
-​            注册命名空间后，后续的节点就可以通过tag='{uri}tagname'的方式添加带命名空间的节点
-
-​        @param {**kwargs} kwargs - 扩展的装载参数，包括XMLParser的参数
 
 2、提供各类函数获取及修改节点值和属性，主要的检索使用XPath语法；
 
