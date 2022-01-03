@@ -68,6 +68,8 @@ with ignored_all((ZeroDivisionError, ValueError), logger, '执行XX出现异常'
 
 ### ignored_cresult
 
+**特别注意：在 with 内部避免使用 result_obj 对应的变量处理其他函数的返回值（整个对象会被重新构建），这样可能会导致捕获一场后无法正常处理 result_obj 对象而出现异常被直接忽略的情况。**
+
 忽略异常并设置CResult对象,简化异常捕获代码，利用该函数忽略指定的异常，并设置传入的通用结果对象，详细说明如下：
 
 ​	1、对于指定忽略的异常，忽略不处理，结果为成功（如果指定logger则会进行日志输出，使用WARNING级别）

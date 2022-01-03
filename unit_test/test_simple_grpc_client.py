@@ -8,7 +8,9 @@
 """
 
 import os
+import random
 import sys
+import threading
 import time
 import copy
 import unittest
@@ -19,7 +21,7 @@ from grpc_health.v1 import health_pb2
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir)))
-from HiveNetLib.generic import NullObj
+from HiveNetLib.generic import CResult, NullObj
 import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.file_tool import FileTool
@@ -40,7 +42,8 @@ TEST_FLAG = {
     'test_simple_tool_call_tsl': True,
     'test_stream': True,
     'test_health_check': True,
-    'test_error': True
+    'test_error': True,
+    'test_mutiple_thread': True
 }
 
 TEMP_QUEUE = queue.Queue()
@@ -75,8 +78,25 @@ def compare_object_by_json(object1, object2, logger=None):
 
 
 #############################
+# 测试同一个连接的多线程处理
+#############################
+def service_mutiple_thread(a: float) -> float:
+    """
+    测试一个连接的多线程
+
+    @param {float} a - 等待的秒数
+
+    @returns {float} - 直接返回等待的秒数
+    """
+    _sleep = random.random()
+    time.sleep(_sleep)
+    return a
+
+#############################
 # 测试输入值
 #############################
+
+
 def service_simple_call_para(a, b, *args, c=10, d={'d1': 'd1value'}, **kwargs):
     """
     测试简单调用，直接返回传入的参数(数组形式)
@@ -606,8 +626,11 @@ class TestSimpleGRpc(unittest.TestCase):
         except:
             pass
 
+        _logger_conf = os.path.realpath(os.path.join(
+            _TEMP_DIR, os.path.pardir, os.path.pardir, 'simple_grpc/test_simple_grpc.json'
+        ))
         cls.logger = simple_log.Logger(
-            conf_file_name=_TEMP_DIR + '/../../simple_grpc/test_simple_grpc.json',
+            conf_file_name=_logger_conf,
             logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
             config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
             logfile_path=_TEMP_DIR + '/log/test_case_client.log',
@@ -632,7 +655,7 @@ class TestSimpleGRpc(unittest.TestCase):
 
         # 服务端处理类，可以多个服务公用
         cls.servicer_simple_call = SimpleGRpcServicer(
-            logger=None, is_use_global_logger=False
+            logger=cls._asyn_logger, is_use_global_logger=False
         )
         cls.servicer_simple_call.add_service(
             EnumCallMode.Simple, 'service_simple_call_para', service_simple_call_para)
@@ -650,6 +673,8 @@ class TestSimpleGRpc(unittest.TestCase):
             EnumCallMode.ServerSideStream, 'service_server_side_stream', service_server_side_stream)
         cls.servicer_simple_call.add_service(
             EnumCallMode.BidirectionalStream, 'service_bidirectional_stream', service_bidirectional_stream)
+        cls.servicer_simple_call.add_service(
+            EnumCallMode.Simple, 'service_mutiple_thread', service_mutiple_thread)
 
         # 初始化并启动服务，简单服务，无SSL，无服务发现
         cls.server_no_ssl_no_zoo_opts = SimpleGRpcServer.generate_server_opts(
@@ -1026,6 +1051,72 @@ class TestSimpleGRpc(unittest.TestCase):
             _cresult.code == '30403',
             '测试错误信息失败 - 超时'
         )
+
+    #############################
+    # 测试同一个连接多线程并发
+    #############################
+    def test_mutiple_thread(self):
+        if not TEST_FLAG['test_mutiple_thread']:
+            return
+
+        print("测试同一个连接多线程并发")
+
+        # 建立连接
+        _connect_para = SimpleGRpcConnection.generate_connect_para(
+            conn_str='127.0.0.1:50051'
+        )
+        _connection = SimpleGRpcConnection(_connect_para)
+
+        # 创建多线程执行
+        _result = list()
+        for _i in range(80):
+            _result.append(False)
+            _call_thread = threading.Thread(
+                target=self._mutiple_thread_fun,
+                args=(_i, _connection, _result),
+                name='Thread-gRpc-call'
+            )
+            _call_thread.setDaemon(True)
+            _call_thread.start()
+
+        # 等待线程执行完成
+        time.sleep(20)
+        _connection.close()
+
+        # 检查结果
+        for _res_i in _result:
+            if not _res_i:
+                self.assertTrue(False, '测试同一个连接多线程并发失败')
+
+    def _mutiple_thread_fun(self, i, connect, result: list):
+        """
+        多线程处理
+        """
+        _i = i + 1
+
+        # 参数处理
+        _para_obj = SimpleGRpcTools.parameters_to_json([['', _i]], is_support_bytes=True)
+        _req_obj = SimpleGRpcTools.generate_request_obj(
+            service_name='service_mutiple_thread', para_json=_para_obj.para_json,
+            has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
+        )
+
+        # 通知外面执行是否成功
+        result[i] = False
+
+        # 访问服务
+        _cresult: CResult = connect.call(_req_obj)
+
+        self.assertTrue(
+            _cresult.is_success(), msg='_mutiple_thread_fun [%d] error: %s' % (i, str(_cresult))
+        )
+
+        self.assertTrue(
+            _cresult.return_json == str(_i), msg='_mutiple_thread_fun [%d] return error: %s' % (i, str(_cresult.return_json))
+        )
+
+        # 通知外面执行是否成功
+        result[i] = True
 
 
 if __name__ == '__main__':

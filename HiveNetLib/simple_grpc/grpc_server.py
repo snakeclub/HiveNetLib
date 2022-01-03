@@ -942,15 +942,13 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
         _return_obj = None  # 返回对象（RpcResponse）
         _return_json_obj = None  # 返回对象的json转换对象
         request = None  # 从迭代器获取请求对象
-        _next_request = None  # 下一个请求对象
-        _has_next = True  # 标识是否有下一个请求对象
         try:
-            request = next(request_iterator)
+            _has_next = True
             while _has_next:
                 # 循环从迭代器获取请求对象进行处理
                 try:
-                    # 判断是否有下一个请求
-                    _next_request = next(request_iterator)
+                    # 获取下一个请求
+                    request = next(request_iterator)
                 except StopIteration:
                     _has_next = False
 
@@ -1110,10 +1108,6 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
                 # 判断本次处理结果，如果不是成功则直接跳出循环并返回结果
                 if not _call_result.is_success():
                     break
-                else:
-                    # 下一个循环处理
-                    request = _next_request
-
         except Exception as e:
             # 出现异常，执行打印处理
             if self._logger is not None:
@@ -1365,6 +1359,188 @@ class SimpleGRpcServicer(msg_pb2_grpc.SimpleGRpcServiceServicer):
             self._dealing_num_lock.release()
 
 
+class SimpleGRpcServicerUnion(msg_pb2_grpc.SimpleGRpcServiceServicer):
+    """
+    Servicer服务的整合对象（用于将多个Servicer整合为一个Servicer）
+    """
+
+    #############################
+    # 构造函数
+    #############################
+    def __init__(self, servicer_list: dict, **kwargs):
+        """
+        初始化Servicer服务的整合对象
+
+        @param {dict} servicer_list=None - gRpc处理逻辑对象清单(SimpleGRpcServicer)，如果不传会自动创建一个默认的
+            key值为Servicer名，value值为Servicer对象
+        """
+        # 内部参数
+        self.servicer_list = servicer_list
+        self._mapping = dict()  # key为要执行的服务名，value为Servicer名
+
+        # 执行映射处理, 主要是通过服务名获取到Servicer名
+        for _servicer_name in self.servicer_list:
+            _servicer = self.servicer_list[_servicer_name]
+            for _name in _servicer._simple_service_list.keys():
+                self._mapping[_name] = _servicer_name
+            for _name in _servicer._client_side_stream_service_list.keys():
+                self._mapping[_name] = _servicer_name
+            for _name in _servicer._server_side_stream_service_list.keys():
+                self._mapping[_name] = _servicer_name
+            for _name in _servicer._bidirectional_stream_service_list.keys():
+                self._mapping[_name] = _servicer_name
+
+    #############################
+    # 重载GRpc入口函数，作为路由
+    #############################
+
+    def GRpcCallSimple(self, request, context):
+        """
+        简单模式(Simple)gRPC的标准接入服务接口
+
+        @param {msg_pb2.RpcRequest} request - 请求对象，与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {msg_pb2.RpcResponse} - 返回调用结果信息
+        """
+        _service = request.service_name
+        if _service not in self._mapping.keys():
+            # 没有找到服务名
+            return self._response_service_not_found_error(_service)
+
+        # 路由处理
+        return self.servicer_list[self._mapping[_service]].GRpcCallSimple(
+            request, context
+        )
+
+    def GRpcCallClientSideStream(self, request_iterator, context):
+        """
+        客户端流模式(ClientSideStream)gRPC的标准接入服务接口
+
+        @param {iterator} request_iterator - 请求对象迭代器（msg_pb2.RpcRequest），单个对象与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {msg_pb2.RpcResponse} - 返回调用结果信息
+        """
+        request = next(request_iterator)
+        _service = request.service_name
+        if _service not in self._mapping.keys():
+            # 没有找到服务名
+            return self._response_service_not_found_error(_service)
+
+        # 由于查出来对象，需要重新生成迭代对象返回处理
+        def _request_iterator_generater(first_obj, iterator_obj):
+            # 先把第一个返回
+            yield first_obj
+            # 返回剩余的对象
+            for next_obj in iterator_obj:
+                yield next_obj
+
+        _request_iterator = _request_iterator_generater(request, request_iterator)
+
+        # 路由处理
+        return self.servicer_list[self._mapping[_service]].GRpcCallClientSideStream(
+            _request_iterator, context
+        )
+
+    def GRpcCallServerSideStream(self, request, context):
+        """
+        服务器流模式(ServerSideStream)gRPC的标准接入服务接口
+
+        @param {msg_pb2.RpcRequest} request - 请求对象，与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {iterator} - 返回调用结果信息（msg_pb2.RpcResponse）的迭代器（iterator）
+        """
+        _service = request.service_name
+        if _service not in self._mapping.keys():
+            # 没有找到服务名
+            yield self._response_service_not_found_error(_service)
+
+        # 路由处理
+        for _ret_obj in self.servicer_list[self._mapping[_service]].GRpcCallServerSideStream(
+            request, context
+        ):
+            yield _ret_obj
+
+    def GRpcCallBidirectionalStream(self, request_iterator, context):
+        """
+        双向流模式(BidirectionalStream)gRPC的标准接入服务接口
+
+        @param {iterator} request_iterator - 请求对象迭代器（msg_pb2.RpcRequest），单个对象与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {iterator} - 返回调用结果信息（msg_pb2.RpcResponse）的迭代器（iterator）
+        """
+        request = next(request_iterator)
+        _service = request.service_name
+        if _service not in self._mapping.keys():
+            # 没有找到服务名
+            yield self._response_service_not_found_error(_service)
+
+        # 由于查出来对象，需要重新生成迭代对象返回处理
+        def _request_iterator_generater(first_obj, iterator_obj):
+            # 先把第一个返回
+            yield first_obj
+            # 返回剩余的对象
+            for next_obj in iterator_obj:
+                yield next_obj
+
+        _request_iterator = _request_iterator_generater(request, request_iterator)
+
+        # 路由处理
+        for _ret_obj in self.servicer_list[self._mapping[_service]].GRpcCallBidirectionalStream(
+            _request_iterator, context
+        ):
+            yield _ret_obj
+
+    def GRpcCallHealthCheck(self, request, context):
+        """
+        自定义的健康检查服务
+
+        @param {msg_pb2.HealthRequest} request - 请求对象，与msg.proto定义一致,
+          例如可通过request.para_json获取要执行的函数的入参信息
+        @param {grpc.ServicerContext} context - 服务端的上下文,
+          具体定义@see https://grpc.github.io/grpc/python/grpc.html#service-side-context
+
+        @retrun {msg_pb2.HealthResponse} - 返回调用结果信息
+        """
+        return msg_pb2.HealthResponse(status=msg_pb2.HealthResponse.SERVING)
+
+    #############################
+    # 内部函数
+    #############################
+
+    def _response_service_not_found_error(self, service_name: str):
+        """
+        返回服务不存在的报错
+
+        @param {str} service_name - 服务名
+
+        @param {msg_pb2.RpcResponse} - 错误结果对象
+        """
+        _call_result = CResult(code='11403', i18n_msg_paras=(service_name, ))
+        _return_obj = SimpleGRpcTools.generate_response_obj(
+            return_json='',
+            has_return_bytes=False,
+            return_bytes=None,
+            call_code=_call_result.code,
+            call_msg=_call_result.i18n_msg_id,
+            call_error=_call_result.error,
+            call_msg_para=_call_result.i18n_msg_paras
+        )
+
+        return _return_obj
+
+
 class SimpleGRpcServer(SimpleServerFW):
     """
     Simple gRPC服务器类,用于管理和启动gRPC服务
@@ -1376,6 +1552,7 @@ class SimpleGRpcServer(SimpleServerFW):
     #############################
     _grpc_server = None  # 服务对象
     _grpc_servicer_list = None  # 服务端处理对象列表，key为服务名，value为服务的servicer
+    _grpc_servicer_union = None  # 服务端服务集合对象，支持多个服务端处理对象的集合处理
     _grpc_health_servicer = None  # 服务端健康检查对象
     _server_opts = None  # 启动参数
     _server_credentials = None  # 服务端凭证
@@ -1414,6 +1591,7 @@ class SimpleGRpcServer(SimpleServerFW):
             with open('ca.crt', 'rb') as f:
                 root_certificates = f.read()
         @param {type?} options=None - An optional list of key-value pairs (channel args in gRPC runtime) to configure the channel
+            [('grpc.max_send_message_length', 最大发送消息长度), ('grpc.max_receive_message_length', 最大接收消息长度)]
         @param {type?} compression=None - An element of grpc.compression, e.g. grpc.compression.Gzip. This compression algorithm will be used for the lifetime of the server unless overridden
         @param {type?} handlers=None - An optional list of GenericRpcHandlers used for executing RPCs. More handlers may be added by calling add_generic_rpc_handlers any time before the server is started
         @param {type?} interceptors=None - An optional list of ServerInterceptor objects that observe and optionally manipulate the incoming RPCs before handing them over to handlers. The interceptors are given control in the order they are specified
@@ -1606,10 +1784,14 @@ class SimpleGRpcServer(SimpleServerFW):
                 health_pb2_grpc.add_HealthServicer_to_server(
                     self._grpc_health_servicer, self._grpc_server)
 
-            # 向服务注册处理对象(循环处理)
+            # 向服务注册处理对象
+            _grpc_servicer_union = SimpleGRpcServicerUnion(self._grpc_servicer_list)
+            msg_pb2_grpc.add_SimpleGRpcServiceServicer_to_server(
+                _grpc_servicer_union, self._grpc_server
+            )
             for _servicer_name in self._grpc_servicer_list.keys():
-                msg_pb2_grpc.add_SimpleGRpcServiceServicer_to_server(
-                    self._grpc_servicer_list[_servicer_name], self._grpc_server)
+                # msg_pb2_grpc.add_SimpleGRpcServiceServicer_to_server(
+                #    self._grpc_servicer_list[_servicer_name], self._grpc_server)
                 # 设置服务状态，由于未启动，设置为未知
                 self.set_service_status(_servicer_name, health_pb2.HealthCheckResponse.UNKNOWN)
 
@@ -1704,4 +1886,3 @@ if __name__ == '__main__':
            '作者：%s\n'
            '发布日期：%s\n'
            '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-    # 测试

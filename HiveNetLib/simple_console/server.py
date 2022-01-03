@@ -20,7 +20,7 @@ from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.prompt_plus import PromptPlus
 from HiveNetLib.base_tools.import_tool import ImportTool
-from HiveNetLib.simple_i18n import _, SimpleI18N, set_global_i18n
+from HiveNetLib.simple_i18n import _, SimpleI18N, set_global_i18n, get_global_i18n
 from HiveNetLib.simple_xml import SimpleXml
 from HiveNetLib.simple_log import Logger
 
@@ -202,12 +202,22 @@ class ConsoleServer(object):
             )
         else:
             _trans_file_path = self._config_dict['i18n']
-        _i18n_obj = SimpleI18N(
-            lang=self._config_dict['language'],
-            trans_file_path=_trans_file_path,
-            trans_file_prefix='message',
-            auto_loads=True
-        )
+
+        _i18n_obj: SimpleI18N = get_global_i18n()
+        if _i18n_obj is None:
+            _i18n_obj = SimpleI18N(
+                lang=self._config_dict['language'],
+                trans_file_path=_trans_file_path,
+                trans_file_prefix='message',
+                auto_loads=True
+            )
+        else:
+            # 装载默认的多国语言
+            _i18n_obj.load_trans_from_dir(
+                _trans_file_path, 'message', encoding='utf-8', append=True
+            )
+            _i18n_obj.lang = self._config_dict['language']
+
         # 再装载自身命令的国际语言文件
         _i18n_obj.load_trans_from_dir(
             os.path.join(os.path.realpath(FileTool.get_file_path(__file__)), 'i18n/'),

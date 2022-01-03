@@ -21,7 +21,8 @@ import json
 import logging
 import logging.config
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.base_tools.string_tool import StringTool
 
@@ -70,6 +71,19 @@ class DebugTool(object):
         else:
             if DEBUG_TOOLS_SWITCH_ON:
                 RunTool.set_global_var('DEBUG_TOOLS_SWITCH_ON', False)
+
+    @staticmethod
+    def is_debug_on() -> bool:
+        """
+        判断当前debug状态是否启动
+
+        @returns {bool} - debug状态是否启动
+        """
+        DEBUG_TOOLS_SWITCH_ON = RunTool.get_global_var('DEBUG_TOOLS_SWITCH_ON')
+        if DEBUG_TOOLS_SWITCH_ON is None:
+            DEBUG_TOOLS_SWITCH_ON = False
+
+        return DEBUG_TOOLS_SWITCH_ON
 
     @staticmethod
     def debug_print(*args, **kwargs):

@@ -285,7 +285,7 @@ class MsgJSON(MsgXML):
         _sign_str = cls._get_para_from_kwargs(
             'sign_str', default_value='', kwargs=kwargs)
 
-        _msg_str = json.dumps(msg)
+        _msg_str = json.dumps(msg, ensure_ascii=False)
 
         # 添加签名证书
         if _has_sign_info:

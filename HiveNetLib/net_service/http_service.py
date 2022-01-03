@@ -238,7 +238,8 @@ class HttpService(TcpIpService):
             if _get_value is not None:
                 _len = int(_get_value)
                 _recv_para['recv_len'] = _len
-                _result = TcpIpService.recv_data(net_info, _recv_para)
+                _recv_result = TcpIpService.recv_data(net_info, _recv_para)
+                _result = _recv_result
         return _result
 
     @classmethod
@@ -306,11 +307,12 @@ class HttpService(TcpIpService):
             if data[1] is not None:
                 _len = len(data[1])
             data[0].set_value('Content-Length', str(_len))
-            _result = TcpIpService.send_data(net_info, data[0].to_bytes(), send_para)
-            if not _result.is_success():
-                return _result
+            _send_result = TcpIpService.send_data(net_info, data[0].to_bytes(), send_para)
+            if not _send_result.is_success():
+                return _send_result
             if _len > 0:
-                _result = TcpIpService.send_data(net_info, data[1], send_para)
+                _send_result = TcpIpService.send_data(net_info, data[1], send_para)
+                _result = _send_result
         return _result
 
     @classmethod

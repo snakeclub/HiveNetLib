@@ -61,6 +61,21 @@ class FileTool(object):
     提供各类文件、目录相关的常用工具函数（静态方法）
 
     """
+    @staticmethod
+    def is_file_in_subdir(file: str, dir: str) -> bool:
+        """
+        判断文件是否在指定目录的子目录下
+        注：不判断文件或目录是否存在
+
+        @param {str} file - 文件
+        @param {str} dir - 目录
+
+        @returns {bool} - 判断结果
+        """
+        _real_file = os.path.realpath(file).replace('\\', '/')
+        _real_dir = os.path.realpath(dir).replace('\\', '/') + '/'
+
+        return _real_file.startswith(_real_dir)
 
     @staticmethod
     def get_exefile_fullname():
@@ -473,7 +488,9 @@ class FileTool(object):
         @param {EnumFileSizeUnit} unit=EnumFileSizeUnit.B - 单位
         """
         with open(filename, 'w') as _file:
-            _file.seek(size * unit.value - 1)   # 跳到指定位置
+            _real_size = size * unit.value
+            _file.truncate(_real_size)  # 对于已存在的文件，有可能比较大，要进行截断处理
+            _file.seek(_real_size - 1)   # 跳到指定位置
             _file.write('\x00')  # 一定要写入一个字符，否则无效
             _file.flush()
 

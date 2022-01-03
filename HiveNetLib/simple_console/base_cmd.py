@@ -58,6 +58,7 @@ class CmdBaseFW(object):
         """
         self._kwargs = kwargs  # 初始化传入字典
         self._console_global_para = RunTool.get_global_var('CONSOLE_GLOBAL_PARA')
+        self._CMD_DEALFUN_DICT = dict()  # 通用的命令与处理函数映射字典
         self._init(**kwargs)
 
     def cmd_dealfun(self, message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
@@ -205,7 +206,23 @@ class CmdBaseFW(object):
         @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的
             print_str属性要求框架进行打印处理
         """
-        raise NotImplementedError()
+        # 获取真实执行的函数
+        _real_dealfun = None  # 真实调用的函数
+        if 'ignore_case' in kwargs.keys() and kwargs['ignore_case']:
+            # 区分大小写
+            if cmd in self._CMD_DEALFUN_DICT.keys():
+                _real_dealfun = self._CMD_DEALFUN_DICT[cmd]
+        else:
+            # 不区分大小写
+            if cmd.lower() in self._CMD_DEALFUN_DICT.keys():
+                _real_dealfun = self._CMD_DEALFUN_DICT[cmd.lower()]
+
+        # 执行函数
+        if _real_dealfun is not None:
+            return _real_dealfun(message=message, cmd=cmd, cmd_para=cmd_para, prompt_obj=prompt_obj, **kwargs)
+        else:
+            prompt_obj.prompt_print(_("'$1' is not support command!", cmd))
+            return CResult(code='11404', i18n_msg_paras=(cmd, ))
 
 
 class CmdDefault(CmdBaseFW):

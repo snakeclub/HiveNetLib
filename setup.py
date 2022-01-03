@@ -31,7 +31,6 @@ DEPENDENCIES = [
     'gevent',
     'eventlet',
     'prompt-toolkit>=2.0.0',
-    'affinity>=0.1.0',
     'dicttoxml>=1.7.4',
     'grpcio>=1.21.1',
     'grpcio-health-checking>=1.21.1',
@@ -59,7 +58,7 @@ if sys.platform == 'win32':
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.8'
+VERSION = '0.8.9'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

@@ -357,10 +357,10 @@ class StringTool(object):
             _json_str = obj.__json__()
         else:
             try:
-                _json_str = json.dumps(obj)
+                _json_str = json.dumps(obj, ensure_ascii=False)
             except Exception as e:
                 if hasattr(obj, '__dict__'):
-                    _json_str = json.dumps(obj.__dict__)
+                    _json_str = json.dumps(obj.__dict__, ensure_ascii=False)
                 raise e
         return _json_str
 

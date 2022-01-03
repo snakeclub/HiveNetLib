@@ -60,7 +60,7 @@ class NullObj(object):
 
         @return {string} - 转换后的json字符串
         """
-        return json.dumps(NullObj.get_object_attr_dict(self))
+        return json.dumps(NullObj.get_object_attr_dict(self), ensure_ascii=False)
 
     @staticmethod
     def __fromjson__(json_str):
@@ -321,7 +321,7 @@ class CResult(NullObj):
 
         @return {string} - 转换后的json字符串
         """
-        return json.dumps(NullObj.get_object_attr_dict(self, ignored_key=['_i18n_obj', ]))
+        return json.dumps(NullObj.get_object_attr_dict(self, ignored_key=['_i18n_obj', ]), ensure_ascii=False)
 
     @staticmethod
     def __fromjson__(json_str):

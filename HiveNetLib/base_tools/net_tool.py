@@ -27,8 +27,8 @@ import json
 import datetime
 import logging
 import traceback
-from io import BytesIO
-from enum import Enum
+import hashlib
+from io import BytesIO, FileIO
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -42,6 +42,7 @@ except ImportError:
 # 引用自有模块
 import HiveNetLib.base_tools.wget as wget
 from HiveNetLib.base_tools.run_tool import RunTool
+from HiveNetLib.base_tools.file_tool import FileTool
 
 
 __MOUDLE__ = 'net_tool'  # 模块名
@@ -122,9 +123,9 @@ class NetTool(object):
         @param {string} nic_name - 网卡名(NIC NAME)
 
         @return {dict} - 返回网卡的地址信息，对应信息的Key为协议(部分研究出来的)：
-            netifaces.AF_LINK -1000 物理地址 : {'addr' : 物理地址(MAC地址)}
-            netifaces.AF_INET 2 互联网网络地址(ipv4) : {'addr': IP地址, 'netmask': 网络掩码, 'broadcast': 广播地址}
-            netifaces.AF_INET6 23 互联网网络地址(ipv6): 跟AF_INET一样
+            netifaces.AF_LINK 物理地址 : {'addr' : 物理地址(MAC地址)}
+            netifaces.AF_INET 互联网网络地址(ipv4) : {'addr': IP地址, 'netmask': 网络掩码, 'broadcast': 广播地址}
+            netifaces.AF_INET6 互联网网络地址(ipv6): 跟AF_INET一样
             AF_12844 25
             AF_APPLETALK 16
             AF_ATM 22
@@ -151,7 +152,7 @@ class NetTool(object):
             AF_UNIX 1
             AF_UNKNOWN1 20
             AF_UNSPEC 0
-            AF_VOICEVIEW 18
+            netifaces.AF_VOICEVIEW 18
         """
         return netifaces.ifaddresses(nic_name)
 
@@ -165,6 +166,47 @@ class NetTool(object):
             字典里有一个特殊key为'default'，可通过这个获取到默认网关信息
         """
         return netifaces.gateways()
+
+    @classmethod
+    def get_net_interface_info_alias(cls, nic_name: str) -> dict:
+        """
+        获取网卡信息(按容易理解的别名解析)
+
+        @param {str} nic_name - 网卡名
+
+        @returns {dict} - 网卡信息
+            {
+                'nic_name': '网卡名',
+                'mac' : 'MAC地址',
+                'ipv4' : {  # ipv4信息
+                    {'addr': 'IP地址', 'netmask': '网络掩码', 'broadcast': '广播地址'}
+                },
+                'ipv6': {  # ipv6信息
+                    {'addr': 'ipv6地址', 'netmask': '网络掩码', 'flags': 1024}
+                }
+            }
+        """
+        _info = {
+            'nic_name': nic_name
+        }
+        _base_info = cls.get_net_interface_info(nic_name)
+
+        # mac
+        _mac = _base_info.get(netifaces.AF_LINK, None)
+        if _mac is not None:
+            _info['mac'] = _mac[0]['addr']
+
+        # ipv4
+        _ipv4 = _base_info.get(netifaces.AF_INET, None)
+        if _ipv4 is not None:
+            _info['ipv4'] = _ipv4[0]
+
+        # ipv6
+        _ipv6 = _base_info.get(netifaces.AF_INET6, None)
+        if _ipv6 is not None:
+            _info['ipv6'] = _ipv6[0]
+
+        return _info
 
     #############################
     # 网页处理相关
@@ -449,8 +491,41 @@ class NetTool(object):
             os.rename(_temp_file, _filename)
 
     #############################
+    # 文件传输处理支持
+    #############################
+    @classmethod
+    def get_file_md5(self, file, buffer_size: int = 4096):
+        """
+        获取文件md5值
+
+        @param {str|FileIO|bytes]} file - 文件路径，或已打开的文件对象，或文件字节数组
+        """
+        _md5 = hashlib.md5()  # 创建md5对象
+
+        if type(file) == str:
+            # 传入的是文件路径
+            with open(file, 'rb') as _f:
+                while True:
+                    _data = _f.read(buffer_size)
+                    if not _data:
+                        break
+                    _md5.update(_data)  # 更新md5对象
+        elif type(file) == FileIO:
+            while True:
+                _data = file.read(buffer_size)
+                if not _data:
+                    break
+                _md5.update(_data)  # 更新md5对象
+        else:
+            # 字节
+            _md5.update(file)
+
+        return _md5.hexdigest()  # 返回md5对象
+
+    #############################
     # Restful Api相关
     #############################
+
     @staticmethod
     def restful_api_call(url: str, method: str = 'get', back_type: str = 'json', encoding: str = None,
                          block_size: int = 1024, save_file: str = None,

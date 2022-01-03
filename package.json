@@ -1,6 +1,6 @@
 {
     "name": "HiveNetLib",
-    "version": "0.8.8",
+    "version": "0.8.9",
     "description": "HiveNet depend on this base library",
     "main": "index.js",
     "scripts": {

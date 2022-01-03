@@ -21,8 +21,10 @@ from HiveNetLib.base_tools.debug_tool import DebugTool
 from HiveNetLib.interface_tool.protocol_msg_http import MsgHTTP
 from HiveNetLib.interface_tool.msg_fw import EnumMsgObjType, EnumMsgSRType
 
-_TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
-                            '../test_data/temp/http_service_log/').replace('\\', '/')
+
+_TEST_DATA_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.path.pardir, 'test_data')
+)
 
 
 class TestHttpService(unittest.TestCase):
@@ -65,15 +67,16 @@ class TestHttpService(unittest.TestCase):
         DebugTool.set_debug(False)
         try:
             # 删除临时日志
-            FileTool.remove_files(path=_TEMP_DIR + '/log/', regex_str='test_case*')
+            FileTool.remove_files(path=os.path.join(
+                _TEST_DATA_DIR, 'temp/http_service_log/log'), regex_str='test_case*')
         except:
             pass
 
         self.logger = simple_log.Logger(
-            conf_file_name=_TEMP_DIR + '/../../tcp_ip_service/test_http_service.json',
+            conf_file_name=os.path.join(_TEST_DATA_DIR, 'tcp_ip_service/test_http_service.json'),
             logger_name=simple_log.EnumLoggerName.ConsoleAndFile,
             config_type=simple_log.EnumLoggerConfigType.JSON_FILE,
-            logfile_path=_TEMP_DIR + '/log/test_case.log',
+            logfile_path=os.path.join(_TEST_DATA_DIR, 'temp/http_service_log/log/test_case.log'),
             is_create_logfile_by_day=True
         )
         self.logger.setLevelWithHandler(simple_log.DEBUG)

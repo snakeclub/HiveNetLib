@@ -17,12 +17,12 @@
 
 import sys
 import os
-import time
 import inspect
 import ctypes
 import subprocess
 import traceback
 import logging
+import platform
 from contextlib import contextmanager
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -60,6 +60,36 @@ class RunTool(object):
     提供各类运行环境处理相关的常用工具函数（静态方法）
 
     """
+    #############################
+    # 系统信息获取
+    #############################
+    @classmethod
+    def platform_info(cls) -> dict:
+        """
+        获取平台信息
+
+        @returns {dict} - 平台信息字典
+            platform - 操作系统平台信息(sys.platform)，win32, cygwin, linux, darwin
+            machine - 机器类型(platform.machine()), i386, x86, x86_64, AMD64, arm64
+            bits - 操作系统位数(platform.architecture()), 32bit, 64bit
+            system - 操作系统名(platform.system()), Linux, Windows, Darwin
+            release - 操作系统发行版本(platform.release()), 2.0.0, nt
+            node - 网络机器名(platform.node())
+            platform_alias - 操作系统版本信息(platform.platform()), Windows-7-6.1.7601-SP1, macOS-11.4-arm64-arm-64bit
+        """
+        _uname = platform.uname()
+        platform.system_alias
+        _info = {
+            'platform': sys.platform,
+            'machine': _uname.machine,
+            'bits': platform.architecture()[0],
+            'system': _uname.system,
+            'release': _uname.release,
+            'node': _uname.node,
+            'platform_alias': platform.platform()
+        }
+        return _info
+
     #############################
     # 全局变量
     #############################
@@ -801,13 +831,14 @@ class RunTool(object):
             return RunTool.get_function_parameter_defines(_fun_obj)
 
     @staticmethod
-    def get_current_function_parameter_values(frame_obj=None, fun_obj=None, is_simple_mode=False):
+    def get_current_function_parameter_values(frame_obj=None, fun_obj=None, is_simple_mode=False, ignore_first: bool = False):
         """
         获取当前运行函数的函数调用参数取值信息
 
         @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
         @param {function} fun_obj=None - 函数对象，如不传入则通过frame获取，传入可兼容静态函数的情况
         @param {bool} is_simple_mode=False - 是否简单模式
+        @param {bool} ignore_first=False - 是否忽略第一个参数（遇到是对象实例成员函数的情况可设置为True）
 
         @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
             简单模式：
@@ -837,6 +868,11 @@ class RunTool(object):
             _parameters = RunTool.get_function_parameter_defines(fun_obj)
         else:
             _parameters = RunTool.get_current_function_parameter_defines(frame_obj=_fun_frame)
+
+        # 忽略第一个参数值
+        if ignore_first and len(_parameters) > 0:
+            _parameters.pop(0)
+
         # 获取函数的传入值
         _, _, _, _values = inspect.getargvalues(_fun_frame)
         if is_simple_mode:
@@ -857,6 +893,106 @@ class RunTool(object):
             for _item in _parameters:
                 _item['value'] = _values[_item['name']]
             return _parameters
+
+
+class WaitLockTool(object):
+    """
+    等待锁处理类
+    注：便于输出锁长时间等待的问题，跟踪死锁情况
+    """
+
+    def __init__(self, lock, print_timeout: float = None, label: str = '', print_acquire_ok: bool = False,
+                 print_release: bool = False, force_no_acquire: bool = False):
+        """
+        初始化简单锁处理类
+
+        @param {<type>} lock - 锁对象
+        @param {float} print_timeout=None - 等待超时打印时间，单位为秒, 如果不设置代表不打印超时信息
+            注：该参数仅为等待超时打印使用，实际上锁还是会一直等待下去，不会跳出等待处理
+        @param {str} label='' - 打印信息时附带的显示内容
+        @param {bool} print_acquire_ok=False - 是否打印锁获取成功信息
+        @param {bool} print_release=False - 是否打印锁释放信息
+        @param {bool} force_no_acquire=Fasle - 是否强制不等待锁
+        """
+        self.lock = lock
+        self.print_timeout = print_timeout
+        self.label = label
+        self.print_acquire_ok = print_acquire_ok
+        self.print_release = print_release
+        self.force_no_acquire = force_no_acquire
+        self._fun_name = None
+
+    #############################
+    # with 方法支持
+    #############################
+    def __enter__(self):
+        """
+        with方法进入的处理, 获取锁
+        """
+        if self.force_no_acquire:
+            # 不处理锁等待
+            return
+
+        self._fun_name = None  # 函数名
+        if self.print_timeout is None:
+            # 不需要打印的情况，直接一直等待获取即可
+            self.lock.acquire()
+        else:
+            # 需要打印的情况，通过循环方式进行等待
+            while True:
+                if self.lock.acquire(blocking=True, timeout=self.print_timeout):
+                    # 获取锁成功
+                    break
+
+                # 获取函数名信息
+                if self._fun_name is None:
+                    self._fun_name = self._get_parent_fun_name(level=1)
+
+                # 打印等待超时信息
+                print('%s %s: get lock overtime [%s]' %
+                      (self._fun_name, self.label, str(self.print_timeout)))
+
+        # 获取到锁, 打印获取成功信息
+        if self.print_acquire_ok:
+            # 获取函数名信息
+            if self._fun_name is None:
+                self._fun_name = self._get_parent_fun_name(level=1)
+
+            print('%s %s: get lock ok' % (self._fun_name, self.label))
+
+    def __exit__(self, type, value, trace):
+        """
+        with方法退出函数, 释放锁
+
+        @param {object} type - 执行异常的异常类型
+        @param {object} value - 执行异常的异常对象值
+        @param {object}} trace - 执行异常的异常trace对象
+        """
+        if self.force_no_acquire:
+            # 不处理锁等待
+            return
+
+        # 关闭资源
+        self.lock.release()
+        if self.print_release:
+            print('%s %s: release ok' % (self._fun_name, self.label))
+
+    #############################
+    # 内部函数
+    #############################
+    def _get_parent_fun_name(self, level: int = 0) -> str:
+        """
+        获取调用当前函数的父函数名
+
+        @param {int} level=0 - 需要向上最追索的层级数
+            注：执行该函数的函数视为第0级
+
+        @returns {str} - 返回的函数名
+        """
+        level += 1  # 需要
+        _frame = RunTool.get_parent_function_frame(level)
+
+        return RunTool.get_current_function_name(frame_obj=_frame, is_with_module=True)
 
 
 if __name__ == '__main__':

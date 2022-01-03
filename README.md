@@ -10,3 +10,18 @@ HiveNetLib 的目的是让开发人员用最简单的方法实现最常用的功
 GitHub：https://github.com/snakeclub/HiveNetLib/
 
 介绍：[HiveNetLib tutorial](docs/source/tutorial/catalog.md)
+
+
+
+## 更新记录
+
+### v0.8.9版本
+
+- 新增 file_transfer 库，封装了文件网络传输的基础功能；
+- prompt_plus库新增 ProgressRate 进度值控制、展示处理类
+- prompt_plus库PromptPlus类支持获取及更新命令行参数方法
+- simple_console库新增加载自定义多国语言文件的支持
+- 去掉对affinity库的依赖
+- 扩充base_tools的各个库的功能函数
+- 修复 simple_grpc 库中 SimpleGRpcServer 无法通过 servicer_list 同时注册多个 SimpleGRpcServicer 的bug
+

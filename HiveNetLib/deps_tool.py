@@ -34,9 +34,6 @@ DEPENDENCIES_DICT = {
     'prompt-toolkit': {
         'install': 'prompt-toolkit>=2.0.0',
     },
-    'affinity': {
-        'install': 'affinity>=0.1.0',
-    },
     'dicttoxml': {
         'install': 'dicttoxml>=1.7.4',
     },
@@ -87,6 +84,9 @@ DEPENDENCIES_DICT = {
     },
     'pycryptodome': {
         'install': 'pycryptodome' if sys.platform != 'win32' else 'pycryptodomex'
+    },
+    'pywin32': {
+        'install': 'pywin32'
     }
 }
 

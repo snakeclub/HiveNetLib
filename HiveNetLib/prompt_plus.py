@@ -18,7 +18,7 @@ from __future__ import unicode_literals
 import threading
 import traceback
 import copy
-import time
+import math
 import sys
 import os
 import logging
@@ -102,6 +102,252 @@ __PUBLISH__ = '2018.09.01'  # 发布日期
             word_name {string} - 直接参数名
 
 """.strip()
+
+
+class ProgressRate(object):
+    """
+    支持多层级函数调用的进度取值处理类
+    """
+    #############################
+    # 静态函数
+    #############################
+    @classmethod
+    def show_cmd_process_bar(cls, rate: float, label: str = '', info: str = '', bar_len: int = 50,
+                             bar_finish: str = '▋', bar_unfinish: str = ' ', **kwargs):
+        """
+        命令行打印进度条
+
+        @param {float} rate - 当前进度值（0-100之间）
+        @param {str} label='' - 提示标签，例如'Installing', 'Error', 'Done'，显示在进度条前面
+        @param {str} info='' - 提示信息，显示在进度条结尾
+        @param {int} bar_len=50 - 进度条长度
+        @param {str} bar_finish='▋' - 进度条完成进度显示字符
+        @param {str} bar_unfinish=' ' - 进度条未完成进度显示字符
+            注: 合适的搭配包括('▋', ' '), ('*', '>')
+        """
+        _rate = rate
+        _label = '' if label == '' else '%s: ' % label
+        _finish_size = math.floor(bar_len * _rate / 100.0)
+        _unfinish_size = bar_len - _finish_size
+
+        # 打印进度信息
+        print('\r', end='')
+        _end = None if _rate >= 100.0 else ''
+        print(
+            '\033[K',  # 通过打印这个代码清除当前行上一次输出的信息（擦除到输出结尾）
+            '%s%3.1f%%' % (_label, _rate),
+            '[%s%s]' % (bar_finish * _finish_size, bar_unfinish * _unfinish_size),
+            info, end=_end, flush=True
+        )
+
+    #############################
+    # 成员函数
+    #############################
+
+    def __init__(self, rate: float = 0.0, show_process_bar_fun=None) -> None:
+        """
+        初始化进度取值处理类
+
+        @param {float} rate=0.0 - 进度初始值
+        @param {function} show_process_bar_fun=None - 显示进度条的函数，如果不传默认为 show_cmd_process_bar
+            注：如需自定义函数，函数定义必须为fun(rate:float, label:str, info:str, ...)
+        """
+        # 进度显示函数
+        self._show_process_bar_fun = show_process_bar_fun
+        self._process_bar_lock = threading.RLock()  # 进度条显示的锁对象, 避免多线程并发时显示串行的问题
+        if show_process_bar_fun is None:
+            show_process_bar_fun = self.show_cmd_process_bar
+
+        # 当前实际进度信息
+        self._current = {
+            'rate': rate,  # 当前进度值
+            'start_rate': rate,  # 限制区间开始值
+            'next_rate': 100.0,  # 限制下一个进度的最大值
+            'step': 1.0,  # 默认步长
+            'scale': 1.0,  # 当前进度信息的比例，用于将进度换算为实际进度
+            'level': 0,  # 所属层级
+            'real_start_rate': 0.0,  # 当前层级0.0对应实际进度位置
+        }
+
+        # 进入不同层级处理使用的堆栈
+        self._stack = list()
+
+    def show_progress_bar(self, label: str = '', info: str = ''):
+        """
+        输出进度条现实
+
+        @param {str} label='' - 提示标签，例如'Installing', 'Error', 'Done'，显示在进度条前面
+        @param {str} info='' - 提示信息，显示在进度条结尾
+        """
+        _rate = self.get_current_rate()
+        self._process_bar_lock.acquire()
+        try:
+            self._show_process_bar_fun(
+                _rate, label=label, info=info
+            )
+        finally:
+            self._process_bar_lock.release()
+
+    def get_current_rate(self) -> float:
+        """
+        获取当前进度
+
+        @returns {float} - 当前进度
+        """
+        return self._current['rate']
+
+    def into_next_level(self, rate: float = None, next_rate: float = None):
+        """
+        进入下一层进度处理
+
+        @param {float} rate=None - 设置当前进度
+        @param {float} next_rate=None - 设置下一进度限制
+        """
+        # 设置当前层级的进度
+        self._set_rates(rate=rate, next_rate=next_rate)
+
+        # 添加下一层对象
+        _level = len(self._stack) + 1
+
+        if _level == 1:
+            _last_pg = self._current
+        else:
+            _last_pg = self._stack[-1]
+
+        _scale = ((_last_pg['next_rate'] - _last_pg['start_rate']) / 100.0) * _last_pg['scale']
+
+        _real_start_rate = _last_pg['real_start_rate'] + _last_pg['start_rate'] * _last_pg['scale']
+
+        self._stack.append({
+            'rate': 0,  # 当前进度值
+            'start_rate': 0,  # 限制区间开始值
+            'next_rate': 100.0,  # 限制下一个进度的最大值
+            'step': 1.0,  # 默认步长
+            'scale': _scale,  # 当前进度信息的比例，用于将进度换算为实际进度
+            'level': _level,  # 所属层级
+            'real_start_rate': _real_start_rate,  # 当前层级0.0对应实际进度位置
+        })
+
+    def exit_current_level(self):
+        """
+        退出当前进度层级
+        """
+        if len(self._stack) > 0:
+            self._stack.pop(-1)
+            if len(self._stack) > 0:
+                _last_pg = self._stack[-1]
+            else:
+                _last_pg = self._current
+
+            # 退出认为进度全部完成
+            self._set_rates(rate=_last_pg['next_rate'])
+
+    def add_rate_by_step(self, step: float = None):
+        """
+        进度增加指定步长
+
+        @param {float} step=None - 指定步长
+        """
+        _pg = self._current
+        if len(self._stack) > 0:
+            _pg = self._stack[-1]
+
+        _step = step
+        if step is None:
+            _step = _pg['step']
+
+        self._set_rates(rate=(_pg['rate'] + _step))
+
+    def set_step(self, step: float):
+        """
+        设置当前步长
+
+        @param {float} step - 要设置的步长
+        """
+        _pg = self._current
+        if len(self._stack) > 0:
+            _pg = self._stack[-1]
+
+        _pg['step'] = step
+
+    def get_step(self) -> float:
+        """
+        获取当前步长
+
+        @returns {float} - 获取到的步长
+        """
+        _pg = self._current
+        if len(self._stack) > 0:
+            _pg = self._stack[-1]
+
+        return _pg['step']
+
+    def set_rate(self, rate: float, next_rate: float = None, split_len: int = None):
+        """
+        设置当前进度
+        注：无需考虑所在层级，直接按100的维度设置即可
+
+        @param {float} rate - 当前进度值(传入1.0代表1%)
+        @param {float} next_rate=None - 下一个进度的最大值，如果不设置代表仅设置进度，不改变限制区间
+        @param {int} split_len=None - 对进度限制区间按步数设置步长
+        """
+        return self._set_rates(rate=rate, next_rate=next_rate, split_len=split_len)
+
+    def set_next_rate(self, next_rate: float, split_len: int = None):
+        """
+        设置下一个进度的最大值
+
+        @param {float} next_rate - 下一个进度的最大值
+        @param {int} split_len=None - 对进度限制区间按步数设置步长
+        """
+        return self._set_rates(rate=None, next_rate=next_rate, split_len=split_len)
+
+    def set_split_len(self, split_len: int):
+        """
+        设置补偿
+
+        @param {int} split_len - 对进度限制区间按步数设置步长
+        """
+        return self._set_rates(rate=None, next_rate=None, split_len=split_len)
+
+    #############################
+    # 内部函数
+    #############################
+    def _set_rates(self, rate: float = None, next_rate: float = None, split_len: int = None):
+        """
+        设置各项进度值
+
+        @param {float} rate=None - 设置当前进度
+        @param {float} next_rate=None - 设置下一个进度的最大值
+        @param {int} split_len=None - 对进度限制区间按步数设置步长
+        """
+        # 获取当前层的进度信息
+        _pg = self._current
+        if len(self._stack) > 0:
+            _pg = self._stack[-1]
+
+        # 设置进度
+        if rate is not None:
+            _rate = min(100.0, max(0.0, rate))
+            _pg['rate'] = _rate
+            if _pg['start_rate'] > _pg['rate']:
+                # 确保进度不会比开始区间小
+                _pg['start_rate'] = _pg['rate']
+
+            # 按比例映射到实际进度上
+            if _pg['level'] != 0:
+                self._current['rate'] = _pg['real_start_rate'] + (_rate * _pg['scale'])
+        else:
+            _rate = _pg['start_rate']
+
+        # 设置限制区间
+        if next_rate is not None:
+            _pg['next_rate'] = min(100.0, max(_rate, next_rate))
+            _pg['start_rate'] = _rate
+
+        # 设置步长
+        if split_len is not None:
+            _pg['step'] = (_pg['next_rate'] - _pg['start_rate']) / max(1, split_len)
 
 
 class __MemoryStringStream__(object):
@@ -1820,6 +2066,55 @@ class PromptPlus(object):
                 self._loop.run_until_complete(shell_task)
                 background_task.cancel()
                 self._loop.run_until_complete(background_task)
+
+    #############################
+    # 工具函数
+    #############################
+    def get_cmd_para(self, cmd: str) -> dict:
+        """
+        获取指定命令的命令行参数
+
+        @param {str} cmd - 要获取的命令
+
+        @returns {dict} - 返回对应的命令行参数，如果没有参数返回None
+            deal_fun (匹配到命令要执行的函数) : fun 函数定义（function类型）
+            name_para (para_name=para_value形式的参数) : dict(para_name: para_value_list)
+                para_name {string} - 参数名
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+            short_para (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
+                para_char {char} - 短参数标识字符（单字符，不带-）
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+                注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
+            long_para (-para_name para_value形式的参数) : dict(para_name, para_value_list)
+                para_name {string} - 参数名（可以多字符，不带-）
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+            word_para (直接一个词形式的参数) : dict(word_name, '')
+                word_name {string} - 直接参数名
+        """
+        return self._prompt_init_para['cmd_para'].get(cmd, None)
+
+    def upd_cmd_para(self, cmd: str, cmd_para: dict):
+        """
+        更新指定的命令的命令行参数
+
+        @param {str} cmd - 要更新的命令
+        @param {dict} cmd_para - 命令行参数
+            deal_fun (匹配到命令要执行的函数) : fun 函数定义（function类型）
+            name_para (para_name=para_value形式的参数) : dict(para_name: para_value_list)
+                para_name {string} - 参数名
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+            short_para (-para_char para_value 形式的参数) : dict(para_char, para_value_list)
+                para_char {char} - 短参数标识字符（单字符，不带-）
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+                注：该形式可以支持多个字符写在一个'-'后面，例如: -xvrt
+            long_para (-para_name para_value形式的参数) : dict(para_name, para_value_list)
+                para_name {string} - 参数名（可以多字符，不带-）
+                para_value_list {string[]} - 对应参数名下的可选参数值清单，如果para_value_list为None代表可以输入任意值
+            word_para (直接一个词形式的参数) : dict(word_name, '')
+                word_name {string} - 直接参数名
+        """
+        self._prompt_init_para['cmd_para'][cmd] = cmd_para
+        self._init_prompt_instance()
 
 
 if __name__ == '__main__':

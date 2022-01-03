@@ -100,6 +100,10 @@ class SimpleGRpcTools(object):
             has_para_bytes=has_para_bytes, para_bytes=para_bytes
         )
 
+    #############################
+    # 响应对象格式转换
+    #############################
+
     @staticmethod
     def generate_response_obj(
         return_json='', has_return_bytes=False, return_bytes=None,
@@ -122,7 +126,7 @@ class SimpleGRpcTools(object):
         return msg_pb2.RpcResponse(
             return_json=return_json, has_return_bytes=has_return_bytes, return_bytes=return_bytes,
             call_code=call_code, call_msg=call_msg, call_error=call_error,
-            call_msg_para=json.dumps(call_msg_para)
+            call_msg_para=json.dumps(call_msg_para, ensure_ascii=False)
         )
 
     @staticmethod
@@ -160,6 +164,66 @@ class SimpleGRpcTools(object):
         """
         for resp_obj in resp_iterator:
             yield SimpleGRpcTools.response_obj_to_cresult(resp_obj)
+
+    @classmethod
+    def return_json_to_obj(cls, cresult: CResult, json_para_mapping_key: str = None,
+                           deal_return_bytes: bool = False, bytes_location: list = None):
+        """
+        将CResult中的return_json转换为return_obj
+
+        @param {CResult} cresult - gRPC返回的CResult对象
+        @param {string} json_para_mapping_key - 通过 set_json_to_object_para_mapping 设置的特定python对象转换方法的key
+        @param {bool} deal_return_bytes=False - 是否处理字节对象
+        @param {list} bytes_location=None - 根据传入的数组查找bytes位置并替换，根据数组传入的值区分查找路径：
+            str - 当前位置为字典，传入的是key值
+            int - 当前位置为数组，传入的是所在数组的位置（0开始）
+            如果不指定，则根据list和key遍历方式查找替换（只处理第1层）
+
+        @return {CResult} - 包含转换后return_obj的CResult对象
+        """
+        # json转换为obj
+        _cresult = cresult
+        _cresult.return_obj = cls.json_to_object_by_para_mapping(
+            _cresult.return_json, json_para_mapping_key
+        )
+
+        # 字节对象处理
+        if deal_return_bytes and _cresult.has_return_bytes:
+            _match_str = '{$SIMPLEGRPC_BYTES$}'
+            _is_ok = False
+            if bytes_location is None:
+                # 遍历方式查找
+                if type(_cresult.return_obj) == list:
+                    for _i in range(len(_cresult.return_obj)):
+                        if _cresult.return_obj[_i] == _match_str:
+                            _cresult.return_obj[_i] = _cresult.return_bytes
+                            _is_ok = True
+                            break
+                elif type(_cresult.return_obj) == dict:
+                    for _key in _cresult.return_obj.keys():
+                        if _cresult.return_obj[_key] == _match_str:
+                            _cresult.return_obj[_key] = _cresult.return_bytes
+                            _is_ok = True
+                            break
+            else:
+                # 通过指定位置查找
+                _current = _cresult.return_obj
+                for _location in bytes_location:
+                    _current = _cresult.return_obj[_location]
+
+                if _current == _match_str:
+                    _current = _cresult.return_bytes
+                    _is_ok = True
+
+            # 检查是否找到
+            if not _is_ok:
+                raise AttributeError('var with bytes not found in return obj')
+
+        return cresult
+
+    #############################
+    # JSON转换
+    #############################
 
     @staticmethod
     def parameters_to_json(para_list, is_support_bytes=False):
@@ -199,7 +263,7 @@ class SimpleGRpcTools(object):
             # 继续下一个
             _pos = _pos - 1
         # 处理返回值
-        para_obj.para_json = json.dumps(para_list)
+        para_obj.para_json = json.dumps(para_list, ensure_ascii=False)
         return para_obj
 
     @staticmethod
@@ -221,6 +285,7 @@ class SimpleGRpcTools(object):
         _ret_obj.return_json = ''
         _ret_obj.has_return_bytes = False
         _ret_obj.return_bytes = None
+        _obj_type = type(obj)  # 对象类型
         if is_support_bytes:
             # 支持字节形式，进行判断和处理
             _has_deal_bytes = False
@@ -229,6 +294,33 @@ class SimpleGRpcTools(object):
                 _ret_obj.return_bytes = obj
                 _ret_obj.return_json = StringTool.object_to_json('{$SIMPLEGRPC_BYTES$}')
                 _has_deal_bytes = True
+            elif _obj_type in (list, tuple):
+                # 处理列表类型
+                for _i in range(len(obj)):
+                    if type(obj[_i]) == bytes:
+                        # 找到字节数组，需要处理
+                        _has_deal_bytes = True
+                        _ret_obj.has_return_bytes = True
+                        _ret_obj.return_bytes = obj[_i]
+                        _copyobj = copy.deepcopy(obj)
+                        _copyobj = list(_copyobj)
+                        _copyobj[_i] = "{$SIMPLEGRPC_BYTES$}"
+                        if _obj_type == tuple:
+                            _copyobj = tuple(_copyobj)
+                        _ret_obj.return_json = StringTool.object_to_json(_copyobj)
+                        break
+            elif _obj_type == dict:
+                # 处理字典类型
+                for _key in obj.keys():
+                    if type(obj[_key]) == bytes:
+                        # 找到字节数组，需要处理
+                        _has_deal_bytes = True
+                        _ret_obj.has_return_bytes = True
+                        _ret_obj.return_bytes = obj[_key]
+                        _copyobj = copy.deepcopy(obj)
+                        _copyobj[_key] = "{$SIMPLEGRPC_BYTES$}"
+                        _ret_obj.return_json = StringTool.object_to_json(_copyobj)
+                        break
             elif type(obj) not in (
                 int, float, bool, complex,
                 str, list, tuple, dict, set
@@ -370,6 +462,7 @@ class SimpleGRpcTools(object):
             with open('server.crt', 'rb') as f:
                 certificate_chain = f.read()
         @param {?} options=None - An optional list of key-value pairs (channel args in gRPC Core runtime) to configure the channel
+            [('grpc.max_send_message_length', 最大发送消息长度), ('grpc.max_receive_message_length', 最大接收消息长度)]
         @param {?} compression=None - An optional value indicating the compression method to be used over the lifetime of the channel
 
         @returns {object} - 返回带参数属性的对象，例如对象为ret：
@@ -495,17 +588,18 @@ class SimpleGRpcTools(object):
                 # 返回单个对象
                 return SimpleGRpcTools.response_obj_to_cresult(_resp_obj)
 
-        except grpc._channel._Rendezvous as grpc_err:
+        except (grpc._channel._Rendezvous, grpc._channel._InactiveRpcError):
             # 执行远程调用出现异常
             _code = '20408'
-            if grpc_err._state.code.value[0] == 4:
+            _grpc_err = sys.exc_info()[1]
+            if _grpc_err._state.code.value[0] == 4:
                 # 调用超时
                 _code = '30403'
             _result = CResult(
                 code=_code,
-                error=str(type(grpc_err)),
+                error=str(type(_grpc_err)),
                 trace_str=traceback.format_exc(),
-                i18n_msg_paras=(grpc_err._state.code.name, grpc_err._state.details)
+                i18n_msg_paras=(_grpc_err._state.code.name, _grpc_err._state.details)
             )
         except:
             _error = str(sys.exc_info()[0])
@@ -722,6 +816,7 @@ class SimpleGRpcTools(object):
                 _code = '30403'
             _result = CResult(
                 code=_code,
+                msg='call grpc error: [status]$1, [details]$2',
                 error=str(type(grpc_err)),
                 trace_str=traceback.format_exc(),
                 i18n_msg_paras=(grpc_err._state.code.name, grpc_err._state.details)
@@ -731,6 +826,7 @@ class SimpleGRpcTools(object):
             _error = str(sys.exc_info()[0])
             _result = CResult(
                 code='21007',
+                msg='call grpc error',
                 error=_error,
                 trace_str=traceback.format_exc(),
                 i18n_msg_paras=(_error)

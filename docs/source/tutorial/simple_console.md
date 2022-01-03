@@ -14,7 +14,7 @@ simple_console是简单的命令行执行框架，可在该框架上基于xml配
 
 可以按照以下的大步骤开发您自己的命令行应用：
 
-### 开发扩展命令类
+### 开发扩展命令类1（一个类支持一个命令执行）
 
 可以基于CmdBaseFW自行开发扩展命令，示例如下：
 
@@ -57,6 +57,62 @@ class YourClass(CmdBaseFW):
 - 框架会自动加载i18n控件作为全局多国语言控件，您可以通过"from HiveNetLib.simple_i18n import _"载入方法，并在您的应用打印时进行多国语言转换，具体用法参考simple_i18n的手册
 - 您可以在一个类中实现多个命令函数，自行通过“_cmd_dealfun”做逻辑路由即可，可以参考“HiveNetLib.simple_console.base_cmd.CommonCmd”的方法
 - “cmd”和“cmd_para” 两个参数将输入的命令传给执行函数；
+
+### 开发扩展命令类2（一个类支持多个命令执行）
+
+由于命令配置只支持配置到类，框架会直接执行 _cmd_dealfun 函数来处理命令，因此通常开发以一个类执行一个命令的方式处理。但如果需要一个类支持多个命令，可以采取以下方式进行扩展：
+
+```
+from HiveNetLib.generic import CResult
+from HiveNetLib.simple_i18n import _
+from HiveNetLib.simple_console.base_cmd import CmdBaseFW
+
+class YourClass(CmdBaseFW):
+	  #############################
+    # 需具体实现类覆盖实现的类
+    #############################
+    def _init(self, **kwargs):
+        """
+        实现类需要覆盖实现的初始化函数
+        @param {kwargs} - 传入初始化参数字典（config.xml的init_para字典）
+        @throws {exception-type} - 如果初始化异常应抛出异常
+        """
+        # 自定义初始化函数中设置命令的映射关系，并且请不要重载 _cmd_dealfun 函数
+        self._CMD_DEALFUN_DICT = {
+        	  'cmd1': self._my_cmd_dealfun1,
+            'cmd2': self._my_cmd_dealfun2,
+        }
+        
+    def _my_cmd_dealfun1(self, message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
+        """
+        自定义命令处理函数
+        
+        @param {string} message='' - prompt提示信息
+        @param {string} cmd - 执行的命令key值
+        @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
+        @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
+        @param {kwargs} - 传入的主进程的初始化kwargs对象
+            shell_cmd {bool} - 如果传入参数有该key，且值为True，代表是命令行直接执行，非进入控制台执行
+        @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的print_str属性要求框架进行打印处理
+        """
+        您自己的处理函数内容
+        
+    def _my_cmd_dealfun2(self, message='', cmd='', cmd_para='', prompt_obj=None, **kwargs):
+        """
+        自定义命令处理函数
+        
+        @param {string} message='' - prompt提示信息
+        @param {string} cmd - 执行的命令key值
+        @param {string} cmd_para - 传入的命令参数（命令后的字符串，去掉第一个空格）
+        @param {PromptPlus} prompt_obj=None - 传入调用函数的PromptPlus对象，可以通过该对象的一些方法控制输出显示
+        @param {kwargs} - 传入的主进程的初始化kwargs对象
+            shell_cmd {bool} - 如果传入参数有该key，且值为True，代表是命令行直接执行，非进入控制台执行
+        @returns {CResult} - 命令执行结果，可通过返回错误码10101通知框架退出命令行, 同时也可以通过CResult对象的print_str属性要求框架进行打印处理
+        """
+        您自己的处理函数内容
+```
+
+
 
 ### 部署您的应用目录
 

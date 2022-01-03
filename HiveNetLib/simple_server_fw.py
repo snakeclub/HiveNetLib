@@ -263,11 +263,11 @@ class SimpleServerFW(ABC):
             try:
                 if self.__server_run_status != EnumServerRunStatus.Stop:
                     # 不属于停止状态，不能启动
-                    _result = CResult(code='21401')  # 服务启动失败-服务已启动
+                    _temp_result = CResult(code='21401')  # 服务启动失败-服务已启动
                     self._logger.log(
                         self._log_level,
-                        '[%s-STARTING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _result.msg))
-                    return _result
+                        '[%s-STARTING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _temp_result.msg))
+                    return _temp_result
 
                 # 执行启动服务的动作，通过线程方式启动，避免调用方等待
                 self.__server_begin_time = datetime.datetime.now()
@@ -337,11 +337,11 @@ class SimpleServerFW(ABC):
                     self._server_status_change(_status, _result)
                 else:
                     # 不属于运行状态，不能处理
-                    _result = CResult(code='21402')  # 服务停止失败-服务已关闭
+                    _temp_result = CResult(code='21402')  # 服务停止失败-服务已关闭
                     self._logger.log(
                         self._log_level,
-                        '[%s-STOPING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _result.msg))
-                    return _result
+                        '[%s-STOPING][NAME:%s]%s' % (self._server_log_prefix, self._server_name, _temp_result.msg))
+                    return _temp_result
             finally:
                 self.__server_run_status_lock.release()
 

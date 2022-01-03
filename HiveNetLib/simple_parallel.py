@@ -9,14 +9,7 @@
 
 """
 并发处理模块，多线程、多进程支持
-注意：本模块要导入affinity，该工具在windows平台需要同步安装pywin32；
-    另外要修改安装路径下：affinity/__init__.py文件的语法错误：
-        except win32process.error, e:
-            raise ValueError, e
-        修改为:
-        except win32process.error as e:
-            raise ValueError
-
+注意：本模块要使用内置的affinity，在windows平台需要同步安装pywin32；
 @module simple_parallel
 @file simple_parallel.py
 
@@ -25,9 +18,8 @@
 import os
 import sys
 import threading
-from multiprocessing import Process, Manager, Lock, Value
+from multiprocessing import Process, Manager, Lock
 import datetime
-import time
 import traceback
 import inspect
 import ctypes
@@ -39,6 +31,14 @@ import psutil
 from abc import ABC, abstractmethod  # 利用abc模块实现抽象类
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+# 动态添加包安装
+import HiveNetLib.deps_tool as deps_tool
+if sys.platform == 'win32':
+    try:
+        import win32con
+    except ImportError:
+        deps_tool.install_package('pywin32')
+
 # 自有模块引用
 import HiveNetLib.base_tools.affinity as affinity
 from HiveNetLib.generic import CResult

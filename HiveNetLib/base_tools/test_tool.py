@@ -37,8 +37,8 @@ class TestTool(object):
 
     """
 
-    @staticmethod
-    def cmp_list(src_data, dst_data, print_if_diff=True):
+    @classmethod
+    def cmp_list(cls, src_data, dst_data, print_if_diff=True):
         """
         比较两个列表（list）是否一致
 
@@ -78,8 +78,8 @@ class TestTool(object):
             print('dst_data :' + str(dst_data))
         return is_same
 
-    @staticmethod
-    def cmp_dict(src_data, dst_data, print_if_diff=True):
+    @classmethod
+    def cmp_dict(cls, src_data, dst_data, print_if_diff=True):
         """
         比较两个字典是否一致
 
@@ -92,9 +92,9 @@ class TestTool(object):
         """
         is_same = False
         if isinstance(src_data, str):
-            src_data = json.dumps(src_data)
+            src_data = json.dumps(src_data, ensure_ascii=False)
         if isinstance(dst_data, str):
-            dst_data = json.dumps(dst_data)
+            dst_data = json.dumps(dst_data, ensure_ascii=False)
         if len(src_data) != len(dst_data):
             if print_if_diff:
                 print('cmp_dict: len difference!')
@@ -123,8 +123,8 @@ class TestTool(object):
                                                                     is_deal_subobj=True, c_level=2))
         return is_same
 
-    @staticmethod
-    def is_contain_dict(src_data, dst_data):
+    @classmethod
+    def is_contain_dict(cls, src_data, dst_data):
         """
         检查字典1是否包含在字典2中(字典1为字典2的子集)
 
@@ -135,9 +135,9 @@ class TestTool(object):
 
         """
         if isinstance(src_data, str):
-            src_data = json.dumps(src_data)
+            src_data = json.dumps(src_data, ensure_ascii=False)
         if isinstance(dst_data, str):
-            dst_data = json.dumps(dst_data)
+            dst_data = json.dumps(dst_data, ensure_ascii=False)
         else:
             src_key = list(src_data.keys())
             dst_key = list(dst_data.keys())
@@ -154,6 +154,117 @@ class TestTool(object):
                     return False
                 else:
                     return True
+
+    @classmethod
+    def compare_binary_file(cls, src_file: str, dst_file: str, block_size: int = 1, cache_size: int = 1024):
+        """
+        比较两个二进制文件
+
+        @param {str} src_file - 要比较的源文件路径
+        @param {str} dst_file - 要比较的目标文件路径
+        @param {int} block_size=1 - 要比较的块单位，单位为byte
+            注：指定块大小大于1的情况，将按块做比较，有差异也是认为块存在差异
+        @param {int} cache_size=1024 - 文件信息获取缓存大小，单位为kb
+            注：实际将占用2个缓存区的内存控件
+
+        @returns {list} - 比较出存在差异的地方，形成差异数组，格式如下：
+            [
+                ['^/-/+', start_pos, end_pos, size, block_count],
+                ...
+            ]
+            注：^代表两个文件存在差异的位置，-代表第一个文件长于第二个文件的大小，+代表第二个文件长于第一个文件的大小
+                end_pos为结束位置，也就是相同的下一个字节的开始位置
+        """
+        _cache_size = cache_size * 1024
+        _differs = list()
+
+        with open(src_file, 'rb') as _src_file, open(dst_file, 'rb') as _dst_file:
+            # 获取文件大小
+            _src_size = _src_file.seek(0, 2)
+            _dst_size = _dst_file.seek(0, 2)
+
+            # 准备参数
+            _current_pos = 0  # 当前正在比较的位置
+            _diff_start_pos = -1  # 当前差异开始位置
+            _diff_end_pos = -1  # 当前差异结束位置
+
+            # 循环获取文件进行比较
+            while True:
+                # 获取文件数据到内存
+                _src_file.seek(_current_pos)
+                _dst_file.seek(_current_pos)
+                _src_cache = _src_file.read(_cache_size)
+                _dst_cache = _dst_file.read(_cache_size)
+
+                # 用于判断是否中止的已获取数据长度
+                _src_cache_len = len(_src_cache)
+                _dst_cache_len = len(_dst_cache)
+
+                # 按块循环比较
+                _cache_pos = 0
+                _get_block_size = block_size
+                while True:
+                    # 判断可获取的数据大小
+                    _get_block_size = min(
+                        min(_src_cache_len - _cache_pos, block_size),
+                        min(_dst_cache_len - _cache_pos, block_size)
+                    )
+                    if _get_block_size <= 0:
+                        # 全部数据已经对比完
+                        break
+
+                    # 进行比较
+                    _src_block = _src_cache[_cache_pos: _cache_pos + _get_block_size]
+                    _dst_block = _dst_cache[_cache_pos: _cache_pos + _get_block_size]
+
+                    if _src_block == _dst_block:
+                        # 数据一致
+                        if _diff_start_pos >= 0:
+                            # 原来有差异
+                            _differs.append([
+                                '^', _diff_start_pos, _diff_end_pos, _diff_end_pos - _diff_start_pos + 1,
+                                (_diff_end_pos - _diff_start_pos + 1) / block_size
+                            ])
+                            _diff_start_pos = -1
+                            _diff_end_pos = -1
+                    else:
+                        # 数据不一致
+                        if _diff_start_pos >= 0:
+                            # 原来有差异，将差异结束位置增加就好
+                            _diff_end_pos = _current_pos + _get_block_size - 1
+                        else:
+                            # 原来没有差异，增加差异信息
+                            _diff_start_pos = _current_pos
+                            _diff_end_pos = _current_pos + _get_block_size - 1
+
+                    # 更新当前位置
+                    _current_pos += _get_block_size
+                    _cache_pos += _get_block_size
+
+                # 判断是否要跳出循环
+                if _src_cache_len < _cache_size or _dst_cache_len < _cache_size:
+                    # 已经处理完成
+                    break
+
+            # 判断差异是否已完结
+            if _diff_start_pos >= 0:
+                _differs.append([
+                    '^', _diff_start_pos, _diff_end_pos, _diff_end_pos - _diff_start_pos,
+                    (_diff_end_pos - _diff_start_pos + 1) / block_size
+                ])
+
+            # 判断两个文件大小是否不一样
+            if _src_size != _dst_size:
+                _diff_start_pos = _current_pos
+                _diff_end_pos = max(_src_size, _dst_size) - 1
+                _differs.append([
+                    '-' if _src_size > _dst_size else '+',
+                    _diff_start_pos, _diff_end_pos, _diff_end_pos - _diff_start_pos + 1,
+                    (_diff_end_pos - _diff_start_pos) / block_size
+                ])
+
+            # 返回结果
+            return _differs
 
 
 if __name__ == '__main__':

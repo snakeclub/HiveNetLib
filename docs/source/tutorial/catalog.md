@@ -165,5 +165,7 @@ IntfMsgFW（接口通讯信息处理框架）定义所有的接口信息必定�
 
 html_parser是基于simple_xml实现的html代码解析模块，提供按操作步骤数组逐层向下解析元素的方法，同时解析获取到的元素对象（HtmlElement）的操作方法与 selenium 的 大部分方法兼容。
 
+#### file_transfer
 
+[file_transfer](file_transfer/file_transfer.md)库实现了文件传输（本地或网络）的基本框架，支持快速扩展不同通讯协议下的文件传输功能。
 

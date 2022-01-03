@@ -217,19 +217,22 @@ cresult_obj.net_info = [socket, id]
 
 ### 业务错误编码（3000-4999）
 
-| 代码值 | 英文描述                   | 中文描述       | 备注 |
-| ------ | -------------------------- | -------------- | ---- |
-| 3001   | [$1] is existed            | [$1]已存在     |      |
-| 3002   | [$1] is not existed        | [$1]不存在     |      |
-| 3003   | validators failed          | 校验失败       |      |
-| 3004   | get info failed            | 获取信息失败   |      |
-| 3005   | control check failed       | 控制检查失败   |      |
-| 3006   | user confirmation required | 需要用户确认   |      |
-| 3007   | signature error            | 签名检查失败   |      |
-| 3008   | timestamp expired          | 时间戳已过期   |      |
-| 3009   | username format error      | 用户名格式错误 |      |
-| 3010   | username is existed        | 用户名已存在   |      |
-| 3011   | username is not existed    | 用户名不存在   |      |
-| 3012   | user is locked             | 用户被锁定     |      |
-| 3013   | user status is abnormal    | 用户状态异常   |      |
-| 4999   | other business failure     | 其他业务失败   |      |
+| 代码值 | 英文描述                                            | 中文描述             | 备注 |
+| ------ | --------------------------------------------------- | -------------------- | ---- |
+| 3001   | [$1] is existed                                     | [$1]已存在           |      |
+| 3002   | [$1] is not existed                                 | [$1]不存在           |      |
+| 3003   | validators failed                                   | 校验失败             |      |
+| 3004   | get info failed                                     | 获取信息失败         |      |
+| 3005   | control check failed                                | 控制检查失败         |      |
+| 3006   | user confirmation required                          | 需要用户确认         |      |
+| 3007   | signature error                                     | 签名检查失败         |      |
+| 3008   | timestamp expired                                   | 时间戳已过期         |      |
+| 3009   | username format error                               | 用户名格式错误       |      |
+| 3010   | username is existed                                 | 用户名已存在         |      |
+| 3011   | username is not existed                             | 用户名不存在         |      |
+| 3012   | user is locked                                      | 用户被锁定           |      |
+| 3013   | user status is abnormal                             | 用户状态异常         |      |
+| 3014   | login status has expired                            | 登录状态已过期       |      |
+| 3015   | without permission to perform the current operation | 没有权限执行当前操作 |      |
+| 4999   | other business failure                              | 其他业务失败         |      |
+
