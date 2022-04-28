@@ -157,9 +157,9 @@ msg_fw接口报文处理框架定义了一个通用的接口报文需要实现�
 
 IntfMsgFW（接口通讯信息处理框架）定义所有的接口信息必定有两类报文信息：协议信息（例如Http头部分的信息）和报文信息（例如具体的报文内容）。
 
-#### connection_pool
+#### simple_pool
 
-[connection_pool](connection_pool/connection_pool.md)连接池服务框架定义了标准的连接池处理模型，可基于该模型实现数据库、网络连接的连接池。
+simple_pool连接池服务框架定义了标准的连接池处理模型，可基于该模型实现数据库、网络连接的连接池。
 
 #### html_parser
 

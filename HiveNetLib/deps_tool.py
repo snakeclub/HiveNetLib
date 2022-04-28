@@ -87,6 +87,21 @@ DEPENDENCIES_DICT = {
     },
     'pywin32': {
         'install': 'pywin32'
+    },
+    'sanic': {
+        'install': 'sanic'
+    },
+    'sanic-ext': {
+        'install': 'sanic-ext'
+    },
+    'opentracing': {
+        'install': 'opentracing'
+    },
+    'pyjsonpath': {
+        'install': 'pyjsonpath'
+    },
+    'nest_asyncio': {
+        'install': 'nest_asyncio'
     }
 }
 

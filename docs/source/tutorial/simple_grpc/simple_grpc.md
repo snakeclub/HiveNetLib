@@ -285,7 +285,7 @@ cls.server_no_ssl_no_zoo_opts = SimpleGRpcServer.generate_server_opts(
 cls.server_no_ssl_no_zoo = SimpleGRpcServer(
     server_name='ServerNoSslNoZoo',
     logger=cls.logger, log_level=simple_log.INFO)
-    
+
 # 启动服务，指定服务端处理服务对象清单
 cls.server_no_ssl_no_zoo.start_server(
     server_opts=cls.server_no_ssl_no_zoo_opts, servicer_list={
@@ -421,7 +421,7 @@ def client_simple_call_para(a, b, *args, c=10, d={'d1': 'd1value'}, **kwargs):
         service_name='service_simple_call_para', para_json=_para_obj.para_json,
         has_para_bytes=_para_obj.has_para_bytes, para_bytes=_para_obj.para_bytes
     )
-    
+
     # 连接并发送请求
     _connect_para = SimpleGRpcTools.generate_connect_para(
         conn_str='127.0.0.1:50051'
@@ -489,7 +489,7 @@ with SimpleGRpcTools.generate_channel(_connect_para) as channel:
 	# 发送请求
     _cresult_iterator = SimpleGRpcTools.grpc_call_by_channel(
         channel, _req_obj, call_mode=EnumCallMode.ServerSideStream)
-        
+
     # 以迭代器方式处理返回结果
     for _cresult in _cresult_iterator:
         if not _cresult.is_success():
@@ -498,7 +498,7 @@ with SimpleGRpcTools.generate_channel(_connect_para) as channel:
         	...
 ```
 
-3、双向数据流模式（EnumCallMode.BidirectionalStream) 
+3、双向数据流模式（EnumCallMode.BidirectionalStream)
 
 实际上是客户端流模式和服务端流模式的组合，根据实际需要，可以设计为1个请求对应1个响应、1个请求对应n个响应，n个请求对应1个响应这3种情况，同时通过迭代器来判断响应是否已完成。
 
@@ -573,7 +573,7 @@ _cresult.return_obj = SimpleGRpcTools.json_to_object_by_para_mapping(
 ```
 # 建立连接
 _connect_para = SimpleGRpcConnection.generate_connect_para(
-	ip='127.0.0.1', port=50051, 
+	ip='127.0.0.1', port=50051,
     servicer_name='servicer_simple_call', test_use_health_check=True
 )
 _connection = SimpleGRpcConnection(_connect_para)
@@ -587,4 +587,4 @@ _cresult = _connection.call(SimpleGRpcTools.generate_request_obj('test'))
 
 
 
-此外，还可以使用客户端连接池（SimpleGRpcConnectionPool）进行连接的管理，具体连接池的使用方法参考[connection_pool](connection_pool/connection_pool.md)连接池服务框架。
+此外，还可以使用客户端连接池（AIOConnectionPool）进行连接的管理，具体连接池的使用方法参考simple_pool连接池服务框架。

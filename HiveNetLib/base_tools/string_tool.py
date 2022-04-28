@@ -18,6 +18,7 @@
 import os
 import sys
 import json
+import re
 from random import Random
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
@@ -49,6 +50,32 @@ class StringTool(object):
     提供各类字符串处理相关的常用工具函数（静态方法）
 
     """
+    #############################
+    # 版本号处理
+    #############################
+    @classmethod
+    def version_cmp(cls, v1: str, v2: str) -> str:
+        """
+        比较两个版本号字符串
+
+        @param {str} v1 - 版本号1, 例如'3.4.0'或'v3.4.0'
+        @param {str} v2 - 版本号2, 例如'3.4.0'或'v3.4.0'
+
+        @returns {str} - v1与v2的大小关系, '>', '<', '='
+        """
+        _d1 = re.split(r'\.', v1.lstrip('vV'))
+        _d2 = re.split(r'\.', v2.lstrip('vV'))
+
+        _d1 = [int(_d1[i]) for i in range(len(_d1))]
+        _d2 = [int(_d2[i]) for i in range(len(_d2))]
+
+        if(_d1 > _d2):
+            return '>'
+        elif(_d1 < _d2):
+            return '<'
+        else:
+            return '='
+
     #############################
     # 哈希转换
     #############################

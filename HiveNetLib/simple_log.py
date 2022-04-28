@@ -819,7 +819,7 @@ class Logger(object):
         通过日志实例输出日志内容(兼容默认logging类的用法)
 
         @param {int} - 日志级别(simple_log.DEBUG/INFO/WARNING/ERROR/CRITICAL)
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -864,7 +864,7 @@ class Logger(object):
         记录DEBUG级别的日志
         用于兼容logging的写日志模式提供的方法
 
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -889,14 +889,14 @@ class Logger(object):
         # callFunLevel + 1 保证函数的正确
         kwargs['extra']['callFunLevel'] += 1
 
-        self.log(DEBUG, msg=msg, *args, **kwargs)
+        self.log(DEBUG, msg, *args, **kwargs)
 
     def warning(self, msg, *args, **kwargs):
         """
         记录WARNING级别的日志
         用于兼容logging的写日志模式提供的方法
 
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -920,14 +920,14 @@ class Logger(object):
         # callFunLevel + 1 保证函数的正确
         kwargs['extra']['callFunLevel'] += 1
 
-        self.log(WARNING, msg=msg, *args, **kwargs)
+        self.log(WARNING, msg, *args, **kwargs)
 
     def error(self, msg, *args, **kwargs):
         """
         记录ERROR级别的日志
         用于兼容logging的写日志模式提供的方法
 
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -952,14 +952,30 @@ class Logger(object):
         # callFunLevel + 1 保证函数的正确
         kwargs['extra']['callFunLevel'] += 1
 
-        self.log(ERROR, msg=msg, *args, **kwargs)
+        self.log(ERROR, msg, *args, **kwargs)
+
+    def exception(self, msg, *args, exc_info=True, **kwargs):
+        """
+        记录ERROR级别的日志(处理异常信息)
+        用于兼容logging的写日志模式提供的方法
+        """
+        # 获取参数并处理
+        if 'extra' not in kwargs:
+            kwargs['extra'] = dict()
+        if 'callFunLevel' not in kwargs['extra'].keys():
+            kwargs['extra']['callFunLevel'] = self.__call_fun_level
+
+        # callFunLevel + 1 保证函数的正确
+        kwargs['extra']['callFunLevel'] += 1
+
+        self.log(ERROR, msg, *args, exc_info=exc_info, **kwargs)
 
     def critical(self, msg, *args, **kwargs):
         """
         记录CRITICAL级别的日志
         用于兼容logging的写日志模式提供的方法
 
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -984,14 +1000,14 @@ class Logger(object):
         # callFunLevel + 1 保证函数的正确
         kwargs['extra']['callFunLevel'] += 1
 
-        self.log(CRITICAL, msg=msg, *args, **kwargs)
+        self.log(CRITICAL, msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
         """
         记录INFO级别的日志
         用于兼容logging的写日志模式提供的方法
 
-        @param {string} msg='' - 要输出的日志内容
+        @param {string} msg - 要输出的日志内容
         @param {*args} args - 通用日志类的args参数
         @param {**kwargs} args - 通用日子类的kwargs参数，以下为特殊参数的说明
             extra {dict} - 用于传递日志上下文的字典，可用于额外添加一些上下文内容
@@ -1016,7 +1032,7 @@ class Logger(object):
         # callFunLevel + 1 保证函数的正确
         kwargs['extra']['callFunLevel'] += 1
 
-        self.log(INFO, msg=msg, *args, **kwargs)
+        self.log(INFO, msg, *args, **kwargs)
 
     def change_logger_name(self, logger_name):
         """

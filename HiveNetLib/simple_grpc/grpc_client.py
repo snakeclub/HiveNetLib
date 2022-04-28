@@ -29,7 +29,7 @@ import HiveNetLib.simple_grpc.msg_pb2 as msg_pb2
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
 from HiveNetLib.base_tools.run_tool import RunTool
 from HiveNetLib.interface_tool.msg_json import MsgJSON
-from HiveNetLib.connection_pool.pool_fw import ConnectionPoolFw
+from HiveNetLib.simple_pool import PoolConnectionFW
 
 
 __MOUDLE__ = 'grpc_client'  # 模块名
@@ -81,11 +81,11 @@ class SimpleGRpcConnection(object):
         生成客户端连接参数
 
         @param {string} ip='' - 要连接的服务器IP
-            注意：TSLSSL模式下，客户端是通过"服务名称:port"来获取服务的凭据，而不是"ip:port"，
+            注意: TSLSSL模式下，客户端是通过"服务名称:port"来获取服务的凭据，而不是"ip:port"，
             如果使用TSL/SSL的情况客户端连接失败，可从这个角度排查解决问题
         @param {int} port=50051 - 要连接的服务器端口
         @param {conn_str} conn_str=None - 连接字符串，如果传入该字符串则不再使用ip和端口方式连接
-            连接字符串的格式如下：'ip协议(ipv4|ipv6):///ip1:port1,ip2:port2,...'
+            连接字符串的格式如下: 'ip协议(ipv4|ipv6):///ip1:port1,ip2:port2,...'
             例如"ipv4:///1.2.3.4:9999,1.2.3.5:9999,1.2.3.6:9999"
                 "ipv6:///[1::2]:9999,[1::3]:9999,[1::4]:9999"
         @param {number} timeout=None - 超时时间，单位为秒
@@ -113,17 +113,17 @@ class SimpleGRpcConnection(object):
         @param {int} log_level=logging.INFO - 处理中正常日志的输出登记级别，默认为INFO，如果不想输出
             过多日志可以设置为DEBUG
         @param {bool} is_use_global_logger=True - 当logger=None时，是否使用全局logger对象
-            注：通过RunTool.set_global_logger进行设置
+            注: 通过RunTool.set_global_logger进行设置
         @param {HiveNetLib.IdPool} idpool=None - 获取id的资源池，如果传入None代表直接通过uuid生成id
         @param {number} get_id_overtime=0 - 超时时间，单位为秒，如果需要一直不超时送入0
         @param {dict} send_logging_para={} - 接收报文打印参数
         @param {dict} back_logging_para={} - 返回报文打印参数
-            send_logging_para的参数格式一致，定义如下：
+            send_logging_para的参数格式一致，定义如下:
             'msg_class' {class} - 继承MsgFW框架的报文解析类对象，如果为None代表不处理信息
             'logging_head' {dict}- 定义打印的日志规范头信息
                 key {string} - 日志头信息项名，例如'IP'
                 value {string} - 日志头信息值，None代表从报文对象msg或proto_msg中获取(从api_mapping获取定义)
-                跟当前服务相关的可选信息项包括：
+                跟当前服务相关的可选信息项包括:
                 C-IP : 客户端的IP地址
                 C-PORT : 客户端的连接端口
                 S-IP : 服务端绑定服务
@@ -132,7 +132,7 @@ class SimpleGRpcConnection(object):
                 PARA_BYTES : 转换为字符串显示的参数字节数组信息
                 PARA_BYTES_LEN : 字节数组长度
                 RETURN_BYTES : 转换为字符串显示的响应字节数组信息
-                RETURN_BYTES_LEN ： 响应报文字节数组长度
+                RETURN_BYTES_LEN :  响应报文字节数组长度
 
             'api_mapping' {dict}- 定义从报文中获取logging_head所需的信息
             'key_para' {dict} - 要打印的关键业务参数
@@ -146,10 +146,10 @@ class SimpleGRpcConnection(object):
 
             'is_print_msg' {bool} - 是否打印报文内容
             'msg_print_kwargs' {dict} - MsgFW对象（例如MsgJSON）的msg.to_str()函数的传入参数
-        @param {kwargs}  - 动态参数，已定义的参数如下：
+        @param {kwargs}  - 动态参数，已定义的参数如下:
             id的资源池的get_id传入参数
 
-        @returns {object} - 返回带参数属性的对象，例如对象为ret：
+        @returns {object} - 返回带参数属性的对象，例如对象为ret:
             ret.ip = ''
             ...
 
@@ -236,7 +236,7 @@ class SimpleGRpcConnection(object):
         """
         检测连接是否有效
 
-        @returns {CResult} - 响应对象，判断成功的方法：
+        @returns {CResult} - 响应对象，判断成功的方法:
             ret.status == msg_pb2.HealthResponse.SERVING
             总共有以下几种状态
             health_pb2.HealthResponse.UNKNOWN
@@ -275,7 +275,7 @@ class SimpleGRpcConnection(object):
         """
         重新连接
 
-        @returns {CResult} - 响应对象，判断成功的方法：
+        @returns {CResult} - 响应对象，判断成功的方法:
             ret.status == msg_pb2.HealthResponse.SERVING
             总共有以下几种状态
             health_pb2.HealthResponse.UNKNOWN
@@ -333,7 +333,7 @@ class SimpleGRpcConnection(object):
         @param {**kwargs} kwargs - 动态参数，用于支持调用链信息
 
         @returns {CResult|iterator} - 执行结果CResult或执行结果的迭代器（iterator），与call_mode匹配
-            CResult对象有以下3个属性：
+            CResult对象有以下3个属性:
             return_json - 返回值的json字符串
             has_return_bytes - 是否有返回字节数组
             return_bytes - 返回的字节数组
@@ -573,7 +573,7 @@ class SimpleGRpcConnection(object):
         @param {EnumCallMode} call_mode=EnumCallMode.Simple - 调用服务端的模式
         @param {number} timeout=None - 超时时间，单位为秒
         @param {NullObj} trace_info=None - 调用链信息
-            注：在这里也会借助trace_info传递一些请求参数给返回值填入, 包括
+            注: 在这里也会借助trace_info传递一些请求参数给返回值填入, 包括
                 trace_info.service_name
 
         @return {dict} - 日志结果信息
@@ -688,77 +688,50 @@ class SimpleGRpcConnection(object):
         return _dict
 
 
-class SimpleGRpcConnectionPool(ConnectionPoolFw):
+class SimpleGRpcPoolConnection(PoolConnectionFW):
     """
-    Grpc客户端连接池
+    支持通过AIOConnectionPool连接池管理的连接适配器
+    注: 传入AIOConnectionPool的参数要求如下:
+        creator - 客户端连接对象类: SimpleGRpcConnection
+        pool_connection_class - 连接池连接对象的实现类: SimpleGRpcPoolConnection
+        args - 客户端连接对象初始化参数: [connect_para]
+        connect_method_name - 不设置, 直接使用creator初始化: None
     """
+
     #############################
-    # 需要具体类实现的函数
+    # 需要继承类实现的函数
     #############################
-
-    def _create_connection_self(self):
+    async def _real_ping(self, *args, **kwargs) -> bool:
         """
-        创建一个连接对象（具体类实现）
+        实现类的真实检查连接对象是否有效的的函数
 
-        @return {object} - 返回有效的连接对象
-
-        @throws {Exception} - 当创建失败或连接无效时应直接抛出异常
+        @returns {bool} - 返回检查结果
         """
-        return SimpleGRpcConnection(self.connect_para)
+        _cresult = self._conn.test()
+        return _cresult.is_success()
 
-    def _close_connection_self(self, connection):
+    async def _fade_close(self):
         """
-        关闭指定的连接对象（具体类实现）
+        实现类提供的虚假关闭函数
+        注1: 不关闭连接, 只是清空上一个连接使用的上下文信息(例如数据库连接进行commit或rollback处理)
+        注2: 如果必须关闭真实连接, 则可以关闭后创建一个新连接返回
 
-        @param {object} connection - 要关闭的连接对象
-
-        @throws {Exception} - 当关闭失败时应直接抛出异常
+        @returns {Any} - 返回原连接或新创建的连接
         """
-        connection.close()
+        # 不用进行处理
+        return
 
-    def _test_connection_self(self, connection):
+    async def _real_close(self):
         """
-        测试指定的连接对象是否有效（具体类实现）
-
-        @param {object} connection - 要测试的连接对象
-
-        @throws {Exception} - 当测试失败时应抛出异常
+        实现类提供的真实关闭函数
         """
-        _cresult = connection.test()
-        if not _cresult.is_success():
-            # 执行测试失败
-            raise ConnectionError('Execute Error, code:%s, msg:%s, error:%s, trace_str:%s' % (
-                _cresult.code, _cresult.msg, _cresult.error, _cresult.trace_str
-            ))
-        elif _cresult.status != msg_pb2.HealthResponse.SERVING:
-            # 服务状态不为可用
-            raise RuntimeError('GRPC Server Status Error: %s' % (_cresult.status))
-
-    def _reconnect_self(self, connection):
-        """
-        对指定对象重新进行连接（具体类实现）
-
-        @param {object} connection - 要重新连接的对象
-
-        @return {object} - 返回有效的连接对象
-
-        @throws {Exception} - 当重连失败时应抛出异常
-        """
-        _cresult = connection.reconnect()
-        if not _cresult.is_success():
-            # 执行测试失败
-            raise ConnectionError('Connect Error, code:%s, msg:%s, error:%s, trace_str:%s' % (
-                _cresult.code, _cresult.msg, _cresult.error, _cresult.trace_str
-            ))
-        elif _cresult.status != msg_pb2.HealthResponse.SERVING:
-            # 服务状态不为可用
-            raise RuntimeError('GRPC Server Status Error: %s' % (_cresult.status))
+        self._conn.close()
 
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
     # 打印版本信息
-    print(('模块名：%s  -  %s\n'
-           '作者：%s\n'
-           '发布日期：%s\n'
-           '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+    print(('模块名: %s  -  %s\n'
+           '作者: %s\n'
+           '发布日期: %s\n'
+           '版本: %s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))

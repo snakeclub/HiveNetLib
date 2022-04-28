@@ -24,11 +24,12 @@ import HiveNetLib.simple_log as simple_log
 from HiveNetLib.base_tools.string_tool import StringTool
 from HiveNetLib.base_tools.file_tool import FileTool
 from HiveNetLib.base_tools.debug_tool import DebugTool
-from HiveNetLib.base_tools.run_tool import RunTool
+from HiveNetLib.base_tools.run_tool import RunTool, AsyncTools
 from HiveNetLib.simple_grpc.grpc_server import SimpleGRpcServer, SimpleGRpcServicer
 from HiveNetLib.simple_grpc.grpc_tool import SimpleGRpcTools, EnumCallMode
 from HiveNetLib.base_tools.call_chain_tool import CallChainTool
-from HiveNetLib.simple_grpc.grpc_client import SimpleGRpcConnection, SimpleGRpcConnectionPool
+from HiveNetLib.simple_grpc.grpc_client import SimpleGRpcConnection, SimpleGRpcPoolConnection
+from HiveNetLib.simple_pool import AIOConnectionPool, TooManyConnections
 
 
 _TEMP_DIR = os.path.abspath(os.path.dirname(__file__) + '/' +
@@ -331,17 +332,19 @@ class TestSimpleGRpc(unittest.TestCase):
             conn_str='127.0.0.1:50051', servicer_name='servicer_simple_call',
             test_on_connect=False, test_use_health_check=False
         )
+
         # 建立连接池
-        _pool = SimpleGRpcConnectionPool(
-            _connect_para, name='ConnectionPool', maxsize=3, minsize=0, realse_free_time=5,
-            test_on_get=True, test_on_free=True, test_while_idle=True,
-            test_idle_time=5, validation_query='',
-            get_connection_timeout=1, logger=self._asyn_logger, init_break_if_connect_error=True
+        _pool = AIOConnectionPool(
+            SimpleGRpcConnection, SimpleGRpcPoolConnection, args=[_connect_para],
+            connect_method_name=None, max_size=3, min_size=0, connect_on_init=True,
+            get_timeout=1,
+            free_idle_time=5, ping_on_get=True, ping_on_back=True, ping_on_idle=True,
+            ping_interval=5
         )
 
         print("测试连接池-获取连接并执行")
         # 尝试获取连接
-        _connection = _pool.get_connection()
+        _connection = AsyncTools.sync_run_coroutine(_pool.connection())
         _back_server = service_simple_call_para('a1', 'b1')
         _req_obj = get_client_simple_call_para('a1', 'b1')
         _back_client = _connection.call(_req_obj)
@@ -361,13 +364,13 @@ class TestSimpleGRpc(unittest.TestCase):
         )
 
         print('测试连接池-获取连接超时')
-        _c1 = _pool.get_connection()
-        _c2 = _pool.get_connection()
+        _c1 = AsyncTools.sync_run_coroutine(_pool.connection())
+        _c2 = AsyncTools.sync_run_coroutine(_pool.connection())
 
         try:
-            _c3 = _pool.get_connection()
+            _c3 = AsyncTools.sync_run_coroutine(_pool.connection())
             self.assertTrue(False, msg='测试连接池-获取连接超时失败，应抛出超时')
-        except TimeoutError:
+        except TooManyConnections:
             pass
         except Exception as e:
             self.assertTrue(False, msg='测试连接池-获取连接超时失败，未期望的异常:%s' % str(e))
@@ -376,15 +379,15 @@ class TestSimpleGRpc(unittest.TestCase):
                         _pool.current_size)
 
         print('测试连接池-释放连接')
-        _pool.free_connection(_connection)
-        _c3 = _pool.get_connection()  # 这样c3可用获取连接并使用
+        AsyncTools.sync_run_coroutine(_connection.close())
+        _c3 = AsyncTools.sync_run_coroutine(_pool.connection())  # 这样c3可用获取连接并使用
         self.assertTrue(3 == _pool.current_size, msg='测试连接池-释放连接-当前连接池大小错误：%d' %
                         _pool.current_size)
 
         print('测试连接池-自动释放连接')
-        _pool.free_connection(_c1)
-        _pool.free_connection(_c2)
-        _pool.free_connection(_c3)
+        AsyncTools.sync_run_coroutine(_c1.close())
+        AsyncTools.sync_run_coroutine(_c2.close())
+        AsyncTools.sync_run_coroutine(_c3.close())
         time.sleep(10)
         self.assertTrue(0 == _pool.current_size, msg='测试连接池-自动释放连接-当前连接池大小错误：%d' %
                         _pool.current_size)

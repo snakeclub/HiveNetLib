@@ -24,6 +24,16 @@ import traceback
 import logging
 import platform
 from contextlib import contextmanager
+import asyncio
+from inspect import isawaitable
+from typing import Any
+try:
+    # 支持嵌套异步调用处理
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 # 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -152,7 +162,7 @@ class RunTool(object):
         """
         获取Key=Value格式的命令行输入参数
 
-        @returns {dict} - 命令行参数字典：key为参数名，value为参数值
+        @returns {dict} - 命令行参数字典: key为参数名，value为参数值
 
         @example
             命令行# python ggeneric.py key1=value1 key2=value2 key3="value 3" "key 4"=value4 "key 5"="value 5"
@@ -227,7 +237,7 @@ class RunTool(object):
 
         @param {str} cmd - 要执行的命令
         @param {str} shell_encoding=None - 传入指定的编码
-            注：如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
+            注: 如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
         @param {list} stop_var=None - 用于在运行过程中在外部设置停止标志的列表变量，第一个值为True时停止线程
         @param {int} use_stop_signal=None - 使用指定signal进行中止，例如 signal.CTRL_C_EVENT
 
@@ -297,7 +307,7 @@ class RunTool(object):
 
         @param {str} cmd - 要执行的命令
         @param {str} shell_encoding=None - 传入指定的编码
-            注：如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
+            注: 如果不传入，尝试获取全局变量 SHELL_ENCODING, 如果也找不到，则默认为'utf-8'
         @param {list} stop_var=None - 用于在运行过程中在外部设置停止标志的列表变量，第一个值为True时停止线程
         @param {int} use_stop_signal=None - 使用指定signal进行中止，例如 signal.CTRL_C_EVENT
 
@@ -359,7 +369,7 @@ class RunTool(object):
     def sleep(cls, seconds=0):
         """
         休眠一段时间
-        注：如果有安装gevent则会使用gevent.sleep替代time.sleep
+        注: 如果有安装gevent则会使用gevent.sleep替代time.sleep
 
         @param {int} seconds=0 - 休眠时间，单位为秒
         """
@@ -436,13 +446,13 @@ class RunTool(object):
     @staticmethod
     def single_process_enter(process_name='', base_path='', is_try_del_lockfile=False):
         """
-        获取进程锁：如果获取失败代表锁已被其他进程占有，可选择结束进程以控制同一时间只有一个进程执行
+        获取进程锁: 如果获取失败代表锁已被其他进程占有，可选择结束进程以控制同一时间只有一个进程执行
 
         @param {string} process_name='' - 进程锁的进程名，默认值为''；如果为''代表获取执行程序的模块名
         @param {string} base_path='' - 进程锁文件指定的路径，默认值为''；如果为''代表获取执行程序的模块文件目录
         @param {bool} is_try_del_lockfile=False - 是否尝试先删除锁文件（可以应对强制关闭进程未自动删除锁文件的情况）
 
-        @returns {bool} - 是否获取进程锁成功：True - 获取成功并占用锁；False - 获取失败，应选择关闭进程
+        @returns {bool} - 是否获取进程锁成功: True - 获取成功并占用锁；False - 获取失败，应选择关闭进程
 
         @example
             get_process_lock = RunTool.single_process_enter("CFuntion","c:/test/")
@@ -540,7 +550,7 @@ class RunTool(object):
             except:
                 # 出现异常，写日志，同时抛出异常
                 if logger is not None:
-                    _log_str = u'进程"%s"结束时释放进程锁发生异常：%s' % (process_name, traceback.format_exc())
+                    _log_str = u'进程"%s"结束时释放进程锁发生异常: %s' % (process_name, traceback.format_exc())
                     logger.log(log_level, _log_str)
                 raise sys.exc_info()[1]
 
@@ -578,7 +588,7 @@ class RunTool(object):
 
         @param {object} obj - 要获取信息的对象
 
-        @returns {class} - 返回的对象的类，可以直接创建新对象，例如：
+        @returns {class} - 返回的对象的类，可以直接创建新对象，例如:
             _class = get_object_class(obj)
             _newobj = _class(para='')
 
@@ -640,10 +650,10 @@ class RunTool(object):
         @param {function} fun_object - 函数对象
         @param {bool} is_with_class=True - 返回函数名是否含类名
         @param {bool} is_with_module=False - 返回函数名是否含模块名
-            注意：如果该参数为True，则忽略is_with_class参数
+            注意: 如果该参数为True，则忽略is_with_class参数
 
         @return {string} - 函数定义的名字
-            注意：如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
+            注意: 如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
         """
         _name = ''
         if is_with_module:
@@ -692,15 +702,15 @@ class RunTool(object):
 
         @param {function} fun_object - 函数对象
 
-        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下:
             {
                 'name': para_name,  # 参数名
-                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'type': para_type,  # 参数类型，取值为: POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
                 'has_default': True/False,  # 是否有默认值
                 'default': default_value  # 如果有默认值，值为多少
                 'annotation': annotation_type  # 参数声明类型，例如str
             }
-            其中type的说明如下：
+            其中type的说明如下:
             POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
             KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
             VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
@@ -715,7 +725,7 @@ class RunTool(object):
             # 这两种参数要另外做判断
             if str(v.kind) in ('POSITIONAL_OR_KEYWORD', 'KEYWORD_ONLY'):
                 # 通过v.default可以获取到参数的默认值
-                # 如果参数没有默认值，则default的值为：class inspect_empty
+                # 如果参数没有默认值，则default的值为: class inspect_empty
                 # 所以通过v.default的__name__ 来判断是不是_empty 如果是_empty代表没有默认值
                 # 同时，因为类本身是type类的实例，所以使用isinstance判断是不是type类的实例
                 if isinstance(v.default, type) and v.default.__name__ == '_empty':
@@ -754,7 +764,7 @@ class RunTool(object):
         @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
 
         @return {function} - 函数对象，如果获取不到函数对象，则返回None
-            注意：该方法无法获取到类的静态函数对象
+            注意: 该方法无法获取到类的静态函数对象
         """
         # TODO(lihuijian): 该方法无法获取到类的静态函数对象，暂时没有找到方法解决
         _obj = None
@@ -779,11 +789,11 @@ class RunTool(object):
         @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
         @param {bool} is_with_class=True - 返回函数名是否含类名
         @param {bool} is_with_module=False - 返回函数名是否含模块名
-            注意：如果该参数为True，则忽略is_with_class参数
+            注意: 如果该参数为True，则忽略is_with_class参数
 
         @return {string} - 函数定义的名字
-            注意：如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
-            注意：如果函数是类的静态函数，只能返回函数名，无法返回类名
+            注意: 如果函数是类的方法（method，非静态）的情况下，返回的是“类名.方法名”，而非类实例对象的变量名
+            注意: 如果函数是类的静态函数，只能返回函数名，无法返回类名
         """
         _fun_name = ''
         _fun_frame = frame_obj
@@ -806,19 +816,19 @@ class RunTool(object):
 
         @param {frameobject} frame_obj=None - 不传入frame,获取调用本函数的函数;传入则获取frame对应的函数
 
-        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下:
             {
                 'name': para_name,  # 参数名
-                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'type': para_type,  # 参数类型，取值为: POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
                 'has_default': True/False,  # 是否有默认值
                 'default': default_value  # 如果有默认值，值为多少
             }
-            其中type的说明如下：
+            其中type的说明如下:
             POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
             KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
             VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
             VAR_KEYWORD - key-value形式的变量参数，类似**kwargs，允许传入可变数量的kv形式参数
-            注意：如果函数是类的静态函数，无法获取到对象，直接返回[]
+            注意: 如果函数是类的静态函数，无法获取到对象，直接返回[]
         """
         _fun_frame = frame_obj
         if frame_obj is None:
@@ -840,24 +850,24 @@ class RunTool(object):
         @param {bool} is_simple_mode=False - 是否简单模式
         @param {bool} ignore_first=False - 是否忽略第一个参数（遇到是对象实例成员函数的情况可设置为True）
 
-        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下：
-            简单模式：
+        @return {list} - 调用参数定义，每一个参数是数组的一项，每一项的格式定义如下:
+            简单模式:
             [para_name, call_value] : 注意当有*args和**kwargs的情况，也会拆开每个参数按顺序送入
 
-            非简单模式：
+            非简单模式:
             {
                 'name': para_name,  # 参数名
-                'type': para_type,  # 参数类型，取值为：POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
+                'type': para_type,  # 参数类型，取值为: POSITIONAL_OR_KEYWORD/KEYWORD_ONLY/VAR_POSITIONAL/VAR_KEYWORD
                 'has_default': True/False,  # 是否有默认值
                 'default': default_value,  # 如果有默认值，值为多少
                 'value': call_value  # 函数调用的取值
             }
-            其中type的说明如下：
+            其中type的说明如下:
             POSITIONAL_OR_KEYWORD - 参数之前没有任何类似*args的参数，可以通过参数位置或者参数关键字进行调用
             KEYWORD_ONLY - 前面已经出现过类似*args的参数，只能通过参数关键字进行调用
             VAR_POSITIONAL - 位置变量参数，类似*args的定义，允许按位置传入可变数量的参数
             VAR_KEYWORD - key-value形式的变量参数，类似**kwargs，允许传入可变数量的kv形式参数
-            注意：如果函数是类的静态函数，且未传入函数对象，无法获取到对象，直接返回[]
+            注意: 如果函数是类的静态函数，且未传入函数对象，无法获取到对象，直接返回[]
         """
         # 获取函数参数定义
         _fun_frame = frame_obj
@@ -898,7 +908,7 @@ class RunTool(object):
 class WaitLockTool(object):
     """
     等待锁处理类
-    注：便于输出锁长时间等待的问题，跟踪死锁情况
+    注: 便于输出锁长时间等待的问题，跟踪死锁情况
     """
 
     def __init__(self, lock, print_timeout: float = None, label: str = '', print_acquire_ok: bool = False,
@@ -908,7 +918,7 @@ class WaitLockTool(object):
 
         @param {<type>} lock - 锁对象
         @param {float} print_timeout=None - 等待超时打印时间，单位为秒, 如果不设置代表不打印超时信息
-            注：该参数仅为等待超时打印使用，实际上锁还是会一直等待下去，不会跳出等待处理
+            注: 该参数仅为等待超时打印使用，实际上锁还是会一直等待下去，不会跳出等待处理
         @param {str} label='' - 打印信息时附带的显示内容
         @param {bool} print_acquire_ok=False - 是否打印锁获取成功信息
         @param {bool} print_release=False - 是否打印锁释放信息
@@ -985,7 +995,7 @@ class WaitLockTool(object):
         获取调用当前函数的父函数名
 
         @param {int} level=0 - 需要向上最追索的层级数
-            注：执行该函数的函数视为第0级
+            注: 执行该函数的函数视为第0级
 
         @returns {str} - 返回的函数名
         """
@@ -995,10 +1005,104 @@ class WaitLockTool(object):
         return RunTool.get_current_function_name(frame_obj=_frame, is_with_module=True)
 
 
+class AsyncTools(object):
+    """
+    异步调用的工具类
+    """
+
+    @classmethod
+    def set_thread_event_loop(cls):
+        """
+        设置线程的协程参数, 让线程正常运行协程
+
+        @returns {io_loop} - 返回协程循环事件对象
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except:
+            try:
+                loop = asyncio.get_event_loop()
+            except:
+                loop = asyncio.new_event_loop()
+
+        asyncio.set_event_loop(loop)
+        return loop
+
+    @classmethod
+    def sync_call(cls, func, *args, **kwargs) -> Any:
+        """
+        同步方式执行函数
+
+        @param {function} func - 要执行的函数对象
+        @param {args} - 执行函数的固定入参
+        @param {kwargs} - 执行函数的kv入参
+
+        @returns {Any} - 函数返回值
+        """
+        _loop = cls.set_thread_event_loop()
+        _resp = func(*args, **kwargs)
+        if isawaitable(_resp):
+            # 是异步调用
+            _resp = _loop.run_until_complete(_resp)
+
+        return _resp
+
+    @classmethod
+    def sync_run_coroutine(cls, coroutine_obj) -> Any:
+        """
+        同步方式运行协程函数返回对象
+        (相当于await)
+
+        @param {coroutine} coroutine_obj - 协程函数
+
+        @returns {Any} - 处理结果
+        """
+        if isawaitable(coroutine_obj):
+            _loop = cls.set_thread_event_loop()
+            return _loop.run_until_complete(coroutine_obj)
+        else:
+            # 同步对象
+            return coroutine_obj
+
+    @classmethod
+    async def async_run_coroutine(cls, coroutine_obj) -> Any:
+        """
+        异步方式执行协程返回结果
+
+        @param {coroutine} coroutine_obj - 协程函数
+
+        @returns {Any} - 处理结果
+        """
+        if isawaitable(coroutine_obj):
+            return await coroutine_obj
+        else:
+            return coroutine_obj
+
+    @classmethod
+    async def async_for_iter(cls, async_iter_obj, func, *args, **kwargs):
+        """
+        处理异步迭代器的异步函数
+
+        @param {AsyncGenerator|Iterator} AsyncGenerator - 要处理的迭代器对象
+        @param {function} func - 处理函数对象
+            注: 处理函数的第一个入参是每次迭代的返回对象
+        @param {args} - 处理函数的其他固定位置入参
+        @param {kwargs} - 处理函数的kv入参
+        """
+        if type(async_iter_obj).__name__ == 'generator':
+            # 普通的迭代
+            for _item in async_iter_obj:
+                func(_item, *args, **kwargs)
+        else:
+            # 异步迭代
+            async for _item in async_iter_obj:
+                func(_item, *args, **kwargs)
+
+
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
     # 打印版本信息
-    print(('模块名：%s  -  %s\n'
-           '作者：%s\n'
-           '发布日期：%s\n'
-           '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+    print(('模块名: %s  -  %s\n'
+           '作者: %s\n'
+           '发布日期: %s\n'
+           '版本: %s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))

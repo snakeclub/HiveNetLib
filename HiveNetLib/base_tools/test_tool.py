@@ -38,17 +38,22 @@ class TestTool(object):
     """
 
     @classmethod
-    def cmp_list(cls, src_data, dst_data, print_if_diff=True):
+    def cmp_list(cls, src_data, dst_data, sorted: bool = False, print_if_diff=True):
         """
         比较两个列表（list）是否一致
 
         @param {list} src_data - 第1个list对象
         @param {list} dst_data - 第2个list对象
+        @param {bool} sorted=Fasle - 是否比较前先排序
         @param {bool} print_if_diff=True - 当两个list不一致时是否打印对象信息
 
         @returns {bool} - True-两个list一致，False-两个list不一致
 
         """
+        if sorted:
+            src_data.sort()
+            dst_data.sort()
+
         is_same = True
         try:
             if len(src_data) != len(dst_data):

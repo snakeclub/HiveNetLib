@@ -48,7 +48,12 @@ DEPENDENCIES = [
     'flask-socketio',
     'werkzeug',
     'requests',
-    'pycryptodomex'
+    'pycryptodomex',
+    'sanic',
+    'sanic-ext',
+    'opentracing',
+    'pyjsonpath',
+    'nest_asyncio'
 ]
 
 if sys.platform == 'win32':
@@ -58,7 +63,7 @@ if sys.platform == 'win32':
 
 TEST_DEPENDENCIES = []
 
-VERSION = '0.8.9'
+VERSION = '0.9.0'
 URL = 'https://github.com/snakeclub/HiveNetLib'
 
 setup(

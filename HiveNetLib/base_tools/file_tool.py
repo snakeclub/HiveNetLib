@@ -22,7 +22,9 @@ from enum import Enum
 import platform
 import subprocess
 import shutil
-# 根据当前文件路径将包路径纳入，在非安装的情况下可以引用到
+import hashlib
+from io import FileIO
+# 根据当前文件路径将包路径纳入, 在非安装的情况下可以引用到
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 # 动态添加包安装
@@ -58,14 +60,14 @@ class EnumFileSizeUnit(Enum):
 class FileTool(object):
     """
     文件处理工具
-    提供各类文件、目录相关的常用工具函数（静态方法）
+    提供各类文件、目录相关的常用工具函数(静态方法)
 
     """
     @staticmethod
     def is_file_in_subdir(file: str, dir: str) -> bool:
         """
         判断文件是否在指定目录的子目录下
-        注：不判断文件或目录是否存在
+        注: 不判断文件或目录是否存在
 
         @param {str} file - 文件
         @param {str} dir - 目录
@@ -80,9 +82,9 @@ class FileTool(object):
     @staticmethod
     def get_exefile_fullname():
         """
-        获得执行主程序文件名（含路径）
+        获得执行主程序文件名(含路径)
 
-        @returns {string} - 执行主程序文件名（含路径）
+        @returns {string} - 执行主程序文件名(含路径)
 
         @example
             filepath = FileTool.get_exefile_fullname()
@@ -93,9 +95,9 @@ class FileTool(object):
     @staticmethod
     def get_exefile_name():
         """
-        获得执行主程序文件名（不含路径，含扩展名）
+        获得执行主程序文件名(不含路径, 含扩展名)
 
-        @returns {string} - 文件名（不含路径，含扩展名）
+        @returns {string} - 文件名(不含路径, 含扩展名)
 
         @example
             filepath = FileTool.get_exefile_name()
@@ -106,9 +108,9 @@ class FileTool(object):
     @staticmethod
     def get_exefile_name_no_ext():
         """
-        获得执行主程序文件名（不含路径，不含扩展名）
+        获得执行主程序文件名(不含路径, 不含扩展名)
 
-        @returns {string} - 文件名（不含路径，不含扩展名）
+        @returns {string} - 文件名(不含路径, 不含扩展名)
 
         @example
             filepath = FileTool.get_exefile_name_no_ext()
@@ -124,9 +126,9 @@ class FileTool(object):
     @staticmethod
     def get_exefile_path():
         """
-        获得执行主程序的路径（不含文件名）
+        获得执行主程序的路径(不含文件名)
 
-        @returns {string} - 程序路径（不含文件名，最后一个字符不为路径分隔符）
+        @returns {string} - 程序路径(不含文件名, 最后一个字符不为路径分隔符)
 
         @example
             filepath = FileTool.get_exefile_path()
@@ -137,22 +139,22 @@ class FileTool(object):
     @staticmethod
     def get_file_name(file):
         """
-        获得执行指定文件的文件名（不含路径，含扩展名）
+        获得执行指定文件的文件名(不含路径, 含扩展名)
 
         @param {string} file - 文件路径
 
-        @returns {string} - 文件名（不含路径，含扩展名）
+        @returns {string} - 文件名(不含路径, 含扩展名)
         """
         return os.path.split(os.path.realpath(file))[1]
 
     @staticmethod
     def get_file_name_no_ext(file):
         """
-        获得指定文件的文件名（不含路径，不含扩展名）
+        获得指定文件的文件名(不含路径, 不含扩展名)
 
         @param {string} file - 文件路径
 
-        @returns {string} - 文件名（不含路径，不含扩展名）
+        @returns {string} - 文件名(不含路径, 不含扩展名)
         """
         _filename = os.path.split(os.path.realpath(file))[1]
         _dot_index = _filename.rfind(".")
@@ -179,11 +181,11 @@ class FileTool(object):
     @staticmethod
     def get_file_path(file):
         """
-        获得指定文件的路径（不含文件名）
+        获得指定文件的路径(不含文件名)
 
         @param {string} file - 文件路径
 
-        @returns {string} - 程序路径（不含文件名，最后一个字符不为路径分隔符）
+        @returns {string} - 程序路径(不含文件名, 最后一个字符不为路径分隔符)
 
         """
         return os.path.split(os.path.realpath(file))[0]
@@ -227,7 +229,7 @@ class FileTool(object):
         获取指定目录下的文件清单
 
         @param {string} path='' - 需要获取文件的目录
-        @param {string} regex_str='' - 需匹配文件名的正则表达式（''代表无需匹配）
+        @param {string} regex_str='' - 需匹配文件名的正则表达式(''代表无需匹配)
         @param {bool} is_fullname=True - 结果的文件名是否包含路径
 
         @returns {string[]} - 文件清单数组
@@ -260,12 +262,12 @@ class FileTool(object):
         获取指定目录下的子目录清单
 
         @param {string} path='' - 需要获取子目录的目录
-        @param {string} regex_str='' - 需匹配目录名的正则表达式（''代表无需匹配）
+        @param {string} regex_str='' - 需匹配目录名的正则表达式(''代表无需匹配)
         @param {bool} is_fullpath=True - 结果的目录名是否包含路径
 
-        @returns {string[]} - 目录清单数组（不带最后的分隔符）
+        @returns {string[]} - 目录清单数组(不带最后的分隔符)
 
-        @throws {FileNotFoundError} - 当path不存在的情况下，会抛出该异常
+        @throws {FileNotFoundError} - 当path不存在的情况下, 会抛出该异常
 
         """
         _dirlist = []
@@ -300,8 +302,8 @@ class FileTool(object):
     @staticmethod
     def remove_dir(path):
         """
-        删除指定目录（及目录下的所有文件及目录）
-        由于Windows平台在处理删除目录时会存在一些权限异常，因此采用命令执行方式删除
+        删除指定目录(及目录下的所有文件及目录)
+        由于Windows平台在处理删除目录时会存在一些权限异常, 因此采用命令执行方式删除
 
         @param {string} path - 要删除的目录
 
@@ -340,12 +342,12 @@ class FileTool(object):
     @staticmethod
     def remove_sub_dirs(path='', regex_str=''):
         """
-        删除指定目录下的子目录（及子目录下的文件和目录）
+        删除指定目录下的子目录(及子目录下的文件和目录)
 
         @param {string} path='' - 需要删除的子目录的目录
-        @param {string} regex_str='' - 需匹配目录名的正则表达式（''代表无需匹配）
+        @param {string} regex_str='' - 需匹配目录名的正则表达式(''代表无需匹配)
 
-        @throws {FileNotFoundError} - 当path不存在的情况下，会抛出该异常
+        @throws {FileNotFoundError} - 当path不存在的情况下, 会抛出该异常
         @throws {PermissionError} - 没有权限时抛出该异常
         @throws {NotADirectoryError} - 如果给出的路径不是目录而是文件时抛出
 
@@ -360,9 +362,9 @@ class FileTool(object):
         删除指定目录下的文件
 
         @param {string} path='' - 需要删除的文件的目录
-        @param {string} regex_str='' - 需匹配文件名的正则表达式（''代表无需匹配）
+        @param {string} regex_str='' - 需匹配文件名的正则表达式(''代表无需匹配)
 
-        @throws {FileNotFoundError} - 当path不存在的情况下，会抛出该异常
+        @throws {FileNotFoundError} - 当path不存在的情况下, 会抛出该异常
         @throws {PermissionError} - 没有权限时抛出该异常
         @throws {NotADirectoryError} - 如果给出的路径不是目录而是文件时抛出
 
@@ -401,7 +403,7 @@ class FileTool(object):
                     FileTool.remove_file(_full_filename)
             else:
                 if _match:
-                    # 匹配上，直接删除文件夹
+                    # 匹配上, 直接删除文件夹
                     FileTool.remove_dir(_full_filename)
                 elif with_sub_path:
                     # 处理子文件夹
@@ -458,9 +460,9 @@ class FileTool(object):
         """
         获取文件文本
 
-        @param {string} filename - 要获取的文件名（含路径）
+        @param {string} filename - 要获取的文件名(含路径)
         @param {string} encoding='utf-8' - 文件内容的编码
-            注：如果将encoding设置为None，将使用chardet判断编码
+            注: 如果将encoding设置为None, 将使用chardet判断编码
 
         @return {string} - 返回全部文件内容
         """
@@ -489,9 +491,9 @@ class FileTool(object):
         """
         with open(filename, 'w') as _file:
             _real_size = size * unit.value
-            _file.truncate(_real_size)  # 对于已存在的文件，有可能比较大，要进行截断处理
+            _file.truncate(_real_size)  # 对于已存在的文件, 有可能比较大, 要进行截断处理
             _file.seek(_real_size - 1)   # 跳到指定位置
-            _file.write('\x00')  # 一定要写入一个字符，否则无效
+            _file.write('\x00')  # 一定要写入一个字符, 否则无效
             _file.flush()
 
     @staticmethod
@@ -502,7 +504,7 @@ class FileTool(object):
         @param {str} filename - 要写入的文件
         @param {bytes} data - 写入数据
         @param {int} position=0 - 写入位置
-        @param {object} file_obj=None - 已打开的文件对象，如果传入则代表使用该文件对象执行文件处理
+        @param {object} file_obj=None - 已打开的文件对象, 如果传入则代表使用该文件对象执行文件处理
         """
         if file_obj is not None:
             # 使用文件对象处理
@@ -530,13 +532,13 @@ class FileTool(object):
         @param {string} mode='w' - 打开zip文件的模式
             'w' - 表示新建一个zip文档或覆盖一个已经存在的zip文档
             'a' - 表示将数据附加到一个现存的zip文档中
-        @param {int} compression=zipfile.ZIP_DEFLATED - 压缩方法，可以选的值包括：
-            zipfile.ZIP_STORED = 0 - 仅打包存储（不压缩）
+        @param {int} compression=zipfile.ZIP_DEFLATED - 压缩方法, 可以选的值包括:
+            zipfile.ZIP_STORED = 0 - 仅打包存储(不压缩)
             zipfile.ZIP_DEFLATED = 8 - 压缩存储
-        @param {bool} allowZip64=True - 当要处理的压缩包大于2G时，建议打开该开关
-        @param {bytes} pwd=None - 解压密码（该密码设置无效）
-            示例：pwd='123456'.encode('utf-8')
-        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+        @param {bool} allowZip64=True - 当要处理的压缩包大于2G时, 建议打开该开关
+        @param {bytes} pwd=None - 解压密码(该密码设置无效)
+            示例: pwd='123456'.encode('utf-8')
+        @param {kwargs} - 动态参数, 支持后续兼容性的扩展
 
         @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
         """
@@ -573,12 +575,12 @@ class FileTool(object):
                 # 获取相对路径
                 _abs_path = os.path.realpath(root).replace('\\', '/').replace(_src_realpath, '', 1)
 
-                # 确保相对路径不能是'/'开头，否则解压检索的文件信息会有问题
+                # 确保相对路径不能是'/'开头, 否则解压检索的文件信息会有问题
                 if len(_abs_path) > 0 and _abs_path[0] == '/':
                     _abs_path = _abs_path[1:]
 
                 if len(files) == 0:
-                    # 空目录，写入目录信息
+                    # 空目录, 写入目录信息
                     _zip.writestr('./' + _abs_path + '/', '')
 
                 # 写入文件
@@ -598,12 +600,12 @@ class FileTool(object):
 
         @param {string} filename - 要解压缩的文件
         @param {string} dest_path=None - 解压后目标路径
-            注：为None时解压至文件所在路径，放入与文件名（去掉扩展名）相同的目录中
-        @param {tuple|list}} members=None - 指定单独解压的文件清单(注意路径分隔符为'/')，不支持解压缩指定目录
+            注: 为None时解压至文件所在路径, 放入与文件名(去掉扩展名)相同的目录中
+        @param {tuple|list}} members=None - 指定单独解压的文件清单(注意路径分隔符为'/'), 不支持解压缩指定目录
             示例: members=['a.txt', 'path/b.txt']
         @param {bytes} pwd=None - 解压密码
-            示例：pwd='123456'.encode('utf-8')
-        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+            示例: pwd='123456'.encode('utf-8')
+        @param {kwargs} - 动态参数, 支持后续兼容性的扩展
 
         @throws {FileNotFoundError} - src_path指定的文件或目录不存在时抛出该异常
         """
@@ -632,8 +634,8 @@ class FileTool(object):
         @param {string} filename - 要处理的压缩文件
         @param {string} member - 要读取的包内文件名
         @param {bytes} pwd=None - 解压密码
-            示例：pwd='123456'.encode('utf-8')
-        @param {kwargs} - 动态参数，支持后续兼容性的扩展
+            示例: pwd='123456'.encode('utf-8')
+        @param {kwargs} - 动态参数, 支持后续兼容性的扩展
 
         @return {bytes} - 读取到文件的二进制数据
 
@@ -671,11 +673,167 @@ class FileTool(object):
 
         return False
 
+    #############################
+    # 目录比较功能
+    #############################
+
+    @classmethod
+    def get_file_md5(self, file, buffer_size: int = 4096):
+        """
+        获取文件md5值
+
+        @param {str|FileIO|bytes]} file - 文件路径, 或已打开的文件对象, 或文件字节数组
+        """
+        _md5 = hashlib.md5()  # 创建md5对象
+
+        if type(file) == str:
+            # 传入的是文件路径
+            with open(file, 'rb') as _f:
+                while True:
+                    _data = _f.read(buffer_size)
+                    if not _data:
+                        break
+                    _md5.update(_data)  # 更新md5对象
+        elif type(file) == FileIO:
+            while True:
+                _data = file.read(buffer_size)
+                if not _data:
+                    break
+                _md5.update(_data)  # 更新md5对象
+        else:
+            # 字节
+            _md5.update(file)
+
+        return _md5.hexdigest()  # 返回md5对象
+
+    @classmethod
+    def cmp_file(cls, file1: str, file2: str) -> bool:
+        """
+        比较两个文件内容是否一致
+
+        @param {str} file1 - 待比较文件1
+        @param {str} file2 - 待比较文件2
+
+        @returns {bool} - 比较结果, 相同返回True
+        """
+        # 比较文件大小
+        if os.path.getsize(file1) != os.path.getsize(file2):
+            return False
+
+        # 比较文件md5值
+        if cls.get_file_md5(file1) != cls.get_file_md5(file2):
+            return False
+
+        return True
+
+    @classmethod
+    def cmp_dir(cls, dir1: str, dir2: str, is_cmp_file_content: bool = False, is_sort: bool = False) -> dict:
+        """
+        比较两个目录
+
+        @param {str} dir1 - 待比较目录1
+        @param {str} dir2 - 待比较目录2
+        @param {bool} is_cmp_file_content=False - 是否比较文件内容
+        @param {bool} is_sort=False - 是否对结果排序
+
+        @returns {dict} - 比较结果, 格式如下:
+            {
+                'dir1_only_dir': [...目录清单],  # 目录1独有的目录
+                'dir1_only_file': [...文件清单],  # 目录1独有的文件
+                'dir2_only_dir': [...目录清单],  # 目录2独有的目录
+                'dir2_only_file': [...文件清单],  # 目录2独有的文件
+                'diff': [...文件清单],  # 双方公用但内容不一致的文件清单
+            }
+        """
+        _cmp_dict = {
+            'dir1_only_dir': [], 'dir1_only_file': [], 'dir2_only_dir': [], 'dir2_only_file': [],
+            'diff': []
+        }
+        # 获取文件和目录清单, 以数据比较的方式得到差异
+        _dir1_list = cls.get_all_list_by_path(dir1)
+        _dir2_list = cls.get_all_list_by_path(dir2)
+
+        # 差集
+        _cmp_dict['dir1_only_dir'] = list(set(_dir1_list['dir']).difference(set(_dir2_list['dir'])))
+        _cmp_dict['dir1_only_file'] = list(set(_dir1_list['file']).difference(set(_dir2_list['file'])))
+        _cmp_dict['dir2_only_dir'] = list(set(_dir2_list['dir']).difference(set(_dir1_list['dir'])))
+        _cmp_dict['dir2_only_file'] = list(set(_dir2_list['file']).difference(set(_dir1_list['file'])))
+
+        # 文件比较
+        if is_cmp_file_content:
+            # 相同的文件清单
+            _file_list = list(set(_dir1_list['file']).intersection(set(_dir2_list['file'])))
+            for _file in _file_list:
+                # 逐个文件比较
+                if not cls.cmp_file(os.path.join(dir1, _file), os.path.join(dir2, _file)):
+                    _cmp_dict['diff'].append(_file)
+
+        # 排序
+        if is_sort:
+            _cmp_dict['dir1_only_dir'].sort()
+            _cmp_dict['dir1_only_file'].sort()
+            _cmp_dict['dir2_only_dir'].sort()
+            _cmp_dict['dir2_only_file'].sort()
+            _cmp_dict['diff'].sort()
+
+        # 返回比较结果
+        return _cmp_dict
+
+    @classmethod
+    def get_all_list_by_path(cls, path: str, prefix_path: str = '', is_sort: bool = False) -> dict:
+        """
+        从指定路径获取文件和目录清单
+
+        @param {str} path - 要获取清单的路径
+        @param {str} prefix_path='' - 前缀路径, 自动合并到列表中的目录或文件前面
+        @param {bool} is_sort=False - 是否对结果排序
+
+        @returns {dict} - 结果字典:
+            {
+                'dir': [],  # 目录清单
+                'file': [],  # 文件清单
+            }
+            注: 清单中的路径不包含path部分
+        """
+        _list_dict = {
+            'dir': [], 'file': []
+        }
+        # 获取清单
+        _file_names = os.listdir(path)
+        for _fn in _file_names:
+            _full_name = os.path.join(path, _fn)
+            if os.path.isfile(_full_name):
+                # 是文件, 直接添加就好
+                _list_dict['file'].append('%s%s' % (prefix_path, _fn))
+            else:
+                # 是路径, 除添加自己, 还要递归处理目录下的文件
+                _list_dict['dir'].append('%s%s' % (prefix_path, _fn))
+                _prefix_path = '%s%s/' % (prefix_path, _fn)
+                _sub_list = cls.get_all_list_by_path(_full_name, prefix_path=_prefix_path)
+                _list_dict['file'].extend(_sub_list['file'])
+                _list_dict['dir'].extend(_sub_list['dir'])
+
+        # 对结果排序
+        if is_sort:
+            _list_dict['dir'].sort()
+            _list_dict['file'].sort()
+
+        # 返回结果
+        return _list_dict
+
 
 if __name__ == '__main__':
     # 当程序自己独立运行时执行的操作
     # 打印版本信息
-    print(('模块名：%s  -  %s\n'
-           '作者：%s\n'
-           '发布日期：%s\n'
-           '版本：%s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+    print(('模块名: %s  -  %s\n'
+           '作者: %s\n'
+           '发布日期: %s\n'
+           '版本: %s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
+
+    _dir1 = '/Users/lhj/中电金信/自研项目/区块链政府项目/材料/SODA-master/SODA_code/go-ethereum-v1.9.0'
+    _dir2 = '/Users/lhj/中电金信/自研项目/区块链政府项目/材料/SODA-master/SODA_code/go-ethereum'
+    _dict = FileTool.cmp_dir(_dir1, _dir2, is_cmp_file_content=True, is_sort=True)
+    import json
+    print(json.dumps(
+        _dict, ensure_ascii=False, indent=2
+    ))

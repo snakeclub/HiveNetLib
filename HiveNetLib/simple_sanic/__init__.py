@@ -2,5 +2,4 @@
 # -*- coding: UTF-8 -*-
 
 __all__ = [
-    'pool_fw'
 ]
