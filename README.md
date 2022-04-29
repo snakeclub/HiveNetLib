@@ -15,7 +15,7 @@ GitHub：https://github.com/snakeclub/HiveNetLib/
 
 ## 更新记录
 
-### v0.9.0版本（当前库的最后一个版本, 后续不再维护, 相关功能会逐步转移到HiveNetAssemble项目中进行维护）
+### v0.9.0版本（当前库的最后一个版本, 后续不再维护, 相关功能会逐步转移到HiveNetAssemble项目中维护）
 - 新增simple sanic库
 - 扩充base_tools的各个库的功能函数, 新增opentracing_tool
 - 废弃原版本的连接池框架, 使用simple_pool替代

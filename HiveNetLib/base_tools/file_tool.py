@@ -829,11 +829,3 @@ if __name__ == '__main__':
            '作者: %s\n'
            '发布日期: %s\n'
            '版本: %s' % (__MOUDLE__, __DESCRIPT__, __AUTHOR__, __PUBLISH__, __VERSION__)))
-
-    _dir1 = '/Users/lhj/中电金信/自研项目/区块链政府项目/材料/SODA-master/SODA_code/go-ethereum-v1.9.0'
-    _dir2 = '/Users/lhj/中电金信/自研项目/区块链政府项目/材料/SODA-master/SODA_code/go-ethereum'
-    _dict = FileTool.cmp_dir(_dir1, _dir2, is_cmp_file_content=True, is_sort=True)
-    import json
-    print(json.dumps(
-        _dict, ensure_ascii=False, indent=2
-    ))
